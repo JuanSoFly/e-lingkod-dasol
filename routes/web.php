@@ -21,6 +21,7 @@ use App\Http\Controllers\HRAnalyticsController;
 use App\Http\Controllers\DocumentApprovalController;
 use App\Http\Controllers\ApprovalActionController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 
 Route::get('/', function () {
     return redirect('/login');
@@ -28,8 +29,17 @@ Route::get('/', function () {
 
 
 
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', function () {
+    $user = Auth::user();
+    
+    // Route Employee users directly to Employee Self-Service Portal
+    if ($user->hasRole('Employee') && !$user->hasAnyRole(['HR Admin', 'Super Admin', 'Department Head'])) {
+        return app(EmployeeSelfServiceController::class)->dashboard();
+    }
+    
+    // Route other roles to main dashboard
+    return app(DashboardController::class)->index();
+})->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

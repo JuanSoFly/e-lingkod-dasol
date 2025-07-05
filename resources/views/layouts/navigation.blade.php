@@ -12,9 +12,15 @@
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-1 sm:ms-12 sm:flex items-center">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                        {{ __('Dashboard') }}
-                    </x-nav-link>
+                    @if(auth()->user()->hasRole('Employee') && !auth()->user()->hasAnyRole(['HR Admin', 'Super Admin', 'Department Head']))
+                        <x-nav-link :href="route('employee-portal.dashboard')" :active="request()->routeIs('employee-portal.*')">
+                            {{ __('My Dashboard') }}
+                        </x-nav-link>
+                    @else
+                        <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                            {{ __('Dashboard') }}
+                        </x-nav-link>
+                    @endif
 
                     @can('user.manage')
                         <x-nav-link :href="route('employees.index')" :active="request()->routeIs('employees.*')">
@@ -217,9 +223,6 @@
                                 </button>
                             </x-slot>
                             <x-slot name="content">
-                                <x-dropdown-link :href="route('employee-portal.dashboard')">
-                                    {{ __('My Portal') }}
-                                </x-dropdown-link>
                                 <x-dropdown-link :href="route('employee-portal.service-record')">
                                     {{ __('Service Record') }}
                                 </x-dropdown-link>
@@ -308,9 +311,15 @@
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden bg-white border-t border-gray-100 shadow-sm">
         <div class="pt-4 pb-3 space-y-2 px-4">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
+            @if(auth()->user()->hasRole('Employee') && !auth()->user()->hasAnyRole(['HR Admin', 'Super Admin', 'Department Head']))
+                <x-responsive-nav-link :href="route('employee-portal.dashboard')" :active="request()->routeIs('employee-portal.*')">
+                    {{ __('My Dashboard') }}
+                </x-responsive-nav-link>
+            @else
+                <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                    {{ __('Dashboard') }}
+                </x-responsive-nav-link>
+            @endif
 
             @can('user.manage')
                 <x-responsive-nav-link :href="route('employees.index')" :active="request()->routeIs('employees.*')">

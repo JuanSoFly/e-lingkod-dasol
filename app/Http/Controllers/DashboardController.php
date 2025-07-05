@@ -41,6 +41,11 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         
+        // Redirect Employee role users to their dedicated portal
+        if ($user->hasRole('Employee') && !$user->hasAnyRole(['HR Admin', 'Super Admin', 'Department Head'])) {
+            return redirect()->route('employee-portal.dashboard');
+        }
+        
         try {
             // Get role-based dashboard data with proper authorization
             $dashboardData = $this->dashboardService->getDashboardData($user);
@@ -96,7 +101,7 @@ class DashboardController extends Controller
     private function canAccessDashboard($user): bool
     {
         // Allow access if user has any of these roles
-        $allowedRoles = ['Employee', 'Department Head', 'HR Admin', 'Super Admin'];
+        $allowedRoles = ['Department Head', 'HR Admin', 'Super Admin'];
         
         if ($user->hasAnyRole($allowedRoles)) {
             return true;
