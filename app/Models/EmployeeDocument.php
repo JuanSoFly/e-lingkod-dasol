@@ -1,0 +1,157 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+
+class EmployeeDocument extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'employee_id',
+        'document_type',
+        'file_name',
+        'file_path',
+        'uploaded_by',
+        'uploaded_at',
+        'file_size',
+        'mime_type',
+        'extracted_content',
+        'content_indexed_at',
+        'content_hash',
+        'search_metadata',
+    ];
+
+    protected $casts = [
+        'uploaded_at' => 'datetime',
+        'content_indexed_at' => 'datetime',
+        'search_metadata' => 'array',
+    ];
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    public function uploader(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    /**
+     * Document version tracking relationships
+     */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(DocumentVersion::class, 'original_document_id');
+    }
+
+    public function currentVersion(): HasMany
+    {
+        return $this->hasMany(DocumentVersion::class, 'original_document_id')
+                   ->where('is_current_version', true);
+    }
+
+    public function approvedVersions(): HasMany
+    {
+        return $this->hasMany(DocumentVersion::class, 'original_document_id')
+                   ->where('approval_status', 'approved');
+    }
+
+    /**
+     * Document linking relationships
+     */
+    public function sourceLinks(): MorphMany
+    {
+        return $this->morphMany(DocumentLink::class, 'source');
+    }
+
+    public function targetLinks(): MorphMany
+    {
+        return $this->morphMany(DocumentLink::class, 'target');
+    }
+
+    /**
+     * Get all links (both as source and target)
+     */
+    public function allLinks(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->sourceLinks->merge($this->targetLinks);
+    }
+
+    /**
+     * Helper methods for version management
+     */
+
+    /**
+     * Create a new version of this document
+     */
+    public function createVersion(array $versionData, User $uploader): DocumentVersion
+    {
+        $versionNumber = DocumentVersion::getNextVersionNumber($this->id);
+        
+        $version = $this->versions()->create(array_merge($versionData, [
+            'version_number' => $versionNumber,
+            'uploaded_by' => $uploader->id,
+            'uploaded_at' => now(),
+        ]));
+
+        // If this is an approved version, make it current
+        if ($version->approval_status === 'approved') {
+            $version->setAsCurrent();
+            
+            // Update the main document with the new version's file info
+            $this->update([
+                'file_name' => $version->file_name,
+                'file_path' => $version->file_path,
+                'file_size' => $version->file_size,
+                'mime_type' => $version->mime_type,
+            ]);
+        }
+
+        return $version;
+    }
+
+    /**
+     * Get the current version of this document
+     */
+    public function getCurrentVersion(): ?DocumentVersion
+    {
+        return $this->versions()->where('is_current_version', true)->first();
+    }
+
+    /**
+     * Auto-link this document to related records
+     */
+    public function createAutoLinks(User $creator): array
+    {
+        return DocumentLink::createAutomaticLinks($this, $creator);
+    }
+
+    /**
+     * Get linked records of a specific type
+     */
+    public function getLinkedRecords(string $linkType, bool $activeOnly = true): \Illuminate\Database\Eloquent\Collection
+    {
+        $query = $this->sourceLinks()->forLinkType($linkType);
+        
+        if ($activeOnly) {
+            $query->active();
+        }
+
+        return $query->with('target')->get()->pluck('target');
+    }
+
+    /**
+     * Link this document to another record
+     */
+    public function linkTo(Model $target, string $linkType, User $creator, array $options = []): ?DocumentLink
+    {
+        return DocumentLink::createLink($this, $target, $linkType, $creator, $options);
+    }
+}
