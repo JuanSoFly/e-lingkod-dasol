@@ -64,7 +64,7 @@ class DocumentApprovalController extends Controller
     public function store(StoreDocumentApprovalRequest $request)
     {
         try {
-            $documentRequest = $this->documentApprovalService->createRequest($request->validated());
+            $documentRequest = $this->documentApprovalService->createRequest($request->validated(), auth()->user());
 
             return redirect()
                 ->route('document-approvals.show', $documentRequest)

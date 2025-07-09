@@ -238,7 +238,7 @@ class CSCReportController extends Controller
     /**
      * Export report to PDF
      */
-    public function exportPDF(Request $request): Response
+    public function exportPDF(Request $request): Response|JsonResponse
     {
         try {
             $validated = $request->validate([
@@ -275,7 +275,7 @@ class CSCReportController extends Controller
     /**
      * Export report to Excel
      */
-    public function exportExcel(Request $request): Response
+    public function exportExcel(Request $request): Response|JsonResponse
     {
         try {
             $validated = $request->validate([

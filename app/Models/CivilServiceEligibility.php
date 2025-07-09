@@ -15,7 +15,7 @@ class CivilServiceEligibility extends Model
     protected $fillable = [
         'employee_id',
         'eligibility_type',
-        'examination_name', 
+        'examination_name',
         'date_taken',
         'rating',
         'place_of_examination',
@@ -155,7 +155,7 @@ class CivilServiceEligibility extends Model
     public function getStatusWithContextAttribute(): string
     {
         $status = $this->status;
-        
+
         if ($status === 'Active' && $this->isExpired()) {
             $status = 'Expired';
         } elseif ($status === 'Active' && $this->isExpiringSoon()) {
@@ -174,9 +174,9 @@ class CivilServiceEligibility extends Model
 
         // Auto-update status when eligibility expires
         static::saving(function ($eligibility) {
-            if (!$eligibility->is_lifetime_valid && 
-                $eligibility->valid_until && 
-                $eligibility->valid_until->isPast() && 
+            if (!$eligibility->is_lifetime_valid &&
+                $eligibility->valid_until &&
+                $eligibility->valid_until->isPast() &&
                 $eligibility->status === 'Active') {
                 $eligibility->status = 'Expired';
             }

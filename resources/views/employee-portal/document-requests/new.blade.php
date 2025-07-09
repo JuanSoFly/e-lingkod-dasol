@@ -18,7 +18,7 @@
                             <li class="flex items-center">
                                 <i class="fas fa-chevron-right mx-2 text-gray-400"></i>
                                 <a href="{{ route('employee-portal.document-requests') }}" class="hover:text-blue-600 transition-colors duration-200">
-                                    Document Requests
+                                    HR Document Services
                                 </a>
                             </li>
                             <li class="flex items-center">
@@ -27,7 +27,7 @@
                             </li>
                         </ol>
                     </nav>
-                    <h1 class="text-3xl font-bold text-gray-900">New Document Request</h1>
+                    <h1 class="text-3xl font-bold text-gray-900">Request HR Document</h1>
                     <p class="text-lg text-gray-600 mt-1">Request official documents and certificates</p>
                 </div>
                 <div>
@@ -47,7 +47,7 @@
             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                 <h2 class="text-xl font-semibold text-gray-900 flex items-center">
                     <i class="fas fa-file-plus text-blue-600 mr-3"></i>
-                    Document Request Form
+                    HR Document Request Form
                 </h2>
                 <p class="text-sm text-gray-600 mt-1">Complete all required fields to submit your request</p>
             </div>

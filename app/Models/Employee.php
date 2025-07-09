@@ -18,9 +18,11 @@ class Employee extends Model
         'first_name',
         'middle_name',
         'last_name',
+        'name_extension',
         'birth_date',
         'gender',
         'civil_status',
+        'civil_status_other_details',
         'address',
         'contact_number',
         'email',
@@ -40,6 +42,8 @@ class Employee extends Model
         'csc_eligibility_date',
         'place_of_birth',
         'citizenship',
+        'dual_citizenship_type',
+        'dual_citizenship_country',
         'religion',
         'height',
         'weight',
@@ -64,6 +68,24 @@ class Employee extends Model
         'emergency_contact_relationship',
         'emergency_contact_number',
         'emergency_contact_address',
+        // PDS Address fields
+        'res_house_block_lot_no',
+        'res_street',
+        'res_subdivision_village',
+        'res_barangay',
+        'res_city_municipality',
+        'res_province',
+        'res_zip_code',
+        'perm_house_block_lot_no',
+        'perm_street',
+        'perm_subdivision_village',
+        'perm_barangay',
+        'perm_city_municipality',
+        'perm_province',
+        'perm_zip_code',
+        'telephone_no',
+        'mobile_no',
+        'agency_employee_no',
     ];
 
     protected $casts = [
@@ -168,6 +190,57 @@ class Employee extends Model
         return $this->hasMany(EmployeeScholarship::class);
     }
 
+    // PDS Relationships
+    public function familyBackground(): HasOne
+    {
+        return $this->hasOne(EmployeeFamilyBackground::class);
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(EmployeeChildren::class);
+    }
+
+    public function pdsEligibilities(): HasMany
+    {
+        return $this->hasMany(EmployeeCivilServiceEligibility::class);
+    }
+
+    public function voluntaryWork(): HasMany
+    {
+        return $this->hasMany(EmployeeVoluntaryWork::class);
+    }
+
+    public function otherInformation(): HasMany
+    {
+        return $this->hasMany(EmployeeOtherInformation::class);
+    }
+
+    public function specialSkills(): HasMany
+    {
+        return $this->hasMany(EmployeeOtherInformation::class)->specialSkills();
+    }
+
+    public function distinctions(): HasMany
+    {
+        return $this->hasMany(EmployeeOtherInformation::class)->distinctions();
+    }
+
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(EmployeeOtherInformation::class)->memberships();
+    }
+
+    public function references(): HasMany
+    {
+        return $this->hasMany(EmployeeReference::class);
+    }
+
+    public function questionnaire(): HasOne
+    {
+        return $this->hasOne(EmployeeQuestionnaire::class);
+    }
+
     public function documentRequests(): HasMany
     {
         return $this->hasMany(DocumentRequest::class);
@@ -183,11 +256,9 @@ class Employee extends Model
         return $this->hasMany(PerformanceEvaluation::class);
     }
 
-    public function trainings()
+    public function trainings(): HasMany
     {
-        return $this->belongsToMany(Training::class, 'training_participants')
-                    ->withPivot('completion_status', 'completion_date', 'satisfaction_rating', 'feedback')
-                    ->withTimestamps();
+        return $this->hasMany(EmployeeTraining::class);
     }
 
     public function currentSalaryGrade()
@@ -567,9 +638,9 @@ class Employee extends Model
     public function getTrainingHoursThisYearAttribute()
     {
         return $this->trainings()
-            ->wherePivot('completion_status', 'completed')
+            ->where('completion_status', 'Completed')
             ->whereYear('start_date', now()->year)
-            ->sum('duration_hours');
+            ->sum('number_of_hours');
     }
 
     /**
@@ -707,7 +778,7 @@ class Employee extends Model
         // Add training costs
         $trainingCost = $this->trainings()
             ->whereYear('start_date', now()->year)
-            ->sum('cost') ?? 0;
+            ->sum('training_cost') ?? 0;
         
         return $annualSalary + $benefitsCost + $trainingCost;
     }
@@ -808,5 +879,154 @@ class Employee extends Model
     public function scopeAccessible($query)
     {
         return $query->forUser(auth()->user());
+    }
+
+    /**
+     * PDS-specific methods
+     */
+    
+    public function getFullNameAttribute(): string
+    {
+        $name = trim($this->first_name . ' ' . $this->middle_name . ' ' . $this->last_name);
+        return $this->name_extension ? $name . ' ' . $this->name_extension : $name;
+    }
+
+    public function getResidentialAddressAttribute(): string
+    {
+        $parts = array_filter([
+            $this->res_house_block_lot_no,
+            $this->res_street,
+            $this->res_subdivision_village,
+            $this->res_barangay,
+            $this->res_city_municipality,
+            $this->res_province,
+            $this->res_zip_code,
+        ]);
+        
+        return implode(', ', $parts);
+    }
+
+    public function getPermanentAddressAttribute(): string
+    {
+        $parts = array_filter([
+            $this->perm_house_block_lot_no,
+            $this->perm_street,
+            $this->perm_subdivision_village,
+            $this->perm_barangay,
+            $this->perm_city_municipality,
+            $this->perm_province,
+            $this->perm_zip_code,
+        ]);
+        
+        return implode(', ', $parts);
+    }
+
+    public function getPdsCompletionStatus(): array
+    {
+        $panels = [
+            'personal_information' => $this->getPersonalInfoCompletionRate(),
+            'family_background' => $this->getFamilyBackgroundCompletionRate(),
+            'educational_background' => $this->getEducationCompletionRate(),
+            'civil_service_eligibility' => $this->getEligibilityCompletionRate(),
+            'work_experience' => $this->getWorkExperienceCompletionRate(),
+            'voluntary_work' => $this->getVoluntaryWorkCompletionRate(),
+            'learning_development' => $this->getTrainingCompletionRate(),
+            'other_information' => $this->getOtherInfoCompletionRate(),
+            'references' => $this->getReferencesCompletionRate(),
+            'questionnaire' => $this->getQuestionnaireCompletionRate(),
+        ];
+
+        $overallCompletion = array_sum($panels) / count($panels);
+        
+        return [
+            'panels' => $panels,
+            'overall_completion' => round($overallCompletion, 2),
+            'completed_panels' => count(array_filter($panels, fn($rate) => $rate >= 100)),
+            'total_panels' => count($panels),
+        ];
+    }
+
+    private function getPersonalInfoCompletionRate(): float
+    {
+        $requiredFields = [
+            'first_name', 'last_name', 'birth_date', 'place_of_birth',
+            'gender', 'civil_status', 'citizenship', 'height', 'weight', 'blood_type'
+        ];
+        
+        $completed = 0;
+        foreach ($requiredFields as $field) {
+            if (!empty($this->$field)) {
+                $completed++;
+            }
+        }
+        
+        return ($completed / count($requiredFields)) * 100;
+    }
+
+    private function getFamilyBackgroundCompletionRate(): float
+    {
+        $family = $this->familyBackground;
+        if (!$family) {
+            return 0;
+        }
+
+        $requiredFields = ['father_first_name', 'father_surname', 'mother_first_name', 'mother_surname'];
+        $completed = 0;
+        
+        foreach ($requiredFields as $field) {
+            if (!empty($family->$field)) {
+                $completed++;
+            }
+        }
+        
+        return ($completed / count($requiredFields)) * 100;
+    }
+
+    private function getEducationCompletionRate(): float
+    {
+        return $this->education()->count() > 0 ? 100 : 0;
+    }
+
+    private function getEligibilityCompletionRate(): float
+    {
+        return $this->pdsEligibilities()->count() > 0 ? 100 : 0;
+    }
+
+    private function getWorkExperienceCompletionRate(): float
+    {
+        return $this->workExperiences()->count() > 0 ? 100 : 0;
+    }
+
+    private function getVoluntaryWorkCompletionRate(): float
+    {
+        return 100; // Optional section
+    }
+
+    private function getTrainingCompletionRate(): float
+    {
+        return $this->employeeTrainings()->count() > 0 ? 100 : 0;
+    }
+
+    private function getOtherInfoCompletionRate(): float
+    {
+        return 100; // Optional section
+    }
+
+    private function getReferencesCompletionRate(): float
+    {
+        return $this->references()->count() >= 3 ? 100 : ($this->references()->count() / 3) * 100;
+    }
+
+    private function getQuestionnaireCompletionRate(): float
+    {
+        $questionnaire = $this->questionnaire;
+        if (!$questionnaire) {
+            return 0;
+        }
+
+        $requiredQuestions = count(EmployeeQuestionnaire::getQuestionLabels());
+        $answeredQuestions = count($questionnaire->questions_answers ?? []);
+        
+        return ($answeredQuestions / $requiredQuestions) * 100;
     }
 }

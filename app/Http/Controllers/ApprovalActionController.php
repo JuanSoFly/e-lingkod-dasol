@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 class ApprovalActionController extends Controller
 {
     use AuthorizesRequests;
-    
+
     protected $documentApprovalService;
 
     public function __construct(DocumentApprovalServiceInterface $documentApprovalService)
@@ -84,12 +84,13 @@ class ApprovalActionController extends Controller
         $this->authorize('bulkApprove', DocumentApprovalRequest::class);
 
         try {
-            $approved = $this->documentApprovalService->bulkApprove(
+            $result = $this->documentApprovalService->bulkApprove(
                 $request->request_ids,
                 auth()->user(),
                 $request->comments
             );
 
+            $approved = count($result);
             return back()->with('success', "Successfully approved {$approved} requests.");
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to bulk approve: ' . $e->getMessage()]);
@@ -107,12 +108,13 @@ class ApprovalActionController extends Controller
         $this->authorize('bulkReject', DocumentApprovalRequest::class);
 
         try {
-            $rejected = $this->documentApprovalService->bulkReject(
+            $result = $this->documentApprovalService->bulkReject(
                 $request->request_ids,
                 auth()->user(),
                 $request->comments
             );
 
+            $rejected = count($result);
             return back()->with('success', "Successfully rejected {$rejected} requests.");
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to bulk reject: ' . $e->getMessage()]);

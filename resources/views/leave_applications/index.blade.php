@@ -4,13 +4,13 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ request('status') === 'pending' ? __('Leave Approvals') : __('My Leave Applications') }}
             </h2>
-            @can('leave.create')
+            @if(auth()->user()->hasRole('Employee'))
             <a href="{{ route('leave-applications.create') }}">
                 <x-primary-button>
                     {{ __('Apply for Leave') }}
                 </x-primary-button>
             </a>
-            @endcan
+            @endif
         </div>
     </x-slot>
 

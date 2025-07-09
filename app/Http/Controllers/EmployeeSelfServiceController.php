@@ -330,7 +330,7 @@ class EmployeeSelfServiceController extends Controller
         $notifications = [];
 
         // Upcoming deadlines
-        $upcomingBirthday = $employee->birth_date && $employee->birth_date->format('m-d') === now()->addDays(7)->format('m-d');
+        $upcomingBirthday = $employee->birth_date && \Carbon\Carbon::parse($employee->birth_date)->format('m-d') === now()->addDays(7)->format('m-d');
         if ($upcomingBirthday) {
             $notifications[] = [
                 'type' => 'info',

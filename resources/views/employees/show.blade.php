@@ -4,13 +4,20 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Employee 201 File') }}
             </h2>
-            @can('employee.edit', $employee)
-            <a href="{{ route('employees.edit', $employee->id) }}">
-                <x-primary-button>
-                    {{ __('Edit Employee') }}
-                </x-primary-button>
-            </a>
-            @endcan
+            <div class="flex space-x-2">
+                @can('employee.edit', $employee)
+                <a href="{{ route('pds.dashboard', $employee->id) }}">
+                    <x-primary-button>
+                        {{ __('Manage PDS') }}
+                    </x-primary-button>
+                </a>
+                <a href="{{ route('employees.edit', $employee->id) }}">
+                    <x-secondary-button>
+                        {{ __('Edit Basic Info') }}
+                    </x-secondary-button>
+                </a>
+                @endcan
+            </div>
         </div>
     </x-slot>
 
@@ -45,6 +52,100 @@
                         <div><dt class="text-sm font-medium text-gray-500">Salary Grade</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->salary_grade }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Step Increment</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->step_increment }}</dd></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Educational Background -->
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg" id="education">
+                <div class="p-6 bg-white border-b border-gray-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Educational Background</h3>
+                        @can('employee.edit', $employee)
+                        <a href="{{ route('employees.education.index', $employee) }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            Manage Education →
+                        </a>
+                        @endcan
+                    </div>
+                    
+                    @if($employee->education->count() > 0)
+                        <div class="space-y-4">
+                            @foreach($employee->education->groupBy('education_level') as $level => $levelEducations)
+                                <div class="border border-gray-200 rounded-lg p-4">
+                                    <h4 class="font-medium text-gray-900 mb-3 flex items-center">
+                                        @switch($level)
+                                            @case('Elementary')
+                                                <svg class="h-4 w-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/>
+                                                </svg>
+                                                @break
+                                            @case('Secondary')
+                                                <svg class="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
+                                                </svg>
+                                                @break
+                                            @case('College')
+                                                <svg class="h-4 w-4 text-purple-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/>
+                                                </svg>
+                                                @break
+                                            @default
+                                                <svg class="h-4 w-4 text-gray-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
+                                                </svg>
+                                        @endswitch
+                                        {{ $level }}
+                                    </h4>
+                                    
+                                    <div class="space-y-3">
+                                        @foreach($levelEducations->take(3) as $education)
+                                            <div class="text-sm">
+                                                <div class="font-medium text-gray-900">{{ $education->school_name }}</div>
+                                                @if($education->degree_course)
+                                                    <div class="text-gray-600">{{ $education->degree_course }}</div>
+                                                @elseif($education->course)
+                                                    <div class="text-gray-600">{{ $education->course }}</div>
+                                                @endif
+                                                @if($education->graduation_year)
+                                                    <div class="text-gray-500">Graduated: {{ $education->graduation_year }}</div>
+                                                @elseif($education->duration !== 'Not specified')
+                                                    <div class="text-gray-500">Period: {{ $education->duration }}</div>
+                                                @endif
+                                                @if($education->all_honors)
+                                                    <div class="text-green-600 text-xs">{{ Str::limit($education->all_honors, 50) }}</div>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                        
+                                        @if($levelEducations->count() > 3)
+                                            <div class="text-xs text-gray-500">
+                                                + {{ $levelEducations->count() - 3 }} more record(s)
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        
+                        <div class="mt-4 text-center">
+                            @can('employee.edit', $employee)
+                            <a href="{{ route('employees.education.index', $employee) }}" class="text-blue-600 hover:text-blue-800 text-sm">
+                                View All Education Records ({{ $employee->education->count() }})
+                            </a>
+                            @endcan
+                        </div>
+                    @else
+                        <div class="text-center text-gray-500 py-6">
+                            <svg class="mx-auto h-8 w-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                            <p class="text-sm">No education records found.</p>
+                            @can('employee.edit', $employee)
+                            <a href="{{ route('employees.education.create', $employee) }}" class="mt-2 inline-flex items-center text-blue-600 hover:text-blue-800 text-sm">
+                                Add Education Record
+                            </a>
+                            @endcan
+                        </div>
+                    @endif
                 </div>
             </div>
             

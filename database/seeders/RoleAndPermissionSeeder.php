@@ -74,7 +74,7 @@ class RoleAndPermissionSeeder extends Seeder
         $hrAdminRole->syncPermissions([
             'user.manage', // Add this permission
             'employee.view', 'employee.create', 'employee.edit', 'employee.delete',
-            'leave.view', 'leave.create', 'leave.approve', 'leave.reject',
+            'leave.view', 'leave.approve', 'leave.reject',
             'performance.view', 'performance.create', 'performance.evaluate',
             'reports.view', 'reports.generate', 'reports.export',
             'document-approval.view', 'document-approval.create', 'document-approval.edit', 'document-approval.delete', 'document-approval.approve',

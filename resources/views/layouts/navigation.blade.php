@@ -44,11 +44,11 @@
                                 </button>
                             </x-slot>
                             <x-slot name="content">
-                                @can('leave.view')
+                                @if(auth()->user()->hasRole('Employee'))
                                     <x-dropdown-link :href="route('leave-applications.index')">
                                         {{ __('My Applications') }}
                                     </x-dropdown-link>
-                                @endcan
+                                @endif
                                 @can('leave.approve')
                                      <x-dropdown-link :href="route('leave-applications.index', ['status' => 'pending'])">
                                         {{ __('Leave Approvals') }}
@@ -80,11 +80,11 @@
                                 </button>
                             </x-slot>
                             <x-slot name="content">
-                                @can('performance.view')
+                                @if(auth()->user()->hasRole('Employee'))
                                     <x-dropdown-link :href="route('performance-targets.index')">
                                         {{ __('My IPCR') }}
                                     </x-dropdown-link>
-                                @endcan
+                                @endif
                                 @can('performance.evaluate')
                                     <x-dropdown-link :href="route('performance-targets.index')">
                                         {{ __('Performance Reviews') }}
@@ -100,7 +100,7 @@
                     </div>
                     @endif
 
-                    <!-- Document Approval Dropdown -->
+                    <!-- Approval Workflows Dropdown -->
                     @if(auth()->user()->hasAnyRole(['Super Admin', 'HR Admin', 'Employee']))
                     <div class="hidden sm:flex sm:items-center">
                         <x-dropdown align="left" width="56">
@@ -110,7 +110,7 @@
                                         <svg class="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                         </svg>
-                                        <span>Document Approvals</span>
+                                        <span>Approval Workflows</span>
                                         <svg class="fill-current h-4 w-4 transition-transform duration-200 group-hover:rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                                     </div>
                                 </button>
@@ -227,17 +227,17 @@
                                     {{ __('Service Record') }}
                                 </x-dropdown-link>
                                 <x-dropdown-link :href="route('employee-portal.document-requests')">
-                                    {{ __('Document Requests') }}
+                                    {{ __('HR Document Services') }}
                                 </x-dropdown-link>
                                 
                                 @can('document-approval.view')
                                     <div class="border-t border-gray-100"></div>
                                     <x-dropdown-link :href="route('document-approvals.my-requests')">
-                                        {{ __('My Document Approvals') }}
+                                        {{ __('My Approval Requests') }}
                                     </x-dropdown-link>
                                     @can('document-approval.create')
                                         <x-dropdown-link :href="route('document-approvals.create')">
-                                            {{ __('New Approval Request') }}
+                                            {{ __('Submit New Request') }}
                                         </x-dropdown-link>
                                     @endcan
                                     <div class="border-t border-gray-100"></div>
@@ -327,11 +327,11 @@
                 </x-responsive-nav-link>
             @endcan
 
-             @can('leave.view')
+             @if(auth()->user()->hasRole('Employee'))
                 <x-responsive-nav-link :href="route('leave-applications.index')">
                     {{ __('My Leave Applications') }}
                 </x-responsive-nav-link>
-            @endcan
+            @endif
             @can('leave.approve')
                     <x-responsive-nav-link :href="route('leave-applications.index', ['status' => 'pending'])">
                     {{ __('Leave Approvals') }}
@@ -342,11 +342,11 @@
                     {{ __('Manage Leave Types') }}
                 </x-responsive-nav-link>
             @endcan
-             @can('performance.view')
+             @if(auth()->user()->hasRole('Employee'))
                 <x-responsive-nav-link :href="route('performance-targets.index')">
                     {{ __('My IPCR') }}
                 </x-responsive-nav-link>
-            @endcan
+            @endif
              @can('performance.evaluate')
                 <x-responsive-nav-link :href="route('performance-targets.index')">
                     {{ __('Performance Reviews') }}
@@ -363,20 +363,20 @@
                 </x-responsive-nav-link>
             @endcan
             
-            <!-- Document Approval Mobile Navigation -->
+            <!-- Approval Workflows Mobile Navigation -->
             @can('document-approval.create')
                 <x-responsive-nav-link :href="route('document-approvals.my-requests')" :active="request()->routeIs('document-approvals.my-requests')">
-                    {{ __('My Document Requests') }}
+                    {{ __('My Approval Requests') }}
                 </x-responsive-nav-link>
             @endcan
             @can('user.manage')
                 <x-responsive-nav-link :href="route('document-approvals.dashboard')" :active="request()->routeIs('document-approvals.dashboard')">
-                    {{ __('Document Approval Dashboard') }}
+                    {{ __('Approval Workflows Dashboard') }}
                 </x-responsive-nav-link>
             @endcan
             @can('document-approval.create')
                 <x-responsive-nav-link :href="route('document-approvals.create')" :active="request()->routeIs('document-approvals.create')">
-                    {{ __('New Document Request') }}
+                    {{ __('Submit New Request') }}
                 </x-responsive-nav-link>
             @endcan
             @can('document-approval.approve')
@@ -394,7 +394,7 @@
                     {{ __('Service Record') }}
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('employee-portal.document-requests')" :active="request()->routeIs('employee-portal.document-requests')">
-                    {{ __('Document Requests') }}
+                    {{ __('HR Document Services') }}
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('employee-portal.personal-data-update')" :active="request()->routeIs('employee-portal.personal-data-update')">
                     {{ __('Update Personal Info') }}

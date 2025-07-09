@@ -125,4 +125,34 @@ interface DocumentApprovalServiceInterface
      * Validate if user can perform action on request
      */
     public function canUserPerformAction(User $user, DocumentApprovalRequest $request, string $action): bool;
+
+    /**
+     * Delete a document approval request
+     */
+    public function deleteRequest(DocumentApprovalRequest $request): bool;
+
+    /**
+     * Download request attachment
+     */
+    public function downloadAttachment($attachment);
+
+    /**
+     * Process approval action (approve/reject/return)
+     */
+    public function processApprovalAction(DocumentApprovalRequest $request, User $user, string $action, array $data): bool;
+
+    /**
+     * Assign approver to a specific step
+     */
+    public function assignApprover(DocumentApprovalRequest $request, int $userId, int $stepOrder): bool;
+
+    /**
+     * Reassign current step to different approver
+     */
+    public function reassignCurrentStep(DocumentApprovalRequest $request, int $userId, string $reason): bool;
+
+    /**
+     * Escalate request to next level
+     */
+    public function escalateRequest(DocumentApprovalRequest $request, string $reason): bool;
 }

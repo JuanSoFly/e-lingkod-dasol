@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Document Approval Requests') }}
+                {{ __('Approval Workflows') }}
             </h2>
             @can('create', App\Models\DocumentApprovalRequest::class)
                 <x-primary-button onclick="window.location.href='{{ route('document-approvals.create') }}'">
@@ -128,7 +128,7 @@
                             @empty
                                 <tr>
                                     <td colspan="6" class="px-6 py-4 text-center text-gray-500">
-                                        No document approval requests found.
+                                        No approval workflow requests found.
                                     </td>
                                 </tr>
                             @endforelse

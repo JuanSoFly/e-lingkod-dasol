@@ -83,6 +83,14 @@ class EmployeeTraining extends Model
         'total_modules',
         'last_activity_at',
         'learning_analytics',
+        // PDS Panel 7 specific fields
+        'training_title',
+        'inclusive_date_from',
+        'inclusive_date_to',
+        'number_of_hours',
+        'type_of_ld',
+        'conducted_sponsored_by',
+        'attachment_id',
     ];
 
     protected $casts = [
@@ -117,6 +125,10 @@ class EmployeeTraining extends Model
         'counts_towards_promotion' => 'boolean',
         'learning_analytics' => 'array',
         'deleted_at' => 'datetime',
+        // PDS Panel 7 specific casts
+        'inclusive_date_from' => 'date',
+        'inclusive_date_to' => 'date',
+        'number_of_hours' => 'decimal:2',
     ];
 
     /**
@@ -612,5 +624,117 @@ class EmployeeTraining extends Model
         }
 
         return $this->save();
+    }
+
+    /**
+     * PDS Panel 7 specific accessor methods
+     */
+    
+    /**
+     * Get training title (PDS compatible)
+     * Falls back to training program name if training_title is not set
+     */
+    public function getPDSTrainingTitleAttribute(): string
+    {
+        return $this->training_title ?? $this->trainingProgram?->name ?? 'N/A';
+    }
+    
+    /**
+     * Get PDS inclusive date from (formatted)
+     */
+    public function getPDSInclusiveDateFromAttribute(): ?string
+    {
+        if ($this->inclusive_date_from) {
+            return $this->inclusive_date_from->format('m/d/Y');
+        }
+        
+        // Fallback to start_date if inclusive_date_from is not set
+        return $this->start_date ? $this->start_date->format('m/d/Y') : null;
+    }
+    
+    /**
+     * Get PDS inclusive date to (formatted)
+     */
+    public function getPDSInclusiveDateToAttribute(): ?string
+    {
+        if ($this->inclusive_date_to) {
+            return $this->inclusive_date_to->format('m/d/Y');
+        }
+        
+        // Fallback to end_date if inclusive_date_to is not set
+        return $this->end_date ? $this->end_date->format('m/d/Y') : null;
+    }
+    
+    /**
+     * Get PDS number of hours
+     * Falls back to calculated hours if not set
+     */
+    public function getPDSNumberOfHoursAttribute(): ?float
+    {
+        return $this->number_of_hours ?? $this->hours_attended ?? null;
+    }
+    
+    /**
+     * Get PDS type of L&D
+     * Maps from delivery_mode if type_of_ld is not set
+     */
+    public function getPDSTypeOfLDAttribute(): ?string
+    {
+        if ($this->type_of_ld) {
+            return $this->type_of_ld;
+        }
+        
+        // Map from existing fields
+        if ($this->delivery_mode) {
+            $mapping = [
+                'Management' => 'Managerial',
+                'Supervision' => 'Supervisory',
+                'Technical' => 'Technical',
+                'Leadership' => 'Managerial',
+                'Skills' => 'Technical',
+            ];
+            
+            foreach ($mapping as $key => $value) {
+                if (stripos($this->delivery_mode, $key) !== false) {
+                    return $value;
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Get PDS conducted/sponsored by
+     * Falls back to trainer_name if conducted_sponsored_by is not set
+     */
+    public function getPDSConductedSponsoredByAttribute(): ?string
+    {
+        return $this->conducted_sponsored_by ?? $this->trainer_name ?? null;
+    }
+    
+    /**
+     * Get PDS attachment ID
+     * Falls back to certificate_file_path if attachment_id is not set
+     */
+    public function getPDSAttachmentIDAttribute(): ?string
+    {
+        return $this->attachment_id ?? $this->certificate_file_path ?? null;
+    }
+    
+    /**
+     * Get PDS formatted data for export
+     */
+    public function getPDSDataAttribute(): array
+    {
+        return [
+            'training_title' => $this->pds_training_title,
+            'inclusive_date_from' => $this->pds_inclusive_date_from,
+            'inclusive_date_to' => $this->pds_inclusive_date_to,
+            'number_of_hours' => $this->pds_number_of_hours,
+            'type_of_ld' => $this->pds_type_of_ld,
+            'conducted_sponsored_by' => $this->pds_conducted_sponsored_by,
+            'attachment_id' => $this->pds_attachment_id,
+        ];
     }
 }

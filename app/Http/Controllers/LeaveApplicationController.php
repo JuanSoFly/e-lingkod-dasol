@@ -46,6 +46,12 @@ class LeaveApplicationController extends Controller
     public function create()
     {
         $this->authorize('leave.create');
+        
+        // Additional role-based check - only Employees should apply for leave
+        if (!Auth::user()->hasRole('Employee')) {
+            abort(403, 'Only employees can apply for leave.');
+        }
+        
         $leaveTypes = LeaveType::where('is_active', true)->get();
         return view('leave_applications.create', compact('leaveTypes'));
     }
@@ -56,6 +62,11 @@ class LeaveApplicationController extends Controller
      public function store(StoreLeaveApplicationRequest $request)
     {
         $this->authorize('leave.create');
+        
+        // Additional role-based check - only Employees should apply for leave
+        if (!Auth::user()->hasRole('Employee')) {
+            abort(403, 'Only employees can apply for leave.');
+        }
         
         try {
             $application = $this->leaveApplicationService->createApplication(

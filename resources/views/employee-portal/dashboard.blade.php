@@ -60,15 +60,15 @@
                             </div>
                         </a>
 
-                        <a href="{{ route('employee-portal.personal-data-update') }}" 
+                        <a href="{{ route('pds.dashboard', auth()->user()->employee) }}" 
                            class="group relative bg-gradient-to-r from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-amber-200">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0">
-                                    <i class="fas fa-user-edit text-amber-600 text-2xl"></i>
+                                    <i class="fas fa-id-card text-amber-600 text-2xl"></i>
                                 </div>
                                 <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-amber-900 group-hover:text-amber-800">Update Personal Info</h3>
-                                    <p class="text-xs text-amber-700 mt-1">Change personal data</p>
+                                    <h3 class="text-sm font-medium text-amber-900 group-hover:text-amber-800">Update Personal Data Sheet</h3>
+                                    <p class="text-xs text-amber-700 mt-1">Complete PDS panels</p>
                                 </div>
                             </div>
                         </a>

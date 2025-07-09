@@ -436,7 +436,7 @@ class DocumentSearchController extends Controller
                 'average_file_size' => $documents->avg('file_size'),
                 'upload_trends' => $documents->groupBy(function($doc) {
                     return $doc->uploaded_at->format('Y-m');
-                })->map->count()->take(12),
+                })->map->count()->sortKeysDesc()->take(12),
                 'search_performance' => [
                     'total_searchable_content' => $documents->whereNotNull('content_indexed_at')->count(),
                     'content_extraction_success_rate' => $documents->count() > 0 

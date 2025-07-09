@@ -42,6 +42,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Architecture**: Service layer pattern with proper relationships
 - **Security**: Role-based access control with audit trails
 - **Performance**: Redis caching, database indexing, query optimization
+- **Forms**: Use appropriate HTTP methods (POST for creation, PATCH for updates) with proper `@method` directives
+- **Legacy Compatibility**: Maintain backward compatibility when adding PDS fields to existing structures
 
 ### Development Workflows
 
@@ -64,6 +66,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Consider data migration needs for existing employee records
 
 ## Core System Features
+
+### Document System Naming Convention
+The E-Lingkod Dasol HRIS includes two distinct document-related systems with clear naming to eliminate user confusion:
+
+1. **HR Document Services** (Employee Self-Service)
+   - Purpose: Employee requests for standard HR documents (certificates, service records, clearances)
+   - Location: Employee portal at `/employee-portal/document-requests`
+   - Workflow: Employee request → HR processes → Document delivered
+   - User base: Employees requesting official documents
+
+2. **Approval Workflows** (Administrative)
+   - Purpose: Multi-step approval processes for administrative documents and requests
+   - Location: Administrative interface at `/document-approvals`
+   - Workflow: Submit → Multi-level approval → Final approval/rejection
+   - User base: HR administrators, supervisors, managers
+
+These systems serve different business functions and should both be maintained as essential HRIS components.
 
 ### 1. Dashboard Analytics
 - Role-based metrics and insights
@@ -106,7 +125,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 7. Employee Self-Service Portal
 - Personal dashboard with metrics
 - Leave applications and status tracking
-- Document requests and updates
+- HR document services and approval workflows
 - Complete service record access
 
 ### 8. Advanced Features
@@ -206,6 +225,9 @@ php artisan validate:csc-reports    # Validate CSC reporting
 # Development helpers
 composer dev                        # Run server + queue + logs + vite concurrently
 composer test                       # Run tests with config clear
+
+# Cache management (important for route/form changes)
+php artisan route:clear && php artisan config:clear && php artisan view:clear
 ```
 
 ## Implementation Approach
@@ -273,9 +295,11 @@ composer test                       # Run tests with config clear
 ### Core Structure
 ```
 app/
-├── Http/Controllers/     # 18 main controllers
+├── Http/Controllers/     # 18+ main controllers
 │   ├── DashboardController          # Role-based dashboard
 │   ├── EmployeeController           # Employee lifecycle (201 files)
+│   ├── PDSController                # Personal Data Sheet management (10 panels)
+│   ├── EducationController          # Education CRUD with document uploads
 │   ├── LeaveApplicationController   # Leave management workflows  
 │   ├── CSCReportManagementController # Government compliance
 │   └── HRAnalyticsController        # Analytics with API endpoints
@@ -285,6 +309,10 @@ app/
 │   ├── LeaveCalculationService     # Pro-rated calculations
 │   └── DocumentSearchService       # OCR and full-text search
 └── Models/              # 25+ Eloquent models with relationships
+    ├── Employee                    # Core employee model
+    ├── EmployeeEducation          # Education with legacy field compatibility
+    ├── EmployeeFamilyBackground   # PDS family information
+    └── EmployeeDocument           # File management with versioning
 ```
 
 ### Database Schema (43 migrations)
@@ -294,15 +322,55 @@ app/
 - **Compliance**: sexual_harassment_cases, reports, civil_service_eligibilities
 - **Benefits**: government_benefits, benefit_contributions
 
-### Route Organization (178 routes)
+### Route Organization (178+ routes)
 - Authentication (Laravel Breeze) 
 - Employee management with document handling
+- PDS (Personal Data Sheet) with 10 panels and nested education routes
 - Leave management with approval workflows
 - Performance management (SPMS/IPCR)
 - CSC reporting with workflow actions
 - Government benefits management
 - Employee self-service portal
 - HR analytics with API endpoints
+
+### PDS System Architecture
+The Personal Data Sheet system follows Philippine Civil Service Commission Form No. 212:
+
+**Panel Structure**:
+- **Panel 1**: Personal Information (direct employee fields)
+- **Panel 2**: Family Background (EmployeeFamilyBackground + EmployeeChildren)
+- **Panel 3**: Educational Background (managed via EducationController)
+- **Panel 4**: Civil Service Eligibility (EmployeeCivilServiceEligibility)
+- **Panel 6**: Voluntary Work (EmployeeVoluntaryWork)
+- **Panel 8**: Other Information (EmployeeOtherInformation)
+- **Panel 9**: References (EmployeeReference)
+- **Panel 10**: Questionnaire (EmployeeQuestionnaire)
+
+**Route Patterns**:
+```php
+Route::prefix('pds')->name('pds.')->middleware('can:employee.view')->group(function () {
+    Route::get('{employee}/family-background', [PDSController::class, 'familyBackground']);
+    Route::post('{employee}/family-background', [PDSController::class, 'updateFamilyBackground']);
+    // POST used for updates due to method override issues
+});
+
+// Education handled separately with full CRUD
+Route::prefix('employees/{employee}/education')->name('employees.education.')->group(function () {
+    Route::get('/', [EducationController::class, 'index'])->name('index');
+    Route::post('/', [EducationController::class, 'store'])->name('store');
+    // Full resource routes with file upload support
+});
+```
+
+**Legacy Field Compatibility Pattern**:
+```php
+// In models and controllers, handle dual field structures:
+if (!empty($validated['year_graduated_pds'])) {
+    $validated['year_graduated'] = (string) $validated['year_graduated_pds'];
+} elseif (!empty($validated['period_to'])) {
+    $validated['year_graduated'] = (string) $validated['period_to'];
+}
+```
 
 ## Performance & Testing Guidelines
 
@@ -359,6 +427,9 @@ app/
 - Clear context between major tasks
 - Run `php artisan test` after changes
 - Validate MySQL compatibility
+- Clear caches when changing routes/forms: `php artisan route:clear && php artisan config:clear && php artisan view:clear`
+- Handle legacy field compatibility when updating existing models
+- Use POST for forms when method override causes issues
 
 ### DON'T
 - Skip testing for critical HRIS functionality
@@ -370,9 +441,37 @@ app/
 - Commit without running tests
 - Log sensitive employee data
 
+## Known Issues and Troubleshooting
+
+### Form Method Override Issues
+**Problem**: Laravel's `@method('PATCH')` directive may not work consistently in some configurations.
+**Solution**: Use direct POST routes for form updates instead of PATCH with method override.
+**Pattern**: Change route from `Route::patch()` to `Route::post()` and remove `@method('PATCH')` from forms.
+
+### Legacy Database Field Compatibility
+**Problem**: Existing tables have non-nullable fields that conflict with new PDS requirements.
+**Solution**: Create migration to make legacy fields nullable, then handle both old and new fields in controller:
+```php
+// Migration
+$table->string('year_graduated')->nullable()->change();
+
+// Controller  
+if (!empty($validated['year_graduated_pds'])) {
+    $validated['year_graduated'] = (string) $validated['year_graduated_pds'];
+}
+```
+
+### DocumentApprovalService Errors
+**Problem**: Abstract method implementation errors prevent some artisan commands.
+**Solution**: This is a known issue with incomplete service implementation. Use alternative commands or implement missing methods.
+
+### Route Caching Issues
+**Problem**: Route changes not reflecting in application.
+**Solution**: Always clear caches after route modifications: `php artisan route:clear && php artisan config:clear && php artisan view:clear`
+
 ---
 
 *This documentation is maintained for the E-Lingkod Dasol HRIS project.*
-*Last updated: 2025-06-30*
+*Last updated: 2025-07-06*
 *System Status: Production-Ready*
 *Frontend: Tailwind CSS*
