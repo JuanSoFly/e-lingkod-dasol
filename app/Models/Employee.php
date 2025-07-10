@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Employee extends Model
 {
@@ -89,8 +91,8 @@ class Employee extends Model
     ];
 
     protected $casts = [
-        'birth_date' => 'date',
-        'date_hired' => 'date',
+        'birth_date' => 'datetime',
+        'date_hired' => 'datetime',
         'appointment_date' => 'date',
         'separation_date' => 'date',
         'csc_eligibility_date' => 'date',
@@ -218,17 +220,17 @@ class Employee extends Model
 
     public function specialSkills(): HasMany
     {
-        return $this->hasMany(EmployeeOtherInformation::class)->specialSkills();
+        return $this->hasMany(EmployeeOtherInformation::class)->where('type', 'special_skills');
     }
 
     public function distinctions(): HasMany
     {
-        return $this->hasMany(EmployeeOtherInformation::class)->distinctions();
+        return $this->hasMany(EmployeeOtherInformation::class)->where('type', 'distinctions');
     }
 
     public function memberships(): HasMany
     {
-        return $this->hasMany(EmployeeOtherInformation::class)->memberships();
+        return $this->hasMany(EmployeeOtherInformation::class)->where('type', 'memberships');
     }
 
     public function references(): HasMany
@@ -289,15 +291,15 @@ class Employee extends Model
     public function getLeaveEntitlement($leaveTypeId, $year = null)
     {
         $year = $year ?? now()->year;
-        
+
         $policy = $this->getApplicableLeavePolicies()
             ->where('leave_type_id', $leaveTypeId)
             ->first();
-            
+
         if (!$policy) {
             return 0;
         }
-        
+
         return $policy->calculateAnnualEntitlement($this, $year);
     }
 
@@ -309,16 +311,16 @@ class Employee extends Model
         $policy = $this->getApplicableLeavePolicies()
             ->where('leave_type_id', $leaveTypeId)
             ->first();
-            
+
         if (!$policy) {
             return [
                 'can_apply' => false,
                 'errors' => ['This leave type is not available for your employment status.']
             ];
         }
-        
+
         $errors = empty($applicationData) ? [] : $policy->validateApplication($this, $applicationData);
-        
+
         return [
             'can_apply' => empty($errors),
             'errors' => $errors,
@@ -363,7 +365,7 @@ class Employee extends Model
     public function getAllLinkedDocuments(): \Illuminate\Database\Eloquent\Collection
     {
         $linkedDocuments = collect();
-        
+
         // Get documents linked to leave applications (with eager loading)
         $leaveApplications = $this->leaveApplications()->with('supportingDocuments')->get();
         foreach ($leaveApplications as $leave) {
@@ -371,7 +373,7 @@ class Employee extends Model
                 $linkedDocuments = $linkedDocuments->merge($leave->getSupportingDocuments());
             }
         }
-        
+
         // Get documents linked to performance reviews (with eager loading)
         $performanceReviews = $this->performanceReviews()->with('evidenceDocuments')->get();
         foreach ($performanceReviews as $review) {
@@ -379,7 +381,7 @@ class Employee extends Model
                 $linkedDocuments = $linkedDocuments->merge($review->getEvidenceDocuments());
             }
         }
-        
+
         // Get documents linked to education records (with eager loading)
         $education = $this->education()->with('credentialDocuments')->get();
         foreach ($education as $edu) {
@@ -387,7 +389,7 @@ class Employee extends Model
                 $linkedDocuments = $linkedDocuments->merge($edu->getCredentialDocuments());
             }
         }
-        
+
         // Get documents linked to work experiences (with eager loading)
         $workExperiences = $this->workExperiences()->with('proofDocuments')->get();
         foreach ($workExperiences as $work) {
@@ -395,7 +397,7 @@ class Employee extends Model
                 $linkedDocuments = $linkedDocuments->merge($work->getProofDocuments());
             }
         }
-        
+
         return $linkedDocuments->unique('id');
     }
 
@@ -408,7 +410,7 @@ class Employee extends Model
         $linkedDocuments = $this->getAllLinkedDocuments()->count();
         $pendingVersions = $this->getPendingDocumentVersions()->count();
         $outdatedDocuments = $this->documents()->where('updated_at', '<', now()->subMonths(12))->count();
-        
+
         return [
             'total_documents' => $totalDocuments,
             'linked_documents' => $linkedDocuments,
@@ -430,13 +432,13 @@ class Employee extends Model
             }])
             ->get();
         $summary = [];
-        
+
         foreach ($benefits as $benefit) {
             if (method_exists($benefit, 'getBenefitSummary')) {
                 $summary[$benefit->benefit_type] = $benefit->getBenefitSummary();
             }
         }
-        
+
         return $summary;
     }
 
@@ -452,7 +454,7 @@ class Employee extends Model
             ->groupBy(function($contribution) {
                 return $contribution->governmentBenefit->benefit_type;
             });
-            
+
         $totals = [];
         foreach ($contributions as $benefitType => $benefitContributions) {
             $totals[$benefitType] = [
@@ -463,7 +465,7 @@ class Employee extends Model
                 'penalties' => $benefitContributions->sum('late_penalty_amount'),
             ];
         }
-        
+
         return $totals;
     }
 
@@ -474,9 +476,9 @@ class Employee extends Model
     {
         $requiredBenefits = $this->getRequiredBenefitTypes();
         $enrolledBenefits = $this->governmentBenefits()->active()->pluck('benefit_type')->toArray();
-        
+
         $missing = array_diff($requiredBenefits, $enrolledBenefits);
-        
+
         return [
             'all_enrolled' => empty($missing),
             'enrolled_benefits' => $enrolledBenefits,
@@ -491,7 +493,7 @@ class Employee extends Model
     private function getRequiredBenefitTypes(): array
     {
         $required = ['PhilHealth']; // Universal coverage
-        
+
         if (in_array($this->employment_status, ['permanent', 'temporary', 'contractual', 'casual'])) {
             if ($this->employment_status === 'permanent' || $this->employment_status === 'temporary') {
                 $required[] = 'GSIS';
@@ -502,7 +504,7 @@ class Employee extends Model
                 $required[] = 'Pag-IBIG';
             }
         }
-        
+
         return $required;
     }
 
@@ -515,14 +517,14 @@ class Employee extends Model
             ->overdue()
             ->with('governmentBenefit')
             ->get();
-            
+
         $summary = [
             'total_overdue_count' => $overdueContributions->count(),
             'total_overdue_amount' => $overdueContributions->sum('total_contribution_amount'),
             'total_penalties' => $overdueContributions->sum('late_penalty_amount'),
             'by_benefit_type' => [],
         ];
-        
+
         foreach ($overdueContributions->groupBy(function($contribution) {
             return $contribution->governmentBenefit->benefit_type;
         }) as $benefitType => $contributions) {
@@ -533,7 +535,7 @@ class Employee extends Model
                 'oldest_overdue_days' => $contributions->max('days_overdue'),
             ];
         }
-        
+
         return $summary;
     }
 
@@ -545,14 +547,14 @@ class Employee extends Model
         $loansData = $this->governmentBenefits()
             ->withActiveLoans()
             ->get(['benefit_type', 'loan_balance', 'monthly_loan_payment', 'loan_maturity_date']);
-            
+
         $summary = [
             'total_active_loans' => $loansData->count(),
             'total_outstanding_balance' => $loansData->sum('loan_balance'),
             'total_monthly_payments' => $loansData->sum('monthly_loan_payment'),
             'loans_by_type' => [],
         ];
-        
+
         foreach ($loansData as $loan) {
             $summary['loans_by_type'][$loan->benefit_type] = [
                 'outstanding_balance' => $loan->loan_balance,
@@ -560,14 +562,14 @@ class Employee extends Model
                 'maturity_date' => $loan->loan_maturity_date?->format('Y-m-d'),
             ];
         }
-        
+
         return $summary;
     }
 
     /**
      * Analytics-specific attributes and methods
      */
-    
+
     /**
      * Get employee age
      */
@@ -576,8 +578,8 @@ class Employee extends Model
         if (!$this->birth_date) {
             return null;
         }
-        
-        return $this->birth_date->diffInYears(now());
+
+        return Carbon::parse($this->birth_date)->diffInYears(now());
     }
 
     /**
@@ -588,8 +590,8 @@ class Employee extends Model
         if (!$this->date_hired) {
             return null;
         }
-        
-        return $this->date_hired->diffInYears(now());
+
+        return Carbon::parse($this->date_hired)->diffInYears(now());
     }
 
     /**
@@ -601,7 +603,7 @@ class Employee extends Model
             ->where('evaluation_status', 'final')
             ->orderBy('evaluation_date', 'desc')
             ->first();
-            
+
         return $latestEvaluation ? $latestEvaluation->overall_rating : null;
     }
 
@@ -615,14 +617,14 @@ class Employee extends Model
             ->orderBy('evaluation_date', 'desc')
             ->limit(2)
             ->get();
-            
+
         if ($evaluations->count() < 2) {
             return 'insufficient_data';
         }
-        
+
         $latest = $evaluations->first()->overall_rating;
         $previous = $evaluations->last()->overall_rating;
-        
+
         if ($latest > $previous) {
             return 'improving';
         } elseif ($latest < $previous) {
@@ -658,22 +660,22 @@ class Employee extends Model
     public function getTurnoverRiskAttribute()
     {
         $riskScore = 0;
-        
+
         // Tenure risk (U-shaped curve)
         $tenure = $this->tenure_years ?? 0;
         if ($tenure < 1 || $tenure > 20) $riskScore += 30;
         elseif ($tenure < 2 || $tenure > 15) $riskScore += 20;
         elseif ($tenure < 3 || $tenure > 10) $riskScore += 10;
-        
+
         // Performance risk
         $rating = $this->current_performance_rating;
         if ($rating && $rating < 3) $riskScore += 25;
-        
+
         // Age risk
         $age = $this->age ?? 0;
         if ($age > 60) $riskScore += 15;
         if ($age < 25) $riskScore += 10;
-        
+
         if ($riskScore >= 70) return 'high';
         if ($riskScore >= 40) return 'medium';
         return 'low';
@@ -686,7 +688,7 @@ class Employee extends Model
     {
         $age = $this->age ?? 0;
         $tenure = $this->tenure_years ?? 0;
-        
+
         // Government retirement eligibility: 65 years old OR 30+ years of service
         return $age >= 65 || $tenure >= 30;
     }
@@ -697,11 +699,11 @@ class Employee extends Model
     public function getYearsUntilRetirementAttribute()
     {
         $age = $this->age ?? 0;
-        
+
         if ($age >= 65) {
             return 0; // Already at retirement age
         }
-        
+
         return 65 - $age;
     }
 
@@ -714,12 +716,12 @@ class Employee extends Model
             ->where('evaluation_status', 'final')
             ->orderBy('evaluation_date', 'desc')
             ->first();
-            
+
         if (!$latestEvaluation) {
             return false;
         }
-        
-        return $latestEvaluation->promotion_readiness && 
+
+        return $latestEvaluation->promotion_readiness &&
                $latestEvaluation->overall_rating >= 4.0;
     }
 
@@ -729,26 +731,26 @@ class Employee extends Model
     public function getComplianceScoreAttribute()
     {
         $scores = [];
-        
+
         // Document compliance (out of 4 required documents)
         $requiredDocs = ['pds', 'medical_certificate', 'eligibility_certificate', 'diploma'];
         $submittedDocs = $this->documents()->whereIn('document_type', $requiredDocs)->count();
         $scores['documents'] = ($submittedDocs / count($requiredDocs)) * 100;
-        
+
         // Performance evaluation compliance
         $currentYearEval = $this->performanceEvaluations()
             ->whereYear('evaluation_date', now()->year)
             ->exists();
         $scores['performance'] = $currentYearEval ? 100 : 0;
-        
+
         // Training compliance (minimum 40 hours per year)
         $trainingHours = $this->training_hours_this_year ?? 0;
         $scores['training'] = min(($trainingHours / 40) * 100, 100);
-        
+
         // Benefits compliance
         $benefitsCompliance = $this->hasRequiredBenefitsEnrolled();
         $scores['benefits'] = $benefitsCompliance['compliance_rate'];
-        
+
         return round(array_sum($scores) / count($scores), 2);
     }
 
@@ -760,7 +762,7 @@ class Employee extends Model
         if (!$this->skills) {
             return [];
         }
-        
+
         return array_map('trim', explode(',', $this->skills));
     }
 
@@ -771,15 +773,15 @@ class Employee extends Model
     {
         $monthlySalary = $this->salary ?? 0;
         $annualSalary = $monthlySalary * 12;
-        
+
         // Add estimated benefits cost (30% of salary)
         $benefitsCost = $annualSalary * 0.30;
-        
+
         // Add training costs
         $trainingCost = $this->trainings()
             ->whereYear('start_date', now()->year)
             ->sum('training_cost') ?? 0;
-        
+
         return $annualSalary + $benefitsCost + $trainingCost;
     }
 
@@ -861,15 +863,15 @@ class Employee extends Model
         if ($user->hasRole('Employee')) {
             return $query->where('id', $user->employee?->id);
         }
-        
+
         if ($user->hasRole('HR Admin')) {
             return $query->where('employment_status', 'active');
         }
-        
+
         if ($user->hasRole('Super Admin')) {
             return $query; // No filtering
         }
-        
+
         return $query->whereRaw('1 = 0'); // Unknown role
     }
 
@@ -878,13 +880,18 @@ class Employee extends Model
      */
     public function scopeAccessible($query)
     {
-        return $query->forUser(auth()->user());
+        $user = auth()->user();
+        if (!$user) {
+            return $query->whereRaw('1 = 0'); // No authenticated user
+        }
+
+        return $query->forUser($user);
     }
 
     /**
      * PDS-specific methods
      */
-    
+
     public function getFullNameAttribute(): string
     {
         $name = trim($this->first_name . ' ' . $this->middle_name . ' ' . $this->last_name);
@@ -902,7 +909,7 @@ class Employee extends Model
             $this->res_province,
             $this->res_zip_code,
         ]);
-        
+
         return implode(', ', $parts);
     }
 
@@ -917,7 +924,7 @@ class Employee extends Model
             $this->perm_province,
             $this->perm_zip_code,
         ]);
-        
+
         return implode(', ', $parts);
     }
 
@@ -937,7 +944,7 @@ class Employee extends Model
         ];
 
         $overallCompletion = array_sum($panels) / count($panels);
-        
+
         return [
             'panels' => $panels,
             'overall_completion' => round($overallCompletion, 2),
@@ -952,14 +959,14 @@ class Employee extends Model
             'first_name', 'last_name', 'birth_date', 'place_of_birth',
             'gender', 'civil_status', 'citizenship', 'height', 'weight', 'blood_type'
         ];
-        
+
         $completed = 0;
         foreach ($requiredFields as $field) {
             if (!empty($this->$field)) {
                 $completed++;
             }
         }
-        
+
         return ($completed / count($requiredFields)) * 100;
     }
 
@@ -972,13 +979,13 @@ class Employee extends Model
 
         $requiredFields = ['father_first_name', 'father_surname', 'mother_first_name', 'mother_surname'];
         $completed = 0;
-        
+
         foreach ($requiredFields as $field) {
             if (!empty($family->$field)) {
                 $completed++;
             }
         }
-        
+
         return ($completed / count($requiredFields)) * 100;
     }
 
@@ -1026,7 +1033,7 @@ class Employee extends Model
 
         $requiredQuestions = count(EmployeeQuestionnaire::getQuestionLabels());
         $answeredQuestions = count($questionnaire->questions_answers ?? []);
-        
+
         return ($answeredQuestions / $requiredQuestions) * 100;
     }
 }
