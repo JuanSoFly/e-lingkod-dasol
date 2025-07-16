@@ -17,6 +17,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class PDSController extends Controller
 {
@@ -479,14 +480,58 @@ class PDSController extends Controller
             ->with('success', 'Questionnaire updated successfully.');
     }
 
-    // PDS PDF Generation (placeholder for future implementation)
+    // PDS PDF Generation
     public function generatePDF(Employee $employee)
     {
         $this->authorizePdsAccess($employee, 'view');
         
-        // TODO: Implement PDF generation using dompdf or similar
-        // This should generate the official CSC Form No. 212
-        
-        return response()->json(['message' => 'PDF generation not yet implemented']);
+        try {
+            // Load employee with all related PDS data
+            $employee->load([
+                'familyBackground',
+                'children',
+                'education',
+                'pdsEligibilities',
+                'workExperiences',
+                'voluntaryWork',
+                'trainings',
+                'specialSkills',
+                'distinctions',
+                'memberships',
+                'references',
+                'questionnaire'
+            ]);
+
+            // Get complete PDS data
+            $pdsData = $employee->getPdsDataForPdf();
+
+            // Generate PDF using the CSC Form No. 212 template
+            $pdf = Pdf::loadView('pds.pdf.form212', [
+                'employee' => $employee,
+                'pdsData' => $pdsData
+            ]);
+
+            // Set PDF options
+            $pdf->setPaper('A4', 'portrait');
+            $pdf->setOption('isHtml5ParserEnabled', true);
+            $pdf->setOption('isRemoteEnabled', true);
+
+            // Generate filename with employee name
+            $filename = 'PDS_' . str_replace(' ', '_', $employee->full_name) . '_' . date('Y-m-d') . '.pdf';
+
+            // Return PDF for download
+            return $pdf->download($filename);
+
+        } catch (\Exception $e) {
+            // Log error and return user-friendly message
+            logger()->error('PDS PDF generation failed', [
+                'employee_id' => $employee->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Error generating PDF. Please try again or contact support.'
+            ], 500);
+        }
     }
 }

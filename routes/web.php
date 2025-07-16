@@ -50,7 +50,7 @@ Route::middleware('auth')->group(function () {
 
     // Employee Management Routes
     Route::resource('employees', EmployeeController::class)->middleware('can:employee.view');
-    
+
     // Education Routes (nested under employees)
     Route::prefix('employees/{employee}/education')
         ->name('employees.education.')
@@ -268,4 +268,4 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

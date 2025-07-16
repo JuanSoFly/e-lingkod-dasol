@@ -211,15 +211,15 @@ class BenefitContribution extends Model
         }
 
         $this->days_overdue = max(0, now()->diffInDays($this->due_date, false));
-        
+
         if ($this->days_overdue > 0) {
             $this->payment_status = 'overdue';
-            
+
             // Calculate penalty based on benefit type
             $penaltyCalculation = $this->calculateLatePenalty();
             $this->late_penalty_amount = $penaltyCalculation['penalty_amount'];
             $this->interest_on_penalty = $penaltyCalculation['interest_amount'];
-            
+
             $this->save();
         }
     }
@@ -232,41 +232,41 @@ class BenefitContribution extends Model
         $benefitType = $this->governmentBenefit->benefit_type;
         $daysOverdue = $this->days_overdue;
         $totalContribution = $this->total_contribution_amount;
-        
+
         $penaltyAmount = 0;
         $interestAmount = 0;
-        
+
         switch ($benefitType) {
             case 'GSIS':
                 // GSIS penalty: 2% per month on unpaid contributions
                 $monthsOverdue = ceil($daysOverdue / 30);
                 $penaltyAmount = $totalContribution * 0.02 * $monthsOverdue;
                 break;
-                
+
             case 'PhilHealth':
                 // PhilHealth penalty: 2.5% per month
                 $monthsOverdue = ceil($daysOverdue / 30);
                 $penaltyAmount = $totalContribution * 0.025 * $monthsOverdue;
                 break;
-                
+
             case 'Pag-IBIG':
                 // Pag-IBIG penalty: varies, typically 1% per month
                 $monthsOverdue = ceil($daysOverdue / 30);
                 $penaltyAmount = $totalContribution * 0.01 * $monthsOverdue;
                 break;
-                
+
             case 'SSS':
                 // SSS penalty: 3% per month on employer share
                 $monthsOverdue = ceil($daysOverdue / 30);
                 $penaltyAmount = $this->employer_contribution_amount * 0.03 * $monthsOverdue;
                 break;
         }
-        
+
         // Calculate interest on penalty if applicable
         if ($daysOverdue > 30) {
             $interestAmount = $penaltyAmount * 0.01 * ceil($daysOverdue / 30);
         }
-        
+
         return [
             'penalty_amount' => round($penaltyAmount, 2),
             'interest_amount' => round($interestAmount, 2),
@@ -324,34 +324,34 @@ class BenefitContribution extends Model
     public function validateContribution(): array
     {
         $errors = [];
-        
+
         // Check if contribution matches calculation
-        $expectedContribution = $this->contribution_base * 
+        $expectedContribution = $this->contribution_base *
             (($this->employee_contribution_rate + $this->employer_contribution_rate) / 100);
-            
+
         if (abs($this->total_contribution_amount - $expectedContribution) > 0.01) {
             $errors[] = 'Contribution amount does not match calculation';
         }
-        
+
         // Check if employee and employer rates are valid
         if ($this->employee_contribution_rate < 0 || $this->employer_contribution_rate < 0) {
             $errors[] = 'Contribution rates cannot be negative';
         }
-        
+
         // Check if contribution base is valid
         if ($this->contribution_base > $this->total_compensation) {
             $errors[] = 'Contribution base cannot exceed total compensation';
         }
-        
+
         // Check if loan payment is valid
         if ($this->loan_payment_amount > 0 && !$this->governmentBenefit->has_active_loan) {
             $errors[] = 'Loan payment recorded but no active loan exists';
         }
-        
+
         // Update compliance status
         $this->is_compliant = empty($errors);
         $this->compliance_issues = $errors;
-        
+
         return $errors;
     }
 
@@ -437,12 +437,12 @@ class BenefitContribution extends Model
     public static function calculateMonthlyContributionsForEmployee(Employee $employee, int $year, int $month, float $basicSalary, float $additionalCompensation = 0): array
     {
         $contributions = [];
-        
+
         $governmentBenefits = $employee->governmentBenefits()->active()->get();
-        
+
         foreach ($governmentBenefits as $benefit) {
             $calculation = $benefit->calculateMonthlyContribution($basicSalary, $additionalCompensation);
-            
+
             $contributions[] = [
                 'government_benefit_id' => $benefit->id,
                 'benefit_type' => $benefit->benefit_type,
@@ -453,7 +453,7 @@ class BenefitContribution extends Model
                 'loan_payment' => $benefit->monthly_loan_payment ?? 0,
             ];
         }
-        
+
         return $contributions;
     }
 }
