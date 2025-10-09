@@ -5,7 +5,6 @@ namespace Tests\Integration;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Employee;
-use App\Models\DocumentApprovalRequest;
 use App\Models\LeaveApplication;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
@@ -33,16 +32,17 @@ class EmployeeWorkflowTest extends TestCase
         $response = $this->get("/employees/{$employee->employee->id}");
         $response->assertStatus(200);
         
-        // Create document request (should work)
-        $response = $this->post('/document-approvals', [
-            'type' => 'certificate_of_employment',
-            'purpose' => 'Bank loan application',
-            'notes' => 'Urgent request',
+        // Create leave application (should work)
+        $response = $this->post('/leave_applications', [
+            'leave_type_id' => 1,
+            'start_date' => now()->addDays(30)->format('Y-m-d'),
+            'end_date' => now()->addDays(32)->format('Y-m-d'),
+            'reason' => 'Personal matters',
         ]);
         $response->assertRedirect();
         
-        // View own requests (should work)
-        $response = $this->get('/document-approvals/my-requests');
+        // View own applications (should work)
+        $response = $this->get('/leave_applications');
         $response->assertStatus(200);
         
         // Try to access other employee's data (should fail)
@@ -76,7 +76,7 @@ class EmployeeWorkflowTest extends TestCase
         
         // Create test data
         Employee::factory()->count(5)->create();
-        DocumentApprovalRequest::factory()->count(10)->create();
+        \App\Models\LeaveApplication::factory()->count(10)->create();
         
         $this->actingAs($hrAdmin);
         
@@ -84,13 +84,13 @@ class EmployeeWorkflowTest extends TestCase
         $response = $this->get('/employees');
         $response->assertStatus(200);
         
-        // Access all document requests (should work)
-        $response = $this->get('/document-approvals');
+        // Access all leave applications (should work)
+        $response = $this->get('/leave_applications');
         $response->assertStatus(200);
         
-        // Approve a document request (should work)
-        $request = DocumentApprovalRequest::first();
-        $response = $this->patch("/document-approvals/{$request->id}/approve");
+        // Approve a leave application (should work)
+        $request = \App\Models\LeaveApplication::first();
+        $response = $this->patch("/leave_applications/{$request->id}/approve");
         $response->assertRedirect();
         
         // View HR analytics (should work)
@@ -117,7 +117,7 @@ class EmployeeWorkflowTest extends TestCase
         $response = $this->get('/employees');
         $response->assertStatus(200);
         
-        $response = $this->get('/document-approvals');
+        $response = $this->get('/leave_applications');
         $response->assertStatus(200);
         
         $response = $this->get('/hr-analytics/dashboard');
@@ -129,63 +129,6 @@ class EmployeeWorkflowTest extends TestCase
         ]);
     }
     
-    /**
-     * Test end-to-end document approval workflow with security
-     */
-    public function test_document_approval_workflow_maintains_security()
-    {
-        $employee = User::factory()->create();
-        $employee->assignRole('Employee');
-        
-        $hrAdmin = User::factory()->create();
-        $hrAdmin->assignRole('HR Admin');
-        
-        // Step 1: Employee creates document request
-        $this->actingAs($employee);
-        
-        $response = $this->post('/document-approvals', [
-            'type' => 'certificate_of_employment',
-            'purpose' => 'Bank loan application',
-            'notes' => 'Urgent request',
-        ]);
-        
-        $response->assertRedirect();
-        
-        $documentRequest = DocumentApprovalRequest::where('employee_id', $employee->employee->id)->first();
-        $this->assertNotNull($documentRequest);
-        
-        // Step 2: Employee can view their own request
-        $response = $this->get("/document-approvals/{$documentRequest->id}");
-        $response->assertStatus(200);
-        
-        // Step 3: Employee cannot view other employees' requests
-        $otherRequest = DocumentApprovalRequest::factory()->create();
-        $response = $this->get("/document-approvals/{$otherRequest->id}");
-        $response->assertStatus(403);
-        
-        // Step 4: HR Admin can view and approve the request
-        $this->actingAs($hrAdmin);
-        
-        $response = $this->get("/document-approvals/{$documentRequest->id}");
-        $response->assertStatus(200);
-        
-        $response = $this->patch("/document-approvals/{$documentRequest->id}/approve");
-        $response->assertRedirect();
-        
-        // Step 5: Verify approval is logged
-        $this->assertDatabaseHas('activity_log', [
-            'subject_type' => DocumentApprovalRequest::class,
-            'subject_id' => $documentRequest->id,
-            'causer_id' => $hrAdmin->id,
-        ]);
-        
-        // Step 6: Employee can see the approved status
-        $this->actingAs($employee);
-        
-        $response = $this->get("/document-approvals/{$documentRequest->id}");
-        $response->assertStatus(200);
-        $response->assertSee('approved'); // Assuming status is displayed
-    }
     
     /**
      * Test leave application workflow with security
@@ -289,18 +232,18 @@ class EmployeeWorkflowTest extends TestCase
         $hrAdmin->assignRole('HR Admin');
         
         // Create data for each employee
-        $request1 = DocumentApprovalRequest::factory()->create([
+        $request1 = \App\Models\LeaveApplication::factory()->create([
             'employee_id' => $employee1->employee->id
         ]);
         
-        $request2 = DocumentApprovalRequest::factory()->create([
+        $request2 = \App\Models\LeaveApplication::factory()->create([
             'employee_id' => $employee2->employee->id
         ]);
         
         // Test Employee 1 isolation
         $this->actingAs($employee1);
         
-        $response = $this->get('/document-approvals/my-requests');
+        $response = $this->get('/leave_applications');
         $response->assertStatus(200);
         $response->assertSee($request1->id);
         $response->assertDontSee($request2->id);
@@ -308,7 +251,7 @@ class EmployeeWorkflowTest extends TestCase
         // Test Employee 2 isolation
         $this->actingAs($employee2);
         
-        $response = $this->get('/document-approvals/my-requests');
+        $response = $this->get('/leave_applications');
         $response->assertStatus(200);
         $response->assertSee($request2->id);
         $response->assertDontSee($request1->id);
@@ -316,7 +259,7 @@ class EmployeeWorkflowTest extends TestCase
         // Test HR Admin can see all
         $this->actingAs($hrAdmin);
         
-        $response = $this->get('/document-approvals');
+        $response = $this->get('/leave_applications');
         $response->assertStatus(200);
         $response->assertSee($request1->id);
         $response->assertSee($request2->id);
@@ -376,11 +319,13 @@ class EmployeeWorkflowTest extends TestCase
         
         $this->get('/dashboard');
         $this->get("/employees/{$employee->employee->id}");
-        $this->post('/document-approvals', [
-            'type' => 'certificate_of_employment',
-            'purpose' => 'Bank loan application',
+        $this->post('/leave_applications', [
+            'leave_type_id' => 1,
+            'start_date' => now()->addDays(30)->format('Y-m-d'),
+            'end_date' => now()->addDays(32)->format('Y-m-d'),
+            'reason' => 'Personal matters',
         ]);
-        $this->get('/document-approvals/my-requests');
+        $this->get('/leave_applications');
         
         // Attempt unauthorized access
         $otherEmployee = Employee::factory()->create();
@@ -390,7 +335,7 @@ class EmployeeWorkflowTest extends TestCase
         $this->actingAs($hrAdmin);
         
         $this->get('/employees');
-        $this->get('/document-approvals');
+        $this->get('/leave_applications');
         
         // Verify all actions are logged
         $logs = Activity::all();

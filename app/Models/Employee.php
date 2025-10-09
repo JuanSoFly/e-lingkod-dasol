@@ -88,6 +88,11 @@ class Employee extends Model
         'telephone_no',
         'mobile_no',
         'agency_employee_no',
+        // CSC Form No. 212 - Page 4 Government ID fields
+        'gov_id_type',
+        'gov_id_number',
+        'gov_id_date_issued',
+        'gov_id_place_issued',
     ];
 
     protected $casts = [
@@ -100,6 +105,7 @@ class Employee extends Model
         'last_promotion_date' => 'date',
         'last_attendance_date' => 'date',
         'awol_start_date' => 'date',
+        'gov_id_date_issued' => 'date',
         'latest_performance_rating' => 'decimal:2',
         'training_hours_ytd' => 'integer',
         'consecutive_absent_days' => 'integer',
@@ -145,6 +151,21 @@ class Employee extends Model
     public function performanceReviews(): HasMany
     {
         return $this->hasMany(PerformanceReview::class);
+    }
+
+    public function references(): HasMany
+    {
+        return $this->hasMany(EmployeeReference::class)->ordered();
+    }
+
+    public function activePhoto(): HasOne
+    {
+        return $this->hasOne(EmployeePhoto::class)->active();
+    }
+
+    public function photos(): HasMany
+    {
+        return $this->hasMany(EmployeePhoto::class);
     }
 
     public function sexualHarassmentCasesAsComplainant(): HasMany
@@ -231,11 +252,6 @@ class Employee extends Model
     public function memberships(): HasMany
     {
         return $this->hasMany(EmployeeOtherInformation::class)->where('information_type', 'memberships');
-    }
-
-    public function references(): HasMany
-    {
-        return $this->hasMany(EmployeeReference::class);
     }
 
     public function questionnaire(): HasOne
@@ -1031,10 +1047,21 @@ class Employee extends Model
             return 0;
         }
 
-        $requiredQuestions = count(EmployeeQuestionnaire::getQuestionLabels());
-        $answeredQuestions = count($questionnaire->questions_answers ?? []);
+        // Check the actual required database fields that match the form structure
+        $requiredFields = [
+            'field_34_yes_no', 'field_34b_yes_no', 'field_35a_yes_no', 'field_35b_yes_no',
+            'field_36_yes_no', 'field_37_yes_no', 'field_38a_yes_no', 'field_38b_yes_no',
+            'field_39_yes_no', 'field_40a_yes_no', 'field_40b_yes_no', 'field_40c_yes_no'
+        ];
 
-        return ($answeredQuestions / $requiredQuestions) * 100;
+        $answeredQuestions = 0;
+        foreach ($requiredFields as $field) {
+            if ($questionnaire->{$field} !== null && $questionnaire->{$field} !== '') {
+                $answeredQuestions++;
+            }
+        }
+
+        return ($answeredQuestions / count($requiredFields)) * 100;
     }
 
     /**

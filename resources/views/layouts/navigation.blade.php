@@ -100,51 +100,6 @@
                     </div>
                     @endif
 
-                    <!-- Approval Workflows Dropdown -->
-                    @if(auth()->user()->hasAnyRole(['Super Admin', 'HR Admin', 'Employee']))
-                    <div class="hidden sm:flex sm:items-center">
-                        <x-dropdown align="left" width="56">
-                            <x-slot name="trigger">
-                                <button class="inline-flex items-center px-3 py-2 border-b-2 {{ request()->routeIs('document-approvals.*') ? 'border-indigo-400 text-indigo-600' : 'border-transparent text-gray-600' }} text-sm font-medium leading-5 hover:text-gray-800 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:border-gray-300 transition-all duration-200 ease-in-out rounded-t-md group">
-                                    <div class="flex items-center space-x-1">
-                                        <svg class="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                        </svg>
-                                        <span>Approval Workflows</span>
-                                        <svg class="fill-current h-4 w-4 transition-transform duration-200 group-hover:rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                                    </div>
-                                </button>
-                            </x-slot>
-                            <x-slot name="content">
-                                @can('user.manage')
-                                    <x-dropdown-link :href="route('document-approvals.index')">
-                                        {{ __('All Requests') }}
-                                    </x-dropdown-link>
-                                @endcan
-                                @can('document-approval.create')
-                                    <x-dropdown-link :href="route('document-approvals.create')">
-                                        {{ __('New Request') }}
-                                    </x-dropdown-link>
-                                @endcan
-                                @can('document-approval.create')
-                                    <x-dropdown-link :href="route('document-approvals.my-requests')">
-                                        {{ __('My Requests') }}
-                                    </x-dropdown-link>
-                                @endcan
-                                @can('document-approval.approve')
-                                    <x-dropdown-link :href="route('document-approvals.pending-approvals')">
-                                        {{ __('Pending Approvals') }}
-                                    </x-dropdown-link>
-                                @endcan
-                                @can('user.manage')
-                                    <x-dropdown-link :href="route('document-approvals.dashboard')">
-                                        {{ __('Dashboard') }}
-                                    </x-dropdown-link>
-                                @endcan
-                            </x-slot>
-                        </x-dropdown>
-                    </div>
-                    @endif
 
                     <!-- Reports Dropdown -->
                     @if(auth()->user()->can('reports.view') || auth()->user()->can('reports.generate'))
@@ -229,20 +184,7 @@
                                 <x-dropdown-link :href="route('employee-portal.document-requests')">
                                     {{ __('HR Document Services') }}
                                 </x-dropdown-link>
-                                
-                                @can('document-approval.view')
-                                    <div class="border-t border-gray-100"></div>
-                                    <x-dropdown-link :href="route('document-approvals.my-requests')">
-                                        {{ __('My Approval Requests') }}
-                                    </x-dropdown-link>
-                                    @can('document-approval.create')
-                                        <x-dropdown-link :href="route('document-approvals.create')">
-                                            {{ __('Submit New Request') }}
-                                        </x-dropdown-link>
-                                    @endcan
-                                    <div class="border-t border-gray-100"></div>
-                                @endcan
-                                
+
                                 <x-dropdown-link :href="route('employee-portal.personal-data-update')">
                                     {{ __('Update Personal Info') }}
                                 </x-dropdown-link>
@@ -362,29 +304,8 @@
                     {{ __('Reports') }}
                 </x-responsive-nav-link>
             @endcan
-            
-            <!-- Approval Workflows Mobile Navigation -->
-            @can('document-approval.create')
-                <x-responsive-nav-link :href="route('document-approvals.my-requests')" :active="request()->routeIs('document-approvals.my-requests')">
-                    {{ __('My Approval Requests') }}
-                </x-responsive-nav-link>
-            @endcan
-            @can('user.manage')
-                <x-responsive-nav-link :href="route('document-approvals.dashboard')" :active="request()->routeIs('document-approvals.dashboard')">
-                    {{ __('Approval Workflows Dashboard') }}
-                </x-responsive-nav-link>
-            @endcan
-            @can('document-approval.create')
-                <x-responsive-nav-link :href="route('document-approvals.create')" :active="request()->routeIs('document-approvals.create')">
-                    {{ __('Submit New Request') }}
-                </x-responsive-nav-link>
-            @endcan
-            @can('document-approval.approve')
-                <x-responsive-nav-link :href="route('document-approvals.pending-approvals')" :active="request()->routeIs('document-approvals.pending-approvals')">
-                    {{ __('Pending Approvals') }}
-                </x-responsive-nav-link>
-            @endcan
-            
+
+
             <!-- Employee Self-Service Portal (Mobile) -->
             @if(auth()->user()->employee)
                 <x-responsive-nav-link :href="route('employee-portal.dashboard')" :active="request()->routeIs('employee-portal.dashboard')">

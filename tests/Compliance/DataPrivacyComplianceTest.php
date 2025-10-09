@@ -5,7 +5,6 @@ namespace Tests\Compliance;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Employee;
-use App\Models\DocumentApprovalRequest;
 use App\Models\LeaveApplication;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
@@ -24,12 +23,12 @@ class DataPrivacyComplianceTest extends TestCase
         
         // Create other employees' data
         Employee::factory()->count(10)->create();
-        DocumentApprovalRequest::factory()->count(20)->create();
+        \App\Models\LeaveApplication::factory()->count(20)->create();
         
         $this->actingAs($employee);
         
         // Employee should only see necessary data for their role
-        $response = $this->get('/document-approvals/my-requests');
+        $response = $this->get('/leave_applications');
         $response->assertStatus(200);
         
         // Check that response doesn't contain other employees' data
@@ -320,7 +319,7 @@ class DataPrivacyComplianceTest extends TestCase
         $response->assertStatus(403);
         
         // API should filter data by default
-        $response = $this->getJson('/api/document-requests');
+        $response = $this->getJson('/api/leave-applications');
         $response->assertStatus(200);
         
         $data = $response->json();
@@ -575,7 +574,7 @@ class DataPrivacyComplianceTest extends TestCase
         ];
         
         foreach ($scenarios as $scenario => $data) {
-            $response = $this->post('/api/documents/search', $data);
+            $response = $this->post('/api/leave-applications/search', $data);
             
             // Should handle edge cases gracefully without exposing data
             $this->assertTrue(

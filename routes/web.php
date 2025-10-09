@@ -21,8 +21,6 @@ use App\Http\Controllers\HRAnalyticsController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\PDSController;
 use App\Http\Controllers\EducationController;
-use App\Http\Controllers\DocumentApprovalController;
-use App\Http\Controllers\ApprovalActionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -85,7 +83,10 @@ Route::middleware('auth')->group(function () {
         Route::post('{employee}/references', [PDSController::class, 'storeReference'])->name('store-reference');
         Route::delete('{employee}/references/{reference}', [PDSController::class, 'destroyReference'])->name('destroy-reference');
         Route::get('{employee}/questionnaire', [PDSController::class, 'questionnaire'])->name('questionnaire');
-        Route::patch('{employee}/questionnaire', [PDSController::class, 'updateQuestionnaire'])->name('update-questionnaire');
+        Route::post('{employee}/questionnaire', [PDSController::class, 'updateQuestionnaire'])->name('update-questionnaire');
+        Route::get('{employee}/photo', [PDSController::class, 'photo'])->name('photo');
+        Route::post('{employee}/photo', [PDSController::class, 'uploadPhoto'])->name('upload-photo');
+        Route::post('{employee}/thumbmark', [PDSController::class, 'uploadThumbmark'])->name('upload-thumbmark');
         // Panel 5: Work Experience
         Route::get('{employee}/work-experience', [PDSController::class, 'workExperience'])->name('work-experience');
         Route::post('{employee}/work-experience', [PDSController::class, 'storeWorkExperience'])->name('store-work-experience');
@@ -236,36 +237,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/clear-cache', [HRAnalyticsController::class, 'clearCache'])->name('clear-cache');
     });
 
-    // Document Approval Routes
-    Route::prefix('document-approvals')->name('document-approvals.')->group(function () {
-        Route::get('/', [DocumentApprovalController::class, 'index'])->name('index');
-        Route::get('/create', [DocumentApprovalController::class, 'create'])->name('create');
-        Route::post('/', [DocumentApprovalController::class, 'store'])->name('store');
-        Route::get('/dashboard', [DocumentApprovalController::class, 'dashboard'])->name('dashboard');
-        Route::get('/my-requests', [DocumentApprovalController::class, 'myRequests'])->name('my-requests');
-        Route::get('/pending-approvals', [DocumentApprovalController::class, 'pendingApprovals'])->name('pending-approvals');
-
-        Route::get('/{documentApprovalRequest}', [DocumentApprovalController::class, 'show'])->name('show');
-        Route::get('/{documentApprovalRequest}/edit', [DocumentApprovalController::class, 'edit'])->name('edit');
-        Route::put('/{documentApprovalRequest}', [DocumentApprovalController::class, 'update'])->name('update');
-        Route::delete('/{documentApprovalRequest}', [DocumentApprovalController::class, 'destroy'])->name('destroy');
-        Route::post('/{documentApprovalRequest}/submit', [DocumentApprovalController::class, 'submit'])->name('submit');
-        Route::patch('/{documentApprovalRequest}/withdraw', [DocumentApprovalController::class, 'withdraw'])->name('withdraw');
-        Route::get('/{documentApprovalRequest}/download/{attachment}', [DocumentApprovalController::class, 'download'])->name('download');
-
-        // Approval Actions
-        Route::post('/{documentApprovalRequest}/approve', [ApprovalActionController::class, 'approve'])->name('approve');
-        Route::post('/{documentApprovalRequest}/reject', [ApprovalActionController::class, 'reject'])->name('reject');
-        Route::post('/{documentApprovalRequest}/request-changes', [ApprovalActionController::class, 'requestChanges'])->name('request-changes');
-        Route::post('/{documentApprovalRequest}/add-comment', [ApprovalActionController::class, 'addComment'])->name('add-comment');
-        Route::post('/{documentApprovalRequest}/assign-approver', [ApprovalActionController::class, 'assignApprover'])->name('assign-approver');
-        Route::post('/{documentApprovalRequest}/reassign', [ApprovalActionController::class, 'reassign'])->name('reassign');
-        Route::post('/{documentApprovalRequest}/escalate', [ApprovalActionController::class, 'escalate'])->name('escalate');
-
-        // Bulk Actions
-        Route::post('/bulk/approve', [ApprovalActionController::class, 'bulkApprove'])->name('bulk.approve');
-        Route::post('/bulk/reject', [ApprovalActionController::class, 'bulkReject'])->name('bulk.reject');
-    });
 });
 
 require __DIR__ . '/auth.php';

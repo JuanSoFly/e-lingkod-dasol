@@ -5,7 +5,6 @@ namespace Tests\Compliance;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Employee;
-use App\Models\DocumentApprovalRequest;
 use App\Models\LeaveApplication;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
@@ -72,7 +71,7 @@ class APIComplianceTest extends TestCase
         $protectedEndpoints = [
             '/api/user',
             '/api/employees/1',
-            '/api/documents/search',
+            '/api/leave-applications/search',
             '/api/csc-reports/list',
         ];
         
@@ -233,7 +232,7 @@ class APIComplianceTest extends TestCase
         
         foreach ($maliciousInputs as $inputType => $maliciousInput) {
             // Test search endpoint with malicious input
-            $response = $this->postJson('/api/documents/search', [
+            $response = $this->postJson('/api/leave-applications/search', [
                 'query' => $maliciousInput
             ]);
             
@@ -273,7 +272,7 @@ class APIComplianceTest extends TestCase
         // Test various API operations are logged
         $apiOperations = [
             'GET' => "/api/employees/{$employee->employee->id}",
-            'POST' => '/api/documents/search',
+            'POST' => '/api/leave-applications/search',
             'PUT' => "/api/employees/{$employee->employee->id}",
         ];
         
@@ -370,14 +369,14 @@ class APIComplianceTest extends TestCase
         $hrAdmin = User::factory()->create();
         $hrAdmin->assignRole('HR Admin');
         
-        // Create multiple employees and documents
+        // Create multiple employees and leave applications
         Employee::factory()->count(25)->create();
-        DocumentApprovalRequest::factory()->count(30)->create();
+        \App\Models\LeaveApplication::factory()->count(30)->create();
         
         $this->actingAs($employee);
         
         // Test employee can only paginate through their own data
-        $response = $this->getJson('/api/document-requests?per_page=10&page=1');
+        $response = $this->getJson('/api/leave-applications?per_page=10&page=1');
         
         if ($response->status() === 200) {
             $data = $response->json();

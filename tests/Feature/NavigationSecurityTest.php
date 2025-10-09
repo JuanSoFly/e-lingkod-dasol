@@ -84,8 +84,8 @@ class NavigationSecurityTest extends TestCase
         $response = $this->actingAs($employee)->get('/employees');
         $response->assertStatus(403);
         
-        $response = $this->actingAs($employee)->get('/document-approvals');
-        $response->assertRedirect('/document-approvals/my-requests');
+        $response = $this->actingAs($employee)->get('/leave_applications/admin');
+        $response->assertStatus(403);
         
         // Test that HR Analytics is blocked for employees
         $response = $this->actingAs($employee)->get('/hr-analytics/dashboard');
@@ -107,12 +107,12 @@ class NavigationSecurityTest extends TestCase
         
         // Should not contain admin navigation items
         $this->assertStringNotContainsString('href="/employees"', $content);
-        $this->assertStringNotContainsString('href="/document-approvals"', $content);
+        $this->assertStringNotContainsString('href="/leave_applications/admin"', $content);
         $this->assertStringNotContainsString('href="/hr-analytics"', $content);
         $this->assertStringNotContainsString('href="/csc-reports"', $content);
         
         // Should contain employee navigation items
-        $this->assertStringContainsString('href="/document-approvals/my-requests"', $content);
+        $this->assertStringContainsString('href="/leave_applications"', $content);
         $this->assertStringContainsString('href="/dashboard"', $content);
     }
     
@@ -136,7 +136,7 @@ class NavigationSecurityTest extends TestCase
             if ($roleName === 'Employee') {
                 // Employees should only see limited navigation
                 $this->assertStringNotContainsString('All Employees', $content);
-                $this->assertStringContainsString('My Requests', $content);
+                $this->assertStringContainsString('Leave Applications', $content);
             } else {
                 // HR Admin and Super Admin should see administrative options
                 $this->assertStringContainsString('Employees', $content);
@@ -193,7 +193,7 @@ class NavigationSecurityTest extends TestCase
         
         // Create large dataset to ensure navigation doesn't slow down
         \App\Models\Employee::factory()->count(1000)->create();
-        \App\Models\DocumentApprovalRequest::factory()->count(5000)->create();
+        \App\Models\LeaveApplication::factory()->count(5000)->create();
         
         $start = microtime(true);
         
@@ -217,7 +217,7 @@ class NavigationSecurityTest extends TestCase
         
         $pages = [
             '/dashboard',
-            '/document-approvals/my-requests',
+            '/leave_applications',
             "/employees/{$employee->employee->id}",
         ];
         
@@ -228,7 +228,7 @@ class NavigationSecurityTest extends TestCase
                 $content = $response->getContent();
                 
                 // Navigation should be consistent across all pages
-                $this->assertStringContainsString('My Requests', $content);
+                $this->assertStringContainsString('Leave Applications', $content);
                 $this->assertStringNotContainsString('All Employees', $content);
             }
         }

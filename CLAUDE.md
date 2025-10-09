@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+You are an expert senior web Laravel developer, you are up-to-date everyday of what is new to Laravel. You are used to at achieving 100% success rate at debugging and finding solutions at problems even with the most complicated task.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 # E-Lingkod Dasol HRIS - Project Documentation
@@ -85,13 +87,7 @@ The E-Lingkod Dasol HRIS includes two distinct document-related systems with cle
     - Workflow: Employee request → HR processes → Document delivered
     - User base: Employees requesting official documents
 
-2. **Approval Workflows** (Administrative)
-    - Purpose: Multi-step approval processes for administrative documents and requests
-    - Location: Administrative interface at `/document-approvals`
-    - Workflow: Submit → Multi-level approval → Final approval/rejection
-    - User base: HR administrators, supervisors, managers
-
-These systems serve different business functions and should both be maintained as essential HRIS components.
+This system serves the essential HRIS function of document management for employees.
 
 ### 1. Dashboard Analytics
 
@@ -513,11 +509,6 @@ if (!empty($validated['year_graduated_pds'])) {
     $validated['year_graduated'] = (string) $validated['year_graduated_pds'];
 }
 ```
-
-### DocumentApprovalService Errors
-
-**Problem**: Abstract method implementation errors prevent some artisan commands.
-**Solution**: This is a known issue with incomplete service implementation. Use alternative commands or implement missing methods.
 
 ### Route Caching Issues
 

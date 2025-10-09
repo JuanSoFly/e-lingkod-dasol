@@ -15,18 +15,32 @@ class EmployeeWorkExperience extends Model
 
     protected $fillable = [
         'employee_id',
+        // Original fields
         'position',
         'company',
         'from_date',
         'to_date',
         'salary',
         'status',
+        // PDS Panel 5: Work Experience fields
+        'inclusive_date_from',
+        'inclusive_date_to',
+        'position_title',
+        'department_agency_office',
+        'monthly_salary',
+        'salary_grade_step',
+        'status_of_appointment',
+        'is_government_service',
     ];
 
     protected $casts = [
         'from_date' => 'date',
         'to_date' => 'date',
+        'inclusive_date_from' => 'date',
+        'inclusive_date_to' => 'date',
         'salary' => 'decimal:2',
+        'monthly_salary' => 'decimal:2',
+        'is_government_service' => 'boolean',
     ];
 
     public function employee(): BelongsTo

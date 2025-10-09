@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Employee;
-use App\Models\DocumentApprovalRequest;
 use App\Models\LeaveApplication;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -24,21 +23,21 @@ class ApiSecurityTest extends TestCase
         // Create other employees' data
         Employee::factory()->count(5)->create();
         
-        // Create employee's own request
-        DocumentApprovalRequest::factory()->create([
+        // Create employee's own application
+        \App\Models\LeaveApplication::factory()->create([
             'employee_id' => $employee->employee->id
         ]);
         
-        // Create other employees' requests
-        DocumentApprovalRequest::factory()->count(3)->create();
+        // Create other employees' applications
+        \App\Models\LeaveApplication::factory()->count(3)->create();
         
-        $response = $this->actingAs($employee)->getJson('/api/document-requests');
+        $response = $this->actingAs($employee)->getJson('/api/leave-applications');
         
         $response->assertStatus(200);
         
         $data = $response->json();
         
-        // Should only see own request
+        // Should only see own application
         $this->assertCount(1, $data['data']);
         $this->assertEquals($employee->employee->id, $data['data'][0]['employee_id']);
     }
@@ -134,9 +133,9 @@ class ApiSecurityTest extends TestCase
         $employee->assignRole('Employee');
         
         // Test with invalid data
-        $response = $this->actingAs($employee)->postJson('/api/document-requests', [
-            'type' => 'invalid_type',
-            'purpose' => '', // Empty purpose should be invalid
+        $response = $this->actingAs($employee)->postJson('/api/leave-applications', [
+            'leave_type_id' => 999, // Invalid leave type
+            'start_date' => '', // Empty start date should be invalid
         ]);
         
         $response->assertStatus(422); // Validation error
@@ -158,7 +157,7 @@ class ApiSecurityTest extends TestCase
         
         $endpoints = [
             ['GET', '/api/employees', 403, 200], // Employee gets 403, HR Admin gets 200
-            ['GET', '/api/document-requests', 200, 200], // Both can access (filtered)
+            ['GET', '/api/leave-applications', 200, 200], // Both can access (filtered)
             ['GET', '/api/hr-analytics', 403, 200], // Only HR Admin can access
         ];
         
@@ -211,26 +210,26 @@ class ApiSecurityTest extends TestCase
         $employee = User::factory()->create();
         $employee->assignRole('Employee');
         
-        // Create multiple document requests for the employee
-        DocumentApprovalRequest::factory()->count(25)->create([
+        // Create multiple leave applications for the employee
+        \App\Models\LeaveApplication::factory()->count(25)->create([
             'employee_id' => $employee->employee->id
         ]);
         
-        // Create requests for other employees
-        DocumentApprovalRequest::factory()->count(50)->create();
+        // Create applications for other employees
+        \App\Models\LeaveApplication::factory()->count(50)->create();
         
-        $response = $this->actingAs($employee)->getJson('/api/document-requests?page=1&per_page=10');
+        $response = $this->actingAs($employee)->getJson('/api/leave-applications?page=1&per_page=10');
         
         $response->assertStatus(200);
         
         $data = $response->json();
         
-        // Should only see own requests in pagination
+        // Should only see own applications in pagination
         $this->assertLessThanOrEqual(10, count($data['data']));
         
-        foreach ($data['data'] as $request) {
-            $this->assertEquals($employee->employee->id, $request['employee_id'],
-                'Pagination should only show employee\'s own requests');
+        foreach ($data['data'] as $application) {
+            $this->assertEquals($employee->employee->id, $application['employee_id'],
+                'Pagination should only show employee\'s own applications');
         }
     }
     
@@ -267,7 +266,7 @@ class ApiSecurityTest extends TestCase
         // Test with invalid content type
         $response = $this->actingAs($employee)
             ->withHeaders(['Content-Type' => 'text/plain'])
-            ->post('/api/document-requests', 'invalid data');
+            ->post('/api/leave-applications', 'invalid data');
         
         // Should reject non-JSON content for JSON endpoints
         $this->assertTrue(
@@ -284,7 +283,7 @@ class ApiSecurityTest extends TestCase
         $employee = User::factory()->create();
         $employee->assignRole('Employee');
         
-        $response = $this->actingAs($employee)->getJson('/api/document-requests');
+        $response = $this->actingAs($employee)->getJson('/api/leave-applications');
         
         $response->assertStatus(200);
         

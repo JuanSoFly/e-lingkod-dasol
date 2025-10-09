@@ -5,7 +5,6 @@ namespace Tests\Performance;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Employee;
-use App\Models\DocumentApprovalRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -21,7 +20,6 @@ class SecurityPerformanceTest extends TestCase
     {
         // Create large dataset
         Employee::factory()->count(1000)->create();
-        DocumentApprovalRequest::factory()->count(5000)->create();
         
         $employee = User::factory()->create();
         $employee->assignRole('Employee');
@@ -32,14 +30,14 @@ class SecurityPerformanceTest extends TestCase
         // Test employee access (should be fast even with large dataset)
         $start = microtime(true);
         
-        $this->actingAs($employee)->get('/document-approvals/my-requests');
+        $this->actingAs($employee)->get('/leave_applications');
         
         $employeeTime = microtime(true) - $start;
         
         // Test HR Admin access
         $start = microtime(true);
         
-        $this->actingAs($hrAdmin)->get('/document-approvals');
+        $this->actingAs($hrAdmin)->get('/employees');
         
         $hrAdminTime = microtime(true) - $start;
         
@@ -89,7 +87,6 @@ class SecurityPerformanceTest extends TestCase
     {
         // Create large dataset
         Employee::factory()->count(1000)->create();
-        DocumentApprovalRequest::factory()->count(5000)->create();
         
         $employee = User::factory()->create();
         $employee->assignRole('Employee');
@@ -100,7 +97,7 @@ class SecurityPerformanceTest extends TestCase
         $start = microtime(true);
         
         // Simulate filtered query (employee can only see own data)
-        $requests = DocumentApprovalRequest::where('employee_id', $employee->employee->id)->get();
+        $requests = \App\Models\LeaveApplication::where('employee_id', $employee->employee->id)->get();
         
         $queryTime = microtime(true) - $start;
         $queries = DB::getQueryLog();
@@ -191,20 +188,19 @@ class SecurityPerformanceTest extends TestCase
     {
         // Create large dataset
         Employee::factory()->count(500)->create();
-        DocumentApprovalRequest::factory()->count(2500)->create();
         
         $employee = User::factory()->create();
         $employee->assignRole('Employee');
         
-        // Create some requests for the employee
-        DocumentApprovalRequest::factory()->count(50)->create([
+        // Create some leave applications for the employee
+        \App\Models\LeaveApplication::factory()->count(50)->create([
             'employee_id' => $employee->employee->id
         ]);
         
         // Test API performance
         $start = microtime(true);
         
-        $response = $this->actingAs($employee)->getJson('/api/document-requests');
+        $response = $this->actingAs($employee)->getJson('/api/leave-applications');
         
         $apiResponseTime = microtime(true) - $start;
         
@@ -307,7 +303,7 @@ class SecurityPerformanceTest extends TestCase
         $employee->assignRole('Employee');
         
         // Create some data for the employee
-        DocumentApprovalRequest::factory()->count(100)->create([
+        \App\Models\LeaveApplication::factory()->count(100)->create([
             'employee_id' => $employee->employee->id
         ]);
         
@@ -317,7 +313,7 @@ class SecurityPerformanceTest extends TestCase
         for ($i = 0; $i < 20; $i++) {
             $start = microtime(true);
             
-            $response = $this->actingAs($employee)->get('/document-approvals/my-requests');
+            $response = $this->actingAs($employee)->get('/leave_applications');
             $response->assertStatus(200);
             
             $times[] = microtime(true) - $start;

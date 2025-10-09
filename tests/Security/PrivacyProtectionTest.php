@@ -5,7 +5,6 @@ namespace Tests\Security;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Employee;
-use App\Models\DocumentApprovalRequest;
 use App\Models\LeaveApplication;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
@@ -73,16 +72,16 @@ class PrivacyProtectionTest extends TestCase
     }
     
     /**
-     * Test employee cannot access other employees' document requests
+     * Test employee cannot access other employees' leave applications
      */
-    public function test_employee_cannot_access_other_employee_documents()
+    public function test_employee_cannot_access_other_employee_leave_applications()
     {
-        $otherRequest = DocumentApprovalRequest::factory()->create([
+        $otherApplication = \App\Models\LeaveApplication::factory()->create([
             'employee_id' => $this->otherEmployee->employee->id
         ]);
         
         $response = $this->actingAs($this->employee)
-            ->get("/document-approvals/{$otherRequest->id}");
+            ->get("/leave_applications/{$otherApplication->id}");
         
         $response->assertStatus(403);
         
@@ -94,13 +93,13 @@ class PrivacyProtectionTest extends TestCase
     }
     
     /**
-     * Test employee cannot access all document requests
+     * Test employee cannot access all leave applications (admin view)
      */
-    public function test_employee_cannot_access_all_document_requests()
+    public function test_employee_cannot_access_all_leave_applications()
     {
-        $response = $this->actingAs($this->employee)->get('/document-approvals');
+        $response = $this->actingAs($this->employee)->get('/leave_applications/admin');
         
-        $response->assertRedirect('/document-approvals/my-requests');
+        $response->assertStatus(403);
         
         // Check privacy violation is logged
         $this->assertDatabaseHas('activity_log', [
@@ -128,16 +127,16 @@ class PrivacyProtectionTest extends TestCase
     }
     
     /**
-     * Test employee can access own document requests
+     * Test employee can access own leave applications
      */
-    public function test_employee_can_access_own_document_requests()
+    public function test_employee_can_access_own_leave_applications()
     {
-        $ownRequest = DocumentApprovalRequest::factory()->create([
+        $ownApplication = \App\Models\LeaveApplication::factory()->create([
             'employee_id' => $this->employee->employee->id
         ]);
         
         $response = $this->actingAs($this->employee)
-            ->get("/document-approvals/{$ownRequest->id}");
+            ->get("/leave_applications/{$ownApplication->id}");
         
         $response->assertStatus(200);
     }
@@ -165,60 +164,40 @@ class PrivacyProtectionTest extends TestCase
      */
     public function test_super_admin_can_access_all_data()
     {
-        DocumentApprovalRequest::factory()->count(3)->create();
+        \App\Models\LeaveApplication::factory()->count(3)->create();
         
-        $response = $this->actingAs($this->superAdmin)->get('/document-approvals');
+        $response = $this->actingAs($this->superAdmin)->get('/leave_applications');
         
         $response->assertStatus(200);
         
-        // Should see all document requests
-        $requests = DocumentApprovalRequest::all();
-        $this->assertCount(3, $requests);
+        // Should see all leave applications
+        $applications = \App\Models\LeaveApplication::all();
+        $this->assertCount(3, $applications);
     }
     
-    /**
-     * Test employee cannot access leave applications of others
-     */
-    public function test_employee_cannot_access_other_employee_leave_applications()
-    {
-        $otherLeaveApplication = LeaveApplication::factory()->create([
-            'employee_id' => $this->otherEmployee->employee->id
-        ]);
-        
-        $response = $this->actingAs($this->employee)
-            ->get("/leave_applications/{$otherLeaveApplication->id}");
-        
-        $response->assertStatus(403);
-        
-        // Check privacy violation is logged
-        $this->assertDatabaseHas('activity_log', [
-            'log_name' => 'privacy_violation',
-            'causer_id' => $this->employee->id,
-        ]);
-    }
     
     /**
      * Test data minimization principle - employees only see necessary data
      */
     public function test_employee_api_returns_filtered_data()
     {
-        // Create multiple employees and document requests
+        // Create multiple employees and leave applications
         Employee::factory()->count(5)->create();
-        DocumentApprovalRequest::factory()->count(10)->create();
+        \App\Models\LeaveApplication::factory()->count(10)->create();
         
-        // Create one request for our test employee
-        DocumentApprovalRequest::factory()->create([
+        // Create one application for our test employee
+        \App\Models\LeaveApplication::factory()->create([
             'employee_id' => $this->employee->employee->id
         ]);
         
         $response = $this->actingAs($this->employee)
-            ->getJson('/api/document-requests');
+            ->getJson('/api/leave-applications');
         
         $response->assertStatus(200);
         
         $data = $response->json();
         
-        // Should only see own requests (1 request)
+        // Should only see own applications (1 application)
         $this->assertCount(1, $data['data']);
         $this->assertEquals($this->employee->employee->id, $data['data'][0]['employee_id']);
     }
@@ -233,7 +212,7 @@ class PrivacyProtectionTest extends TestCase
         // Attempt multiple privacy violations
         $this->actingAs($this->employee)->get("/employees/{$otherEmployee->id}");
         $this->actingAs($this->employee)->get('/employees');
-        $this->actingAs($this->employee)->get('/document-approvals');
+        $this->actingAs($this->employee)->get('/leave_applications/admin');
         
         // Check all violations are logged with proper metadata
         $violations = Activity::where('log_name', 'privacy_violation')
@@ -262,7 +241,7 @@ class PrivacyProtectionTest extends TestCase
             "/employees/{$otherEmployee->id}",
             "/employees/{$otherEmployee->id}/edit",
             "/employees",
-            "/document-approvals",
+            "/leave_applications/admin",
             "/hr-analytics/dashboard",
         ];
         
@@ -290,8 +269,6 @@ class PrivacyProtectionTest extends TestCase
             'employee.update-own',
             'leave.view-own',
             'leave.create',
-            'document-approval.view-own',
-            'document-approval.create',
             'performance.view-own',
         ];
         
@@ -304,7 +281,6 @@ class PrivacyProtectionTest extends TestCase
         // Check that dangerous permissions are not present
         $dangerousPermissions = [
             'employee.view',
-            'document-approval.view',
             'employee.create',
             'employee.delete',
             'user.manage',
