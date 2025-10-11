@@ -67,6 +67,19 @@ class EmployeeQuestionnaire extends Model
     protected $casts = [
         'questions_answers' => 'array',
         'question_details' => 'array',
+        // Ensure boolean fields are properly cast
+        'field_34_yes_no' => 'boolean',
+        'field_34b_yes_no' => 'boolean',
+        'field_35a_yes_no' => 'boolean',
+        'field_35b_yes_no' => 'boolean',
+        'field_36_yes_no' => 'boolean',
+        'field_37_yes_no' => 'boolean',
+        'field_38a_yes_no' => 'boolean',
+        'field_38b_yes_no' => 'boolean',
+        'field_39_yes_no' => 'boolean',
+        'field_40a_yes_no' => 'boolean',
+        'field_40b_yes_no' => 'boolean',
+        'field_40c_yes_no' => 'boolean',
     ];
 
     /**

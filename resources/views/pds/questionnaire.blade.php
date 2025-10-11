@@ -247,8 +247,41 @@
             }
         }
 
+        // Initialize detail fields visibility based on saved data
+        function initializeDetailFieldsVisibility() {
+            const questionPrefixes = [
+                'field_34', 'field_34b', 'field_35a', 'field_35b', 'field_36', 'field_37',
+                'field_38a', 'field_38b', 'field_39', 'field_40a', 'field_40b', 'field_40c'
+            ];
+
+            questionPrefixes.forEach(prefix => {
+                const yesRadio = document.querySelector(`input[name="${prefix}_yes_no"][value="1"]`);
+                const detailsElement = document.getElementById(`${prefix}_details`);
+
+                if (yesRadio && detailsElement) {
+                    // Show details if YES radio is checked
+                    if (yesRadio.checked) {
+                        detailsElement.style.display = 'block';
+                        // Set required attribute for detail inputs
+                        const textarea = detailsElement.querySelector('textarea');
+                        const textInput = detailsElement.querySelector('input[type="text"]');
+                        if (textarea) textarea.required = true;
+                        if (textInput) textInput.required = true;
+                    } else {
+                        detailsElement.style.display = 'none';
+                        // Remove required attribute for detail inputs
+                        const textarea = detailsElement.querySelector('textarea');
+                        const textInput = detailsElement.querySelector('input[type="text"]');
+                        if (textarea) textarea.required = false;
+                        if (textInput) textInput.required = false;
+                    }
+                }
+            });
+        }
+
         // Call this after setting up event listeners
         initializeProgressFromSaved();
+        initializeDetailFieldsVisibility();
 
         // Add keyboard navigation support
         document.querySelectorAll('input[type="radio"]').forEach(radio => {
@@ -329,14 +362,29 @@
                 </div>
             @endif
 
+            @if(session('warning'))
+                <div class="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-yellow-800">{{ session('warning') }}</p>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <!-- Progress Indicator -->
             <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div class="flex justify-between items-center mb-2">
                     <h3 class="text-sm font-medium text-blue-900">Questionnaire Completion Status</h3>
-                    <span id="progress-text" class="text-sm text-blue-700 font-medium">0% Complete</span>
+                    <span id="progress-text" class="text-sm text-blue-700 font-medium">{{ $completionPercentage }}% Complete</span>
                 </div>
                 <div class="w-full bg-blue-200 rounded-full h-2">
-                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: {{ $completionPercentage }}%"></div>
                 </div>
                 <p class="text-xs text-blue-700 mt-1">All questions marked with <span class="text-red-500">*</span> are required</p>
             </div>
@@ -359,11 +407,11 @@
                                         <p class="text-sm text-gray-600 mb-2">a. within the third degree?</p>
                                         <div class="flex space-x-6 radio-group" data-required="true">
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_34_yes_no" value="1" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_34_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_34_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">YES</span>
                                             </label>
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_34_yes_no" value="0" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_34_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_34_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">NO</span>
                                             </label>
                                         </div>
@@ -379,11 +427,11 @@
                                         <p class="text-sm text-gray-600 mb-2">b. within the fourth degree (for Local Government Unit - Career Employees)?</p>
                                         <div class="flex space-x-6 radio-group" data-required="true">
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_34b_yes_no" value="1" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_34b_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_34b_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">YES</span>
                                             </label>
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_34b_yes_no" value="0" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_34b_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_34b_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">NO</span>
                                             </label>
                                         </div>
@@ -408,11 +456,11 @@
                                         <p class="text-sm text-gray-600 mb-2">a. Have you ever been found guilty of any administrative offense?</p>
                                         <div class="flex space-x-6 radio-group" data-required="true">
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_35a_yes_no" value="1" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_35a_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_35a_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">YES</span>
                                             </label>
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_35a_yes_no" value="0" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_35a_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_35a_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">NO</span>
                                             </label>
                                         </div>
@@ -428,11 +476,11 @@
                                         <p class="text-sm text-gray-600 mb-2">b. Have you been criminally charged before any court?</p>
                                         <div class="flex space-x-6 radio-group" data-required="true">
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_35b_yes_no" value="1" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_35b_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_35b_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">YES</span>
                                             </label>
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_35b_yes_no" value="0" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_35b_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_35b_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">NO</span>
                                             </label>
                                         </div>
@@ -455,11 +503,11 @@
                                 <div class="space-y-4">
                                     <div class="flex space-x-6 radio-group" data-required="true">
                                         <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                            <input type="radio" name="field_36_yes_no" value="1" required class="mr-2" aria-required="true">
+                                            <input type="radio" name="field_36_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_36_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                             <span class="text-sm text-gray-700">YES</span>
                                         </label>
                                         <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                            <input type="radio" name="field_36_yes_no" value="0" required class="mr-2" aria-required="true">
+                                            <input type="radio" name="field_36_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_36_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                             <span class="text-sm text-gray-700">NO</span>
                                         </label>
                                     </div>
@@ -481,11 +529,11 @@
                                 <div class="space-y-4">
                                     <div class="flex space-x-6 radio-group" data-required="true">
                                         <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                            <input type="radio" name="field_37_yes_no" value="1" required class="mr-2" aria-required="true">
+                                            <input type="radio" name="field_37_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_37_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                             <span class="text-sm text-gray-700">YES</span>
                                         </label>
                                         <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                            <input type="radio" name="field_37_yes_no" value="0" required class="mr-2" aria-required="true">
+                                            <input type="radio" name="field_37_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_37_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                             <span class="text-sm text-gray-700">NO</span>
                                         </label>
                                     </div>
@@ -509,11 +557,11 @@
                                         <p class="text-sm text-gray-600 mb-2">a. Have you ever been a candidate in a national or local election held within the last year (except Barangay election)?</p>
                                         <div class="flex space-x-6 radio-group" data-required="true">
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_38a_yes_no" value="1" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_38a_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_38a_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">YES</span>
                                             </label>
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_38a_yes_no" value="0" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_38a_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_38a_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">NO</span>
                                             </label>
                                         </div>
@@ -529,11 +577,11 @@
                                         <p class="text-sm text-gray-600 mb-2">b. Have you resigned from the government service during the three (3)-month period before the last election to promote/actively campaign for a national or local candidate?</p>
                                         <div class="flex space-x-6 radio-group" data-required="true">
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_38b_yes_no" value="1" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_38b_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_38b_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">YES</span>
                                             </label>
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_38b_yes_no" value="0" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_38b_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_38b_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">NO</span>
                                             </label>
                                         </div>
@@ -556,11 +604,11 @@
                                 <div class="space-y-4">
                                     <div class="flex space-x-6 radio-group" data-required="true">
                                         <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                            <input type="radio" name="field_39_yes_no" value="1" required class="mr-2" aria-required="true">
+                                            <input type="radio" name="field_39_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_39_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                             <span class="text-sm text-gray-700">YES</span>
                                         </label>
                                         <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                            <input type="radio" name="field_39_yes_no" value="0" required class="mr-2" aria-required="true">
+                                            <input type="radio" name="field_39_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_39_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                             <span class="text-sm text-gray-700">NO</span>
                                         </label>
                                     </div>
@@ -584,11 +632,11 @@
                                         <p class="text-sm text-gray-600 mb-2">a. Are you a member of any indigenous group?</p>
                                         <div class="flex space-x-6 radio-group" data-required="true">
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_40a_yes_no" value="1" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_40a_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_40a_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">YES</span>
                                             </label>
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_40a_yes_no" value="0" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_40a_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_40a_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">NO</span>
                                             </label>
                                         </div>
@@ -604,11 +652,11 @@
                                         <p class="text-sm text-gray-600 mb-2">b. Are you a person with disability?</p>
                                         <div class="flex space-x-6 radio-group" data-required="true">
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_40b_yes_no" value="1" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_40b_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_40b_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">YES</span>
                                             </label>
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_40b_yes_no" value="0" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_40b_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_40b_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">NO</span>
                                             </label>
                                         </div>
@@ -624,11 +672,11 @@
                                         <p class="text-sm text-gray-600 mb-2">c. Are you a solo parent?</p>
                                         <div class="flex space-x-6 radio-group" data-required="true">
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_40c_yes_no" value="1" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_40c_yes_no" value="1" {{ $questionnaire->exists && $questionnaire->field_40c_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">YES</span>
                                             </label>
                                             <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                                                <input type="radio" name="field_40c_yes_no" value="0" required class="mr-2" aria-required="true">
+                                                <input type="radio" name="field_40c_yes_no" value="0" {{ $questionnaire->exists && !$questionnaire->field_40c_yes_no ? 'checked' : '' }} required class="mr-2" aria-required="true">
                                                 <span class="text-sm text-gray-700">NO</span>
                                             </label>
                                         </div>

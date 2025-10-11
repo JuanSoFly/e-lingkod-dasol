@@ -5,11 +5,6 @@
                 {{ __('Personal Data Sheet (PDS)') }} - {{ $employee->full_name }}
             </h2>
             <div class="flex space-x-2">
-                <a href="{{ route('pds.generate-pdf', $employee) }}">
-                    <x-secondary-button>
-                        {{ __('Download PDS PDF') }}
-                    </x-secondary-button>
-                </a>
                 <a href="{{ route('employees.show', $employee) }}">
                     <x-secondary-button>
                         {{ __('Back to 201 File') }}

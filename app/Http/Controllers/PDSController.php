@@ -622,173 +622,300 @@ public function questionnaire(Employee $employee)
     $questionnaire = $employee->questionnaire()->firstOrNew();
     $cscFieldLabels = EmployeeQuestionnaire::getCscFieldLabels();
 
+    // Calculate completion percentage
+    $completionPercentage = $questionnaire ? $questionnaire->getCompletionPercentage() : 0;
+
     // Share empty $errors variable for @error directive compatibility
     // Always ensure we have a ViewErrorBag, not a regular MessageBag
     session()->put('errors', new ViewErrorBag());
 
-    return view('pds.questionnaire', compact('employee', 'questionnaire', 'cscFieldLabels'));
+    return view('pds.questionnaire', compact('employee', 'questionnaire', 'cscFieldLabels', 'completionPercentage'));
 }
 
 public function updateQuestionnaire(Request $request, Employee $employee)
 {
     $this->authorizePdsAccess($employee, 'update');
 
-    // Base validation rules
-    $rules = [
-        // CSC Form 212 - Field 34: Relationship to appointing authority
-        'field_34_yes_no' => 'required|boolean|in:0,1',
-        'field_34_relationship_details' => 'nullable|string|max:1000',
-        'field_34b_yes_no' => 'required|boolean|in:0,1',
-        'field_34b_relationship_details' => 'nullable|string|max:1000',
+    // Enable comprehensive logging for debugging
+    \Log::info('PDS updateQuestionnaire - Starting process', [
+        'employee_id' => $employee->id,
+        'user_id' => auth()->id(),
+        'request_method' => $request->method(),
+        'request_url' => $request->fullUrl(),
+        'incoming_data' => $request->all(),
+        'timestamp' => now()->toDateTimeString()
+    ]);
 
-        // CSC Form 212 - Field 35: Administrative/criminal charges
-        'field_35a_yes_no' => 'required|boolean|in:0,1',
-        'field_35_administrative_offense_details' => 'nullable|string|max:1000',
-        'field_35b_yes_no' => 'required|boolean|in:0,1',
-        'field_36_criminal_charge_details' => 'nullable|string|max:1000',
+    // Enable query logging for database operations
+    \DB::enableQueryLog();
 
-        // CSC Form 212 - Field 36: Conviction of any crime
-        'field_36_yes_no' => 'required|boolean|in:0,1',
-        'field_36_conviction_details' => 'nullable|string|max:1000',
+    try {
+        // Base validation rules
+        $rules = [
+            // CSC Form 212 - Field 34: Relationship to appointing authority
+            'field_34_yes_no' => 'required|boolean|in:0,1',
+            'field_34_relationship_details' => 'nullable|string|max:1000',
+            'field_34b_yes_no' => 'required|boolean|in:0,1',
+            'field_34b_relationship_details' => 'nullable|string|max:1000',
 
-        // CSC Form 212 - Field 37: Separation from service
-        'field_37_yes_no' => 'required|boolean|in:0,1',
-        'field_37_separation_details' => 'nullable|string|max:1000',
+            // CSC Form 212 - Field 35: Administrative/criminal charges
+            'field_35a_yes_no' => 'required|boolean|in:0,1',
+            'field_35_administrative_offense_details' => 'nullable|string|max:1000',
+            'field_35b_yes_no' => 'required|boolean|in:0,1',
+            'field_36_criminal_charge_details' => 'nullable|string|max:1000',
 
-        // CSC Form 212 - Field 38: Election candidacy and resignation
-        'field_38a_yes_no' => 'required|boolean|in:0,1',
-        'field_36_candidate_details' => 'nullable|string|max:1000',
-        'field_38b_yes_no' => 'required|boolean|in:0,1',
-        'field_37_resignation_details' => 'nullable|string|max:1000',
+            // CSC Form 212 - Field 36: Conviction of any crime
+            'field_36_yes_no' => 'required|boolean|in:0,1',
+            'field_36_conviction_details' => 'nullable|string|max:1000',
 
-        // CSC Form 212 - Field 39: Immigrant status
-        'field_39_yes_no' => 'required|boolean|in:0,1',
-        'field_38_immigrant_status' => 'nullable|string|max:255',
-        'field_39_immigrant_details' => 'nullable|string|max:1000',
+            // CSC Form 212 - Field 37: Separation from service
+            'field_37_yes_no' => 'required|boolean|in:0,1',
+            'field_37_separation_details' => 'nullable|string|max:1000',
 
-        // CSC Form 212 - Field 40: Indigenous/PWD/Solo Parent status
-        'field_40a_yes_no' => 'required|boolean|in:0,1',
-        'field_40b_yes_no' => 'required|boolean|in:0,1',
-        'field_40c_yes_no' => 'required|boolean|in:0,1',
-        'field_40_indigenous_details' => 'nullable|string|max:500',
-        'field_40_pwd_details' => 'nullable|string|max:500',
-        'field_40_solo_parent_details' => 'nullable|string|max:500',
-    ];
+            // CSC Form 212 - Field 38: Election candidacy and resignation
+            'field_38a_yes_no' => 'required|boolean|in:0,1',
+            'field_36_candidate_details' => 'nullable|string|max:1000',
+            'field_38b_yes_no' => 'required|boolean|in:0,1',
+            'field_37_resignation_details' => 'nullable|string|max:1000',
 
-    // Add custom validation messages for better user experience
-    $customMessages = [
-        'field_34_yes_no.required' => 'Please answer question 34a about relationship to appointing authority.',
-        'field_34b_yes_no.required' => 'Please answer question 34b about relationship within fourth degree.',
-        'field_35a_yes_no.required' => 'Please answer question 35a about administrative offense.',
-        'field_35b_yes_no.required' => 'Please answer question 35b about criminal charge.',
-        'field_36_yes_no.required' => 'Please answer question 36 about criminal conviction.',
-        'field_37_yes_no.required' => 'Please answer question 37 about separation from service.',
-        'field_38a_yes_no.required' => 'Please answer question 38a about election candidacy.',
-        'field_38b_yes_no.required' => 'Please answer question 38b about resignation to campaign.',
-        'field_39_yes_no.required' => 'Please answer question 39 about immigrant status.',
-        'field_40a_yes_no.required' => 'Please answer question 40a about indigenous group membership.',
-        'field_40b_yes_no.required' => 'Please answer question 40b about PWD status.',
-        'field_40c_yes_no.required' => 'Please answer question 40c about solo parent status.',
-        '*.in' => 'Please select either Yes or No for all required questions.',
-    ];
+            // CSC Form 212 - Field 39: Immigrant status
+            'field_39_yes_no' => 'required|boolean|in:0,1',
+            'field_38_immigrant_status' => 'nullable|string|max:255',
+            'field_39_immigrant_details' => 'nullable|string|max:1000',
 
-    // Validate the basic requirements first
-    $validated = $request->validate($rules, $customMessages);
+            // CSC Form 212 - Field 40: Indigenous/PWD/Solo Parent status
+            'field_40a_yes_no' => 'required|boolean|in:0,1',
+            'field_40b_yes_no' => 'required|boolean|in:0,1',
+            'field_40c_yes_no' => 'required|boolean|in:0,1',
+            'field_40_indigenous_details' => 'nullable|string|max:500',
+            'field_40_pwd_details' => 'nullable|string|max:500',
+            'field_40_solo_parent_details' => 'nullable|string|max:500',
+        ];
 
-    // Add conditional validation for detail fields when "YES" is selected
-    $conditionalErrors = [];
+        // Add custom validation messages for better user experience
+        $customMessages = [
+            'field_34_yes_no.required' => 'Please answer question 34a about relationship to appointing authority.',
+            'field_34b_yes_no.required' => 'Please answer question 34b about relationship within fourth degree.',
+            'field_35a_yes_no.required' => 'Please answer question 35a about administrative offense.',
+            'field_35b_yes_no.required' => 'Please answer question 35b about criminal charge.',
+            'field_36_yes_no.required' => 'Please answer question 36 about criminal conviction.',
+            'field_37_yes_no.required' => 'Please answer question 37 about separation from service.',
+            'field_38a_yes_no.required' => 'Please answer question 38a about election candidacy.',
+            'field_38b_yes_no.required' => 'Please answer question 38b about resignation to campaign.',
+            'field_39_yes_no.required' => 'Please answer question 39 about immigrant status.',
+            'field_40a_yes_no.required' => 'Please answer question 40a about indigenous group membership.',
+            'field_40b_yes_no.required' => 'Please answer question 40b about PWD status.',
+            'field_40c_yes_no.required' => 'Please answer question 40c about solo parent status.',
+            '*.in' => 'Please select either Yes or No for all required questions.',
+        ];
 
-    if ($validated['field_34_yes_no'] && empty($validated['field_34_relationship_details'])) {
-        $conditionalErrors['field_34_relationship_details'] = 'Please provide details for question 34a.';
-    }
+        // Log validation start
+        \Log::info('PDS updateQuestionnaire - Starting validation', [
+            'employee_id' => $employee->id,
+            'rules_count' => count($rules),
+            'timestamp' => now()->toDateTimeString()
+        ]);
 
-    if ($validated['field_34b_yes_no'] && empty($validated['field_34b_relationship_details'])) {
-        $conditionalErrors['field_34b_relationship_details'] = 'Please provide details for question 34b.';
-    }
+        // Validate the basic requirements first
+        $validated = $request->validate($rules, $customMessages);
 
-    if ($validated['field_35a_yes_no'] && empty($validated['field_35_administrative_offense_details'])) {
-        $conditionalErrors['field_35_administrative_offense_details'] = 'Please provide details for question 35a.';
-    }
+        \Log::info('PDS updateQuestionnaire - Validation passed', [
+            'employee_id' => $employee->id,
+            'validated_fields' => array_keys($validated),
+            'timestamp' => now()->toDateTimeString()
+        ]);
 
-    if ($validated['field_35b_yes_no'] && empty($validated['field_36_criminal_charge_details'])) {
-        $conditionalErrors['field_36_criminal_charge_details'] = 'Please provide details for question 35b.';
-    }
+        // Improved boolean conversion - handle radio button string to boolean conversion
+        $booleanFields = [
+            'field_34_yes_no', 'field_34b_yes_no', 'field_35a_yes_no', 'field_35b_yes_no', 'field_36_yes_no',
+            'field_37_yes_no', 'field_38a_yes_no', 'field_38b_yes_no', 'field_39_yes_no',
+            'field_40a_yes_no', 'field_40b_yes_no', 'field_40c_yes_no'
+        ];
 
-    if ($validated['field_36_yes_no'] && empty($validated['field_36_conviction_details'])) {
-        $conditionalErrors['field_36_conviction_details'] = 'Please provide details for question 36.';
-    }
+        // Convert boolean fields with proper logging
+        foreach ($booleanFields as $field) {
+            if (isset($validated[$field])) {
+                $originalValue = $validated[$field];
+                $validated[$field] = $validated[$field] === '1' || $validated[$field] === 1 ? true : false;
 
-    if ($validated['field_37_yes_no'] && empty($validated['field_37_separation_details'])) {
-        $conditionalErrors['field_37_separation_details'] = 'Please provide details for question 37.';
-    }
+                \Log::debug('PDS updateQuestionnaire - Boolean conversion', [
+                    'employee_id' => $employee->id,
+                    'field' => $field,
+                    'original_value' => $originalValue,
+                    'converted_value' => $validated[$field],
+                    'timestamp' => now()->toDateTimeString()
+                ]);
+            }
+        }
 
-    if ($validated['field_38a_yes_no'] && empty($validated['field_36_candidate_details'])) {
-        $conditionalErrors['field_36_candidate_details'] = 'Please provide details for question 38a.';
-    }
+        \Log::info('PDS updateQuestionnaire - Boolean conversion completed', [
+            'employee_id' => $employee->id,
+            'converted_fields_count' => count($booleanFields),
+            'timestamp' => now()->toDateTimeString()
+        ]);
 
-    if ($validated['field_38b_yes_no'] && empty($validated['field_37_resignation_details'])) {
-        $conditionalErrors['field_37_resignation_details'] = 'Please provide details for question 38b.';
-    }
+        // Add conditional validation for detail fields when "YES" is selected (after boolean conversion)
+        $conditionalErrors = [];
 
-    if ($validated['field_39_yes_no'] && empty($validated['field_39_immigrant_details'])) {
-        $conditionalErrors['field_39_immigrant_details'] = 'Please provide details for question 39.';
-    }
+        if ($validated['field_34_yes_no'] && empty($validated['field_34_relationship_details'])) {
+            $conditionalErrors['field_34_relationship_details'] = 'Please provide details for question 34a.';
+        }
 
-    if ($validated['field_40a_yes_no'] && empty($validated['field_40_indigenous_details'])) {
-        $conditionalErrors['field_40_indigenous_details'] = 'Please specify your indigenous group for question 40a.';
-    }
+        if ($validated['field_34b_yes_no'] && empty($validated['field_34b_relationship_details'])) {
+            $conditionalErrors['field_34b_relationship_details'] = 'Please provide details for question 34b.';
+        }
 
-    if ($validated['field_40b_yes_no'] && empty($validated['field_40_pwd_details'])) {
-        $conditionalErrors['field_40_pwd_details'] = 'Please provide your PWD ID number for question 40b.';
-    }
+        if ($validated['field_35a_yes_no'] && empty($validated['field_35_administrative_offense_details'])) {
+            $conditionalErrors['field_35_administrative_offense_details'] = 'Please provide details for question 35a.';
+        }
 
-    if ($validated['field_40c_yes_no'] && empty($validated['field_40_solo_parent_details'])) {
-        $conditionalErrors['field_40_solo_parent_details'] = 'Please provide your Solo Parent ID number for question 40c.';
-    }
+        if ($validated['field_35b_yes_no'] && empty($validated['field_36_criminal_charge_details'])) {
+            $conditionalErrors['field_36_criminal_charge_details'] = 'Please provide details for question 35b.';
+        }
 
-    // If there are conditional validation errors, return with errors
-    if (!empty($conditionalErrors)) {
+        if ($validated['field_36_yes_no'] && empty($validated['field_36_conviction_details'])) {
+            $conditionalErrors['field_36_conviction_details'] = 'Please provide details for question 36.';
+        }
+
+        if ($validated['field_37_yes_no'] && empty($validated['field_37_separation_details'])) {
+            $conditionalErrors['field_37_separation_details'] = 'Please provide details for question 37.';
+        }
+
+        if ($validated['field_38a_yes_no'] && empty($validated['field_36_candidate_details'])) {
+            $conditionalErrors['field_36_candidate_details'] = 'Please provide details for question 38a.';
+        }
+
+        if ($validated['field_38b_yes_no'] && empty($validated['field_37_resignation_details'])) {
+            $conditionalErrors['field_37_resignation_details'] = 'Please provide details for question 38b.';
+        }
+
+        if ($validated['field_39_yes_no'] && empty($validated['field_39_immigrant_details'])) {
+            $conditionalErrors['field_39_immigrant_details'] = 'Please provide details for question 39.';
+        }
+
+        if ($validated['field_40a_yes_no'] && empty($validated['field_40_indigenous_details'])) {
+            $conditionalErrors['field_40_indigenous_details'] = 'Please specify your indigenous group for question 40a.';
+        }
+
+        if ($validated['field_40b_yes_no'] && empty($validated['field_40_pwd_details'])) {
+            $conditionalErrors['field_40_pwd_details'] = 'Please provide your PWD ID number for question 40b.';
+        }
+
+        if ($validated['field_40c_yes_no'] && empty($validated['field_40_solo_parent_details'])) {
+            $conditionalErrors['field_40_solo_parent_details'] = 'Please provide your Solo Parent ID number for question 40c.';
+        }
+
+        \Log::info('PDS updateQuestionnaire - Conditional validation completed', [
+            'employee_id' => $employee->id,
+            'conditional_errors_count' => count($conditionalErrors),
+            'has_errors' => !empty($conditionalErrors),
+            'timestamp' => now()->toDateTimeString()
+        ]);
+
+        // Use database transaction for data integrity
+        return DB::transaction(function () use ($employee, $validated, $conditionalErrors) {
+
+            // Add default values for JSON fields to maintain backward compatibility
+            $validated['questions_answers'] = $validated['questions_answers'] ?? [];
+            $validated['question_details'] = $validated['question_details'] ?? [];
+
+            \Log::info('PDS updateQuestionnaire - Starting database save', [
+                'employee_id' => $employee->id,
+                'data_fields_count' => count($validated),
+                'timestamp' => now()->toDateTimeString()
+            ]);
+
+            // Use updateOrCreate to handle both new and existing records gracefully
+            $questionnaire = $employee->questionnaire()->updateOrCreate(
+                ['employee_id' => $employee->id],
+                $validated
+            );
+
+            // Log the database operation
+            $queries = DB::getQueryLog();
+            \Log::info('PDS updateQuestionnaire - Database queries executed', [
+                'employee_id' => $employee->id,
+                'query_count' => count($queries),
+                'queries' => $queries,
+                'questionnaire_id' => $questionnaire->id,
+                'is_new_record' => $questionnaire->wasRecentlyCreated,
+                'timestamp' => now()->toDateTimeString()
+            ]);
+
+            // Calculate completion percentage to determine next action
+            $completionPercentage = $questionnaire ? $questionnaire->getCompletionPercentage() : 0;
+
+            \Log::info('PDS updateQuestionnaire - Completion calculation', [
+                'employee_id' => $employee->id,
+                'questionnaire_id' => $questionnaire->id,
+                'completion_percentage' => $completionPercentage,
+                'is_complete' => $completionPercentage >= 100,
+                'timestamp' => now()->toDateTimeString()
+            ]);
+
+            // If there are conditional validation errors, return with warnings but data is saved
+            if (!empty($conditionalErrors)) {
+                \Log::warning('PDS updateQuestionnaire - Returning with conditional errors', [
+                    'employee_id' => $employee->id,
+                    'questionnaire_id' => $questionnaire->id,
+                    'errors_count' => count($conditionalErrors),
+                    'errors' => $conditionalErrors,
+                    'timestamp' => now()->toDateTimeString()
+                ]);
+
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors($conditionalErrors)
+                    ->with('warning', 'Your basic answers have been saved, but please provide details for questions marked as "YES" to complete the declaration.');
+            }
+
+            // If questionnaire is not complete, stay on the page with a success message
+            if ($completionPercentage < 100) {
+                \Log::info('PDS updateQuestionnaire - Redirecting back to questionnaire (incomplete)', [
+                    'employee_id' => $employee->id,
+                    'completion_percentage' => $completionPercentage,
+                    'timestamp' => now()->toDateTimeString()
+                ]);
+
+                return redirect()->route('pds.questionnaire', $employee)
+                    ->with('success', sprintf('Questionnaire saved successfully! Completion: %d%%. Please answer all required questions to complete this section.', round($completionPercentage)));
+            }
+
+            // If questionnaire is complete, redirect to dashboard with success message
+            \Log::info('PDS updateQuestionnaire - Redirecting to dashboard (complete)', [
+                'employee_id' => $employee->id,
+                'questionnaire_id' => $questionnaire->id,
+                'timestamp' => now()->toDateTimeString()
+            ]);
+
+            return redirect()->route('pds.dashboard', $employee)
+                ->with('success', 'Questionnaire completed successfully! All required declarations have been saved.');
+
+        }); // End transaction
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        \Log::error('PDS updateQuestionnaire - Validation failed', [
+            'employee_id' => $employee->id,
+            'validation_errors' => $e->errors(),
+            'timestamp' => now()->toDateTimeString()
+        ]);
+        throw $e; // Re-throw validation exception
+
+    } catch (\Exception $e) {
+        \Log::error('PDS updateQuestionnaire - Unexpected error', [
+            'employee_id' => $employee->id,
+            'error_message' => $e->getMessage(),
+            'error_trace' => $e->getTraceAsString(),
+            'timestamp' => now()->toDateTimeString()
+        ]);
+
         return redirect()->back()
             ->withInput()
-            ->withErrors($conditionalErrors);
+            ->with('error', 'An error occurred while saving your questionnaire. Please try again or contact support if the problem persists.');
+    } finally {
+        // Always disable query logging and clean up
+        DB::disableQueryLog();
     }
-
-    // Convert radio button values to boolean
-    $booleanFields = [
-        'field_34_yes_no', 'field_34b_yes_no', 'field_35a_yes_no', 'field_35b_yes_no', 'field_36_yes_no',
-        'field_37_yes_no', 'field_38a_yes_no', 'field_38b_yes_no', 'field_39_yes_no',
-        'field_40a_yes_no', 'field_40b_yes_no', 'field_40c_yes_no'
-    ];
-
-    foreach ($booleanFields as $field) {
-        if (isset($validated[$field])) {
-            $validated[$field] = $validated[$field] === '1' ? true : false;
-        }
-    }
-
-    // Add default values for JSON fields to maintain backward compatibility
-    $validated['questions_answers'] = $validated['questions_answers'] ?? [];
-    $validated['question_details'] = $validated['question_details'] ?? [];
-
-    // Use updateOrCreate to handle both new and existing records gracefully
-    $employee->questionnaire()->updateOrCreate(
-        ['employee_id' => $employee->id],
-        $validated
-    );
-
-    // Calculate completion percentage to determine if user should stay on the page
-    $questionnaire = $employee->questionnaire;
-    $completionPercentage = $questionnaire ? $questionnaire->getCompletionPercentage() : 0;
-
-    // If questionnaire is not complete, stay on the page with a success message
-    if ($completionPercentage < 100) {
-        return redirect()->route('pds.questionnaire', $employee)
-            ->with('success', sprintf('Questionnaire saved successfully! Completion: %d%%. Please answer all required questions to complete this section.', round($completionPercentage)));
-    }
-
-    // If questionnaire is complete, redirect to dashboard with success message
-    return redirect()->route('pds.dashboard', $employee)
-        ->with('success', 'Questionnaire completed successfully! All required declarations have been saved.');
 }
 
     // Photo Management Methods
@@ -880,61 +1007,7 @@ public function updateQuestionnaire(Request $request, Employee $employee)
         }
     }
 
-    // PDS PDF Generation
-    public function generatePDF(Employee $employee)
-    {
-        $this->authorizePdsAccess($employee, 'view');
-
-        try {
-            // Load employee with all related PDS data
-            $employee->load([
-                'familyBackground',
-                'children',
-                'education',
-                'pdsEligibilities',
-                'workExperiences',
-                'voluntaryWork',
-                'trainings',
-                'specialSkills',
-                'distinctions',
-                'memberships',
-                'references',
-                'questionnaire'
-            ]);
-
-            // Get complete PDS data
-            $pdsData = $employee->getPdsDataForPdf();
-
-            // Generate PDF using the CSC Form No. 212 template
-            $pdf = Pdf::loadView('pds.pdf.form212', [
-                'employee' => $employee,
-                'pdsData' => $pdsData
-            ]);
-
-            // Set PDF options
-            $pdf->setPaper('A4', 'portrait');
-            $pdf->setOption('isHtml5ParserEnabled', true);
-            $pdf->setOption('isRemoteEnabled', true);
-
-            // Generate filename with employee name
-            $filename = 'PDS_' . str_replace(' ', '_', $employee->full_name) . '_' . date('Y-m-d') . '.pdf';
-
-            // Return PDF for download
-            return $pdf->download($filename);
-
-        } catch (\Exception $e) {
-            // Log error and return user-friendly message
-            logger()->error('PDS PDF generation failed', [
-                'employee_id' => $employee->id,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'message' => 'Error generating PDF. Please try again or contact support.'
-            ], 500);
-        }
-    }
-
+  
     /**
      * Validate entire PDS for CSC compliance
      */
@@ -970,4 +1043,5 @@ public function updateQuestionnaire(Request $request, Employee $employee)
             'completenessCheck' => $completenessCheck,
         ]);
     }
-}
+
+  }

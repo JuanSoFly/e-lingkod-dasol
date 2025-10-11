@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDocumentController;
-use App\Http\Controllers\DocumentSearchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LeaveApplicationController;
 use App\Http\Controllers\LeaveTypeController;
@@ -11,13 +10,9 @@ use App\Http\Controllers\PerformancePeriodController;
 use App\Http\Controllers\PerformanceRatingController;
 use App\Http\Controllers\PerformanceTargetController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\CSCReportController;
-use App\Http\Controllers\CSCReportManagementController;
 use App\Http\Controllers\GovernmentBenefitController;
 use App\Http\Controllers\BenefitContributionController;
 use App\Http\Controllers\EmployeeSelfServiceController;
-use App\Http\Controllers\HRAnalyticsController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\PDSController;
 use App\Http\Controllers\EducationController;
@@ -95,18 +90,10 @@ Route::middleware('auth')->group(function () {
         Route::get('{employee}/learning-development', [PDSController::class, 'learningDevelopment'])->name('learning-development');
         Route::post('{employee}/learning-development', [PDSController::class, 'storeLearningDevelopment'])->name('store-learning-development');
         Route::delete('{employee}/learning-development/{training}', [PDSController::class, 'destroyLearningDevelopment'])->name('destroy-learning-development');
-        Route::get('{employee}/pdf', [PDSController::class, 'generatePDF'])->name('generate-pdf');
-    });
+  
+      });
 
-    // Document Search Routes (New) - Must come before parameterized routes
-    Route::get('documents/search', function () {
-        return view('documents.search');
-    })->name('documents.search')->middleware('can:employee.view');
-
-    Route::get('documents/analytics', function () {
-        return view('documents.analytics');
-    })->name('documents.analytics')->middleware('can:reports.view');
-
+  
     // Employee Document Routes (New)
     Route::post('employees/{employee}/documents', [EmployeeDocumentController::class, 'store'])->name('employees.documents.store');
     Route::get('documents/{document}', [EmployeeDocumentController::class, 'show'])->name('documents.show');
@@ -127,39 +114,8 @@ Route::middleware('auth')->group(function () {
     Route::post('performance-ratings/self-rate/{target}', [PerformanceRatingController::class, 'storeSelfRating'])->name('performance-ratings.self-rate');
     Route::post('performance-ratings/supervisor-rate/{target}', [PerformanceRatingController::class, 'storeSupervisorRating'])->name('performance-ratings.supervisor-rate');
 
-    // Reporting Routes
-    Route::prefix('reports')->name('reports.')->middleware('can:reports.view')->group(function () {
-        Route::get('/', [ReportController::class, 'index'])->name('index');
-        Route::get('/employees/excel', [ReportController::class, 'exportEmployeesExcel'])->name('employees.excel');
-        Route::get('/employees/pdf', [ReportController::class, 'exportEmployeesPdf'])->name('employees.pdf');
-        // Leave Reports (New)
-        Route::get('/leave-balances/excel', [ReportController::class, 'exportLeaveBalancesExcel'])->name('leave-balances.excel');
-
-        // Performance Reports (New)
-        Route::get('/performance-summary/excel', [ReportController::class, 'exportPerformanceSummaryExcel'])->name('performance-summary.excel');
-    });
-
-    // CSC Reporting Routes (New - Mr. Bryan's Requirements)
-    Route::prefix('csc-reports')->name('csc-reports.')->middleware('can:reports.generate')->group(function () {
-        Route::get('/', [CSCReportManagementController::class, 'index'])->name('index');
-        Route::get('/generate', [CSCReportManagementController::class, 'create'])->name('create');
-        Route::post('/generate', [CSCReportManagementController::class, 'store'])->name('store');
-        Route::get('/{report}', [CSCReportManagementController::class, 'show'])->name('show');
-        Route::get('/{report}/edit', [CSCReportManagementController::class, 'edit'])->name('edit');
-        Route::put('/{report}', [CSCReportManagementController::class, 'update'])->name('update');
-        Route::delete('/{report}', [CSCReportManagementController::class, 'destroy'])->name('destroy');
-
-        // Workflow actions
-        Route::post('/{report}/submit', [CSCReportManagementController::class, 'submit'])->name('submit');
-        Route::post('/{report}/approve', [CSCReportManagementController::class, 'approve'])->name('approve');
-        Route::post('/{report}/reject', [CSCReportManagementController::class, 'reject'])->name('reject');
-        Route::post('/{report}/acknowledge', [CSCReportManagementController::class, 'acknowledge'])->name('acknowledge');
-
-        // File downloads
-        Route::get('/{report}/download/pdf', [CSCReportManagementController::class, 'downloadPdf'])->name('download.pdf');
-        Route::get('/{report}/download/excel', [CSCReportManagementController::class, 'downloadExcel'])->name('download.excel');
-    });
-
+  
+    
     // Leave Policy Management Routes (New)
     Route::resource('leave-policies', LeavePolicyController::class)
         ->middleware('can:user.manage');
@@ -203,40 +159,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/change-requests', [EmployeeSelfServiceController::class, 'storeChangeRequest'])->name('change-requests.store');
     });
 
-    // HR Analytics Routes (New)
-    Route::prefix('hr-analytics')->name('hr-analytics.')->middleware('can:reports.view')->group(function () {
-        // Main dashboard
-        Route::get('/', [HRAnalyticsController::class, 'index'])->name('dashboard');
-
-        // Individual analytics pages
-        Route::get('/workforce', [HRAnalyticsController::class, 'workforce'])->name('workforce');
-        Route::get('/turnover', [HRAnalyticsController::class, 'turnover'])->name('turnover');
-        Route::get('/performance', [HRAnalyticsController::class, 'performance'])->name('performance');
-        Route::get('/training', [HRAnalyticsController::class, 'training'])->name('training');
-        Route::get('/compliance', [HRAnalyticsController::class, 'compliance'])->name('compliance');
-        Route::get('/workforce-planning', [HRAnalyticsController::class, 'workforcePlanning'])->name('workforce-planning');
-        Route::get('/costs', [HRAnalyticsController::class, 'costs'])->name('costs');
-        Route::get('/predictive', [HRAnalyticsController::class, 'predictive'])->name('predictive');
-
-        // API endpoints for data
-        Route::get('/api/summary', [HRAnalyticsController::class, 'getSummary'])->name('summary');
-        Route::get('/api/workforce', [HRAnalyticsController::class, 'getWorkforceAnalytics'])->name('api.workforce');
-        Route::get('/api/turnover', [HRAnalyticsController::class, 'getTurnoverAnalytics'])->name('api.turnover');
-        Route::get('/api/performance', [HRAnalyticsController::class, 'getPerformanceAnalytics'])->name('api.performance');
-        Route::get('/api/training', [HRAnalyticsController::class, 'getTrainingAnalytics'])->name('api.training');
-        Route::get('/api/compliance', [HRAnalyticsController::class, 'getComplianceAnalytics'])->name('api.compliance');
-        Route::get('/api/workforce-planning', [HRAnalyticsController::class, 'getWorkforcePlanningAnalytics'])->name('api.workforce-planning');
-        Route::get('/api/costs', [HRAnalyticsController::class, 'getCostAnalytics'])->name('api.costs');
-        Route::get('/api/predictive', [HRAnalyticsController::class, 'getPredictiveAnalytics'])->name('api.predictive');
-        Route::get('/api/insights', [HRAnalyticsController::class, 'getInsights'])->name('insights');
-        Route::get('/api/trends', [HRAnalyticsController::class, 'getTrends'])->name('trends');
-        Route::get('/api/department/{department}', [HRAnalyticsController::class, 'getDepartmentAnalytics'])->name('department');
-
-        // Export and utility endpoints
-        Route::post('/export', [HRAnalyticsController::class, 'export'])->name('export');
-        Route::post('/clear-cache', [HRAnalyticsController::class, 'clearCache'])->name('clear-cache');
-    });
-
+    
 });
 
 require __DIR__ . '/auth.php';

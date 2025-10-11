@@ -101,53 +101,7 @@
                     @endif
 
 
-                    <!-- Reports Dropdown -->
-                    @if(auth()->user()->can('reports.view') || auth()->user()->can('reports.generate'))
-                    <div class="hidden sm:flex sm:items-center">
-                        <x-dropdown align="left" width="64">
-                            <x-slot name="trigger">
-                                <button class="inline-flex items-center px-3 py-2 border-b-2 {{ request()->routeIs('reports.*', 'csc-reports.*') ? 'border-indigo-400 text-indigo-600' : 'border-transparent text-gray-600' }} text-sm font-medium leading-5 hover:text-gray-800 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:border-gray-300 transition-all duration-200 ease-in-out rounded-t-md group">
-                                    <div class="flex items-center space-x-1">
-                                        <svg class="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                        </svg>
-                                        <span>Reports</span>
-                                        <svg class="fill-current h-4 w-4 transition-transform duration-200 group-hover:rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                                    </div>
-                                </button>
-                            </x-slot>
-                            <x-slot name="content">
-                                @can('reports.view')
-                                    <x-dropdown-link :href="route('reports.index')">
-                                        {{ __('Standard Reports') }}
-                                    </x-dropdown-link>
-                                @endcan
-                                @can('reports.generate')
-                                    <x-dropdown-link :href="route('csc-reports.index')">
-                                        {{ __('CSC Reports') }}
-                                    </x-dropdown-link>
-                                    <x-dropdown-link :href="route('csc-reports.create')">
-                                        {{ __('Generate CSC Report') }}
-                                    </x-dropdown-link>
-                                @endcan
-                                @can('user.manage')
-                                    <x-dropdown-link :href="route('documents.search')">
-                                        {{ __('Document Search') }}
-                                    </x-dropdown-link>
-                                @endcan
-                                @can('reports.view')
-                                    <x-dropdown-link :href="route('documents.analytics')">
-                                        {{ __('Document Analytics') }}
-                                    </x-dropdown-link>
-                                    <x-dropdown-link :href="route('hr-analytics.dashboard')">
-                                        {{ __('HR Analytics') }}
-                                    </x-dropdown-link>
-                                @endcan
-                            </x-slot>
-                        </x-dropdown>
-                    </div>
-                    @endif
-
+                    
                     <!-- Government Benefits (New) -->
                     @can('reports.view')
                         <x-nav-link :href="route('benefits.index')" :active="request()->routeIs('benefits.*')">
@@ -299,12 +253,7 @@
                     {{ __('Manage Perf. Periods') }}
                 </x-responsive-nav-link>
             @endcan
-            @can('reports.view')
-                <x-responsive-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
-                    {{ __('Reports') }}
-                </x-responsive-nav-link>
-            @endcan
-
+            
 
             <!-- Employee Self-Service Portal (Mobile) -->
             @if(auth()->user()->employee)
