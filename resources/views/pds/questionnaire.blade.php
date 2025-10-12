@@ -13,20 +13,139 @@
     <script>
     function toggleTextarea(questionPrefix) {
         const yesRadio = document.querySelector(`input[name="${questionPrefix}_yes_no"][value="1"]`);
-        const textarea = document.getElementById(`${questionPrefix}_details`);
+        const detailsElement = document.getElementById(`${questionPrefix}_details`);
 
-        if (yesRadio && textarea) {
-            textarea.style.display = yesRadio.checked ? 'block' : 'none';
-            if (textarea.tagName === 'TEXTAREA') {
-                textarea.required = yesRadio.checked;
-            } else if (textarea.tagName === 'INPUT') {
-                // For text inputs in question 40
-                const textInput = textarea.querySelector('input') || textarea.querySelector('textarea');
-                if (textInput) {
-                    textInput.required = yesRadio.checked;
+        if (yesRadio && detailsElement) {
+            detailsElement.style.display = yesRadio.checked ? 'block' : 'none';
+
+            // Get the actual input field (textarea or text input)
+            const textarea = detailsElement.querySelector('textarea');
+            const textInput = detailsElement.querySelector('input[type="text"]');
+            const inputField = textarea || textInput;
+
+            if (inputField) {
+                inputField.required = yesRadio.checked;
+
+                // If YES is selected, also update character counter and validation
+                if (yesRadio.checked) {
+                    updateCharacterCounter(questionPrefix);
+                    validateQuestionCompletion(questionPrefix);
+                } else {
+                    // Hide character counter if NO is selected
+                    hideCharacterCounter(questionPrefix);
                 }
             }
         }
+    }
+
+    function updateCharacterCounter(questionPrefix) {
+        const detailsElement = document.getElementById(`${questionPrefix}_details`);
+        const counterElement = document.getElementById(`${questionPrefix}_char_counter`);
+
+        if (!detailsElement) return;
+
+        // Get the actual input field
+        const textarea = detailsElement.querySelector('textarea');
+        const textInput = detailsElement.querySelector('input[type="text"]');
+        const inputField = textarea || textInput;
+
+        if (!inputField) return;
+
+        const currentLength = inputField.value.trim().length;
+        const minLength = 10;
+
+        // Create character counter if it doesn't exist
+        if (!counterElement) {
+            const counterContainer = document.createElement('div');
+            counterContainer.id = `${questionPrefix}_char_counter`;
+            counterContainer.className = 'mt-1 text-xs';
+
+            const counterText = document.createElement('span');
+            counterText.className = 'character-counter';
+
+            const validationMessage = document.createElement('span');
+            validationMessage.className = 'validation-message ml-2';
+
+            counterContainer.appendChild(counterText);
+            counterContainer.appendChild(validationMessage);
+
+            // Insert counter after the input field
+            inputField.parentNode.insertBefore(counterContainer, inputField.nextSibling);
+        }
+
+        // Update counter display
+        const counter = document.getElementById(`${questionPrefix}_char_counter`);
+        const counterText = counter.querySelector('.character-counter');
+        const validationMessage = counter.querySelector('.validation-message');
+
+        counterText.textContent = `${currentLength}/${minLength} characters`;
+
+        // Update validation message and styling
+        if (currentLength >= minLength) {
+            counterText.className = 'character-counter text-green-600 font-medium';
+            validationMessage.textContent = '';
+            inputField.classList.remove('border-red-300');
+            inputField.classList.add('border-green-300');
+        } else {
+            counterText.className = 'character-counter text-orange-600 font-medium';
+            validationMessage.textContent = `(Minimum ${minLength} characters required)`;
+            validationMessage.className = 'validation-message ml-2 text-orange-500';
+            inputField.classList.remove('border-green-300');
+            inputField.classList.add('border-red-300');
+        }
+
+        // Update progress after character input
+        validateQuestionCompletion(questionPrefix);
+    }
+
+    function hideCharacterCounter(questionPrefix) {
+        const counterElement = document.getElementById(`${questionPrefix}_char_counter`);
+        if (counterElement) {
+            counterElement.style.display = 'none';
+        }
+
+        // Remove validation styling from input field
+        const detailsElement = document.getElementById(`${questionPrefix}_details`);
+        if (detailsElement) {
+            const textarea = detailsElement.querySelector('textarea');
+            const textInput = detailsElement.querySelector('input[type="text"]');
+            const inputField = textarea || textInput;
+            if (inputField) {
+                inputField.classList.remove('border-red-300', 'border-green-300');
+            }
+        }
+    }
+
+    function validateQuestionCompletion(questionPrefix) {
+        const radioButtons = document.querySelectorAll(`input[name="${questionPrefix}_yes_no"]`);
+        let selectedValue = null;
+
+        radioButtons.forEach(radio => {
+            if (radio.checked) {
+                selectedValue = radio.value;
+            }
+        });
+
+        // If NO is selected, question is complete
+        if (selectedValue === '0') {
+            return true;
+        }
+
+        // If YES is selected, check if details have minimum characters
+        if (selectedValue === '1') {
+            const detailsElement = document.getElementById(`${questionPrefix}_details`);
+            if (detailsElement) {
+                const textarea = detailsElement.querySelector('textarea');
+                const textInput = detailsElement.querySelector('input[type="text"]');
+                const inputField = textarea || textInput;
+
+                if (inputField && inputField.value.trim().length >= 10) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     function updateProgress() {
@@ -35,17 +154,14 @@
             'field_38a', 'field_38b', 'field_39', 'field_40a', 'field_40b', 'field_40c'
         ];
 
-        let answeredCount = 0;
+        let completedCount = 0;
         questionPrefixes.forEach(prefix => {
-            const radioButtons = document.querySelectorAll(`input[name="${prefix}_yes_no"]`);
-            radioButtons.forEach(radio => {
-                if (radio.checked) {
-                    answeredCount++;
-                }
-            });
+            if (validateQuestionCompletion(prefix)) {
+                completedCount++;
+            }
         });
 
-        const progress = Math.round((answeredCount / questionPrefixes.length) * 100);
+        const progress = Math.round((completedCount / questionPrefixes.length) * 100);
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
 
@@ -67,6 +183,40 @@
                 progressBar.classList.add('bg-yellow-600');
             } else {
                 progressBar.classList.add('bg-red-600');
+            }
+        }
+
+        // Update progress description based on validation state
+        updateProgressDescription(progress, questionPrefixes);
+    }
+
+    function updateProgressDescription(progress, questionPrefixes) {
+        const progressDescription = document.getElementById('progress-description');
+        if (!progressDescription) {
+            // Create progress description element if it doesn't exist
+            const container = document.querySelector('.bg-blue-50.border-blue-200');
+            if (container) {
+                const description = document.createElement('p');
+                description.id = 'progress-description';
+                description.className = 'text-xs text-blue-700 mt-2';
+                container.appendChild(description);
+                progressDescription = description;
+            }
+        }
+
+        if (progressDescription) {
+            const incompleteQuestions = questionPrefixes.filter(prefix => !validateQuestionCompletion(prefix));
+            const incompleteCount = incompleteQuestions.length;
+
+            if (incompleteCount === 0) {
+                progressDescription.textContent = 'All questions completed! You can now submit the form.';
+                progressDescription.className = 'text-xs text-green-700 mt-2 font-medium';
+            } else if (incompleteCount === 1) {
+                progressDescription.textContent = '1 question needs completion (either select NO or provide at least 10 characters for YES answers).';
+                progressDescription.className = 'text-xs text-orange-700 mt-2';
+            } else {
+                progressDescription.textContent = `${incompleteCount} questions need completion (either select NO or provide at least 10 characters for YES answers).`;
+                progressDescription.className = 'text-xs text-orange-700 mt-2';
             }
         }
     }
@@ -119,6 +269,39 @@
                     clearHighlights(); // Clear error highlights when user makes a selection
                 });
             });
+
+            // Add character counting event listeners to detail fields
+            const detailsElement = document.getElementById(`${prefix}_details`);
+            if (detailsElement) {
+                const textarea = detailsElement.querySelector('textarea');
+                const textInput = detailsElement.querySelector('input[type="text"]');
+                const inputField = textarea || textInput;
+
+                if (inputField) {
+                    // Add input event listener for real-time character counting
+                    inputField.addEventListener('input', () => {
+                        updateCharacterCounter(prefix);
+                        updateProgress();
+                    });
+
+                    // Add paste event listener to handle pasted content
+                    inputField.addEventListener('paste', () => {
+                        // Small delay to ensure pasted content is available
+                        setTimeout(() => {
+                            updateCharacterCounter(prefix);
+                            updateProgress();
+                        }, 10);
+                    });
+
+                    // Add focus event to show counter when field gets focus
+                    inputField.addEventListener('focus', () => {
+                        const yesRadio = document.querySelector(`input[name="${prefix}_yes_no"][value="1"]`);
+                        if (yesRadio && yesRadio.checked) {
+                            updateCharacterCounter(prefix);
+                        }
+                    });
+                }
+            }
         });
 
         // Initialize progress on page load
@@ -162,14 +345,15 @@
                     if (!isAnswered) {
                         unansweredQuestions.push(prefix);
                     } else if (selectedValue === '1') {
-                        // Check if details are provided when YES is selected
+                        // Check if details meet minimum character requirement when YES is selected
                         const detailsElement = document.getElementById(`${prefix}_details`);
                         if (detailsElement) {
                             const textarea = detailsElement.querySelector('textarea');
                             const textInput = detailsElement.querySelector('input[type="text"]');
-                            const hasDetails = (textarea && textarea.value.trim()) || (textInput && textInput.value.trim());
+                            const inputField = textarea || textInput;
+                            const hasEnoughDetails = inputField && inputField.value.trim().length >= 10;
 
-                            if (!hasDetails) {
+                            if (!hasEnoughDetails) {
                                 missingDetails.push(prefix);
                             }
                         }
@@ -193,7 +377,7 @@
                             ? 'Please answer the remaining required question before submitting the form.'
                             : `Please answer the ${unansweredCount} remaining required questions before submitting the form.`;
                     } else if (missingDetails.length > 0) {
-                        message = `Please provide details for ${missingDetails.length} question(s) where you answered "YES".`;
+                        message = `Please provide details (minimum 10 characters) for ${missingDetails.length} question(s) where you answered "YES".`;
                     }
 
                     // Show notification instead of alert
@@ -211,20 +395,27 @@
             });
         }
 
-        // Initialize progress based on saved data
+        // Initialize progress based on saved data with character validation
         function initializeProgressFromSaved() {
-            let answeredCount = 0;
+            let completedCount = 0;
 
             questionPrefixes.forEach(prefix => {
-                const radioButtons = document.querySelectorAll(`input[name="${prefix}_yes_no"]`);
-                radioButtons.forEach(radio => {
-                    if (radio.checked) {
-                        answeredCount++;
+                if (validateQuestionCompletion(prefix)) {
+                    completedCount++;
+                }
+
+                // Initialize character counters for fields that have YES selected
+                const yesRadio = document.querySelector(`input[name="${prefix}_yes_no"][value="1"]`);
+                if (yesRadio && yesRadio.checked) {
+                    const detailsElement = document.getElementById(`${prefix}_details`);
+                    if (detailsElement) {
+                        detailsElement.style.display = 'block';
+                        updateCharacterCounter(prefix);
                     }
-                });
+                }
             });
 
-            const progress = Math.round((answeredCount / questionPrefixes.length) * 100);
+            const progress = Math.round((completedCount / questionPrefixes.length) * 100);
             const progressBar = document.getElementById('progress-bar');
             const progressText = document.getElementById('progress-text');
 
@@ -245,6 +436,9 @@
             if (progressText) {
                 progressText.textContent = progress + '% Complete';
             }
+
+            // Update progress description
+            updateProgressDescription(progress, questionPrefixes);
         }
 
         // Initialize detail fields visibility based on saved data
