@@ -30,15 +30,21 @@ class CSCFormValidationService
      */
     public function validateGovernmentId(array $data): array
     {
+        // Validate employee government IDs (SSS, GSIS, PhilHealth, etc.)
         $rules = [
-            'field_39_gov_id_number' => 'required|string|max:50',
-            'field_39_gov_id_date_issued' => 'required|date|before_or_equal:today',
-            'field_39_gov_id_place_issued' => 'required|string|max:100',
+            'gsis_number' => 'nullable|string|max:50',
+            'pagibig_number' => 'nullable|string|max:50',
+            'philhealth_number' => 'nullable|string|max:50',
+            'sss_number' => 'nullable|string|max:50',
+            'tin_number' => 'nullable|string|max:50',
         ];
 
         $messages = [
-            'field_39_gov_id_date_issued.before_or_equal' => 'Government ID date cannot be in the future.',
-            'field_39_gov_id_date_issued.date' => 'Please provide a valid date format.',
+            'gsis_number.max' => 'GSIS number must not exceed 50 characters.',
+            'pagibig_number.max' => 'Pag-IBIG number must not exceed 50 characters.',
+            'philhealth_number.max' => 'PhilHealth number must not exceed 50 characters.',
+            'sss_number.max' => 'SSS number must not exceed 50 characters.',
+            'tin_number.max' => 'TIN number must not exceed 50 characters.',
         ];
 
         $validator = Validator::make($data, $rules, $messages);
@@ -47,13 +53,7 @@ class CSCFormValidationService
             throw new ValidationException($validator);
         }
 
-        // Format the date to mm/dd/yyyy format
-        $validated = $validator->validated();
-        if (isset($validated['field_39_gov_id_date_issued'])) {
-            $validated['field_39_gov_id_date_issued'] = Carbon::parse($validated['field_39_gov_id_date_issued'])->format('m/d/Y');
-        }
-
-        return $validated;
+        return $validator->validated();
     }
 
     /**
@@ -175,14 +175,7 @@ class CSCFormValidationService
                 }
             }
 
-            // Check government ID fields
-            $requiredGovIdFields = ['field_39_gov_id_number', 'field_39_gov_id_date_issued', 'field_39_gov_id_place_issued'];
-            foreach ($requiredGovIdFields as $field) {
-                if (empty($employee->questionnaire->{$field})) {
-                    $missingFields[] = 'Questionnaire Field 39 - ' . ucwords(str_replace('_', ' ', str_replace('field_39_', '', $field)));
-                }
-            }
-        }
+          }
 
         // Check references (exactly 3 required)
         $referenceCount = $employee->references()->count();
@@ -230,11 +223,9 @@ class CSCFormValidationService
         $refCount = min($employee->references()->count(), 3);
         $completedFields += $refCount;
 
-        // Questionnaire (3 critical fields)
+        // Questionnaire (check immigrant status field)
         if ($employee->questionnaire) {
-            if ($employee->questionnaire->field_39_gov_id_number) $completedFields++;
-            if ($employee->questionnaire->field_39_gov_id_date_issued) $completedFields++;
-            if ($employee->questionnaire->field_39_gov_id_place_issued) $completedFields++;
+            if ($employee->questionnaire->field_39_yes_no !== null) $completedFields++;
         }
 
         return round(($completedFields / $totalFields) * 100, 1);
@@ -256,11 +247,7 @@ class CSCFormValidationService
             'q41_pwd' => 'required|boolean',
             'q41_solo_parent' => 'required|boolean',
 
-            // Government ID (Field 39 - always required)
-            'field_39_gov_id_number' => 'required|string|max:50',
-            'field_39_gov_id_date_issued' => 'required|date|before_or_equal:today',
-            'field_39_gov_id_place_issued' => 'required|string|max:100',
-
+        
             // Detail fields (required if corresponding answer is YES)
             'field_34_relationship' => 'nullable|string|required_if:q34_related,1|max:500',
             'field_35_charges' => 'nullable|string|required_if:q35_charges,1|max:1000',
@@ -327,12 +314,7 @@ class CSCFormValidationService
             'field_41_solo_parent_member.required_if' => 'Field 41: Please provide Solo Parent ID number.',
             'field_41_solo_parent_member.max' => 'Field 41: ID number should not exceed 100 characters.',
 
-            // Government ID validation messages
-            'field_39_gov_id_number.required' => 'Field 39: Government ID number is required.',
-            'field_39_gov_id_date_issued.required' => 'Field 39: Date issued is required.',
-            'field_39_gov_id_place_issued.required' => 'Field 39: Place issued is required.',
-            'field_39_gov_id_date_issued.before_or_equal' => 'Field 39: Date issued cannot be in the future.',
-        ];
+                  ];
     }
 
     /**

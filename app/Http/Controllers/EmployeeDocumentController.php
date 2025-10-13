@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
-use App\Jobs\IndexDocumentContentJob;
+// use App\Jobs\IndexDocumentContentJob; // TODO: Uncomment when implementing document search
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -65,8 +65,8 @@ class EmployeeDocumentController extends Controller
             'file_size' => $uploadedFile->getSize(),
         ]);
 
-        // Queue document for content indexing
-        IndexDocumentContentJob::dispatch($document);
+        // TODO: Implement document content indexing when needed
+        // IndexDocumentContentJob::dispatch($document);
 
         return back()->with('success', 'Document uploaded successfully.');
     }

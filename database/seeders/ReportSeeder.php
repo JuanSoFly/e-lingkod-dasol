@@ -96,9 +96,13 @@ class ReportSeeder extends Seeder
     {
         $user = $users->random();
         $status = $this->getRandomStatus($year, $month);
-        
+
+        // Generate report number first to avoid conflicts
+        $reportNumber = Report::generateReportNumber($type, $year);
+
         $report = Report::factory()
             ->state([
+                'report_number' => $reportNumber,
                 'report_type' => $type,
                 'report_year' => $year,
                 'report_month' => $month,
@@ -110,7 +114,7 @@ class ReportSeeder extends Seeder
 
         // Add workflow users based on status
         $this->addWorkflowUsers($report, $users, $status);
-        
+
         // Create some report versions for demonstration
         if (rand(1, 10) === 1) { // 10% chance of having versions
             $this->createReportVersions($report, $users);
@@ -124,9 +128,13 @@ class ReportSeeder extends Seeder
     {
         $user = $users->random();
         $status = $this->getRandomStatus($year, 12); // Use December as reference for annual reports
-        
+
+        // Generate report number first to avoid conflicts
+        $reportNumber = Report::generateReportNumber($type, $year);
+
         $report = Report::factory()
             ->state([
+                'report_number' => $reportNumber,
                 'report_type' => $type,
                 'report_year' => $year,
                 'report_month' => null,
@@ -236,8 +244,12 @@ class ReportSeeder extends Seeder
         $originalReport->update(['is_current_version' => false]);
         
         for ($version = 2; $version <= $versionsToCreate + 1; $version++) {
+            // Generate report number for version
+            $versionReportNumber = Report::generateReportNumber($originalReport->report_type, $originalReport->report_year);
+
             $newVersion = Report::factory()
                 ->state([
+                    'report_number' => $versionReportNumber,
                     'report_type' => $originalReport->report_type,
                     'report_year' => $originalReport->report_year,
                     'report_month' => $originalReport->report_month,
@@ -246,7 +258,7 @@ class ReportSeeder extends Seeder
                     'parent_report_id' => $parentId,
                     'version' => $version,
                     'is_current_version' => $version === $versionsToCreate + 1, // Last version is current
-                    'status' => $version === $versionsToCreate + 1 
+                    'status' => $version === $versionsToCreate + 1
                         ? $this->getRandomStatus($originalReport->report_year, $originalReport->report_month ?? 12)
                         : Report::STATUS_GENERATED,
                 ])

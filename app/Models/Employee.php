@@ -113,6 +113,11 @@ class Employee extends Model
         'deleted_at' => 'datetime',
     ];
 
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
+
     public function user(): HasOne
     {
         return $this->hasOne(User::class);
@@ -580,6 +585,34 @@ class Employee extends Model
         }
 
         return $summary;
+    }
+
+    /**
+     * Creation timestamp attributes and methods
+     */
+
+    /**
+     * Get formatted creation timestamp in Philippine timezone
+     */
+    public function getCreatedAtFormattedAttribute(): string
+    {
+        if (!$this->created_at) {
+            return 'Not recorded';
+        }
+
+        return $this->created_at->format('m/d/Y h:i A');
+    }
+
+    /**
+     * Get creation date in mm/dd/yyyy format
+     */
+    public function getCreationDateAttribute(): string
+    {
+        if (!$this->created_at) {
+            return 'Not recorded';
+        }
+
+        return $this->created_at->format('m/d/Y');
     }
 
     /**

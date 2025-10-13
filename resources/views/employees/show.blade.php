@@ -5,6 +5,15 @@
                 {{ __('Employee 201 File') }}
             </h2>
             <div class="flex space-x-2">
+                @can('export', $employee)
+                <a href="{{ route('pds.export.single', $employee->id) }}"
+                   class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 disabled:opacity-25 transition ease-in-out duration-150">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    {{ __('Download Excel') }}
+                </a>
+                @endcan
                 @can('employee.edit', $employee)
                 <a href="{{ route('pds.dashboard', $employee->id) }}">
                     <x-primary-button>
@@ -35,6 +44,7 @@
                         <div><dt class="text-sm font-medium text-gray-500">Birth Date</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->birth_date?->format('F d, Y') ?? 'Not provided' }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Gender</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->gender }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Civil Status</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->civil_status }}</dd></div>
+                        <div><dt class="text-sm font-medium text-gray-500">Record Created</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->created_at_formatted }}</dd></div>
                     </div>
                 </div>
             </div>

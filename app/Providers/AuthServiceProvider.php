@@ -10,6 +10,7 @@ use App\Policies\LeaveApplicationPolicy;
 use App\Policies\PerformanceTargetPolicy;
 use App\Models\Employee;
 use App\Policies\EmployeePolicy;
+use App\Policies\PDSPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -25,6 +26,8 @@ class AuthServiceProvider extends ServiceProvider
         PerformanceTarget::class => PerformanceTargetPolicy::class,
         EmployeeDocument::class => EmployeeDocumentPolicy::class,
         Employee::class => EmployeePolicy::class,
+        // Register PDS policy - but we'll use gates for more granular control
+        // Employee::class => PDSPolicy::class,
     ];
 
     /**
@@ -36,17 +39,25 @@ class AuthServiceProvider extends ServiceProvider
 
         // HR Analytics Gates
         Gate::define('view-analytics', function ($user) {
-            return $user->can('reports.view') || 
+            return $user->can('reports.view') ||
                    $user->hasRole(['HR Admin', 'Super Admin', 'Department Head']);
         });
 
         Gate::define('export-analytics', function ($user) {
-            return $user->can('reports.generate') || 
+            return $user->can('reports.generate') ||
                    $user->hasRole(['HR Admin', 'Super Admin']);
         });
 
         Gate::define('manage-analytics', function ($user) {
             return $user->hasRole(['HR Admin', 'Super Admin']);
         });
+
+        // PDS Export Gates - Using PDSPolicy for authorization
+        Gate::define('export', [PDSPolicy::class, 'export']);
+        Gate::define('batchExport', [PDSPolicy::class, 'batchExport']);
+        Gate::define('viewExportStatus', [PDSPolicy::class, 'viewExportStatus']);
+        Gate::define('downloadExport', [PDSPolicy::class, 'downloadExport']);
+        Gate::define('viewExportHistory', [PDSPolicy::class, 'viewExportHistory']);
+        Gate::define('viewExportInterface', [PDSPolicy::class, 'viewExportInterface']);
     }
 }

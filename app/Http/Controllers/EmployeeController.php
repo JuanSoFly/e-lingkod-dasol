@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Services\CreateUserService;
 use App\Services\AuditService;
+use App\Exports\EmployeesExport;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Illuminate\Http\JsonResponse;
 
 class EmployeeController extends Controller
 {
@@ -91,13 +95,39 @@ class EmployeeController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreEmployeeRequest $request, CreateUserService $createUserService)
+    public function store(StoreEmployeeRequest $request, CreateUserService $createUserService): JsonResponse
     {
         $this->authorize('employee.create');
 
-        $createUserService->create($request->validated());
+        try {
+            $user = $createUserService->create($request->validated());
 
-        return redirect()->route('employees.index')->with('success', 'Employee created successfully.');
+            return response()->json([
+                'success' => true,
+                'message' => 'Employee created successfully. An email has been sent to ' . $user->email . ' with account setup instructions.',
+                'employee_id' => $user->employee->id,
+                'employee_number' => $user->employee->employee_number,
+                'redirect' => route('employees.index')
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            \Log::error('Employee creation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create employee: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -177,5 +207,32 @@ class EmployeeController extends Controller
 
 
         return redirect()->route('employees.index')->with('success', 'Employee deleted successfully.');
+    }
+
+    /**
+     * Export employees to Excel with creation timestamps
+     */
+    public function export(Request $request): BinaryFileResponse
+    {
+        // Only HR Admin and Super Admin can export employees
+        $this->authorize('viewAny', Employee::class);
+
+        $filename = 'employees_' . now()->format('Y_m_d_His') . '.xlsx';
+
+        return Excel::download(new EmployeesExport(), $filename);
+    }
+
+    /**
+     * Export filtered employees to Excel
+     */
+    public function exportFiltered(Request $request): BinaryFileResponse
+    {
+        // Only HR Admin and Super Admin can export employees
+        $this->authorize('viewAny', Employee::class);
+
+        $filename = 'employees_filtered_' . now()->format('Y_m_d_His') . '.xlsx';
+
+        // We can enhance this later to apply the same filters as the index page
+        return Excel::download(new EmployeesExport(), $filename);
     }
 }

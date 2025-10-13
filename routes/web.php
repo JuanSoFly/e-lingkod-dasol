@@ -15,6 +15,7 @@ use App\Http\Controllers\BenefitContributionController;
 use App\Http\Controllers\EmployeeSelfServiceController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\PDSController;
+use App\Http\Controllers\PDSExportController;
 use App\Http\Controllers\EducationController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +44,17 @@ Route::middleware('auth')->group(function () {
 
     // Employee Management Routes
     Route::resource('employees', EmployeeController::class)->middleware('can:employee.view');
+
+    // Employee Export Routes (clean approach - no conflicts)
+    Route::get('employees/export', [EmployeeController::class, 'export'])->name('employees.export')->middleware('can:employee.view');
+    Route::get('employees/export/filtered', [EmployeeController::class, 'exportFiltered'])->name('employees.export.filtered')->middleware('can:employee.view');
+
+    // API Routes for employee management
+    Route::prefix('api/employees')->name('api.employees.')->group(function () {
+        Route::get('/next-number', [App\Http\Controllers\Api\EmployeeNumberController::class, 'getNextNumber'])
+            ->name('next-number')
+            ->middleware('can:employee.create');
+    });
 
     // Education Routes (nested under employees)
     Route::prefix('employees/{employee}/education')
@@ -76,6 +88,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('{employee}/other-information/{otherInformation}', [PDSController::class, 'destroyOtherInformation'])->name('destroy-other-information');
         Route::get('{employee}/references', [PDSController::class, 'references'])->name('references');
         Route::post('{employee}/references', [PDSController::class, 'storeReference'])->name('store-reference');
+        Route::delete('{employee}/references', [PDSController::class, 'replaceReferences'])->name('replace-references');
         Route::delete('{employee}/references/{reference}', [PDSController::class, 'destroyReference'])->name('destroy-reference');
         Route::get('{employee}/questionnaire', [PDSController::class, 'questionnaire'])->name('questionnaire');
         Route::post('{employee}/questionnaire', [PDSController::class, 'updateQuestionnaire'])->name('update-questionnaire');
@@ -90,7 +103,23 @@ Route::middleware('auth')->group(function () {
         Route::get('{employee}/learning-development', [PDSController::class, 'learningDevelopment'])->name('learning-development');
         Route::post('{employee}/learning-development', [PDSController::class, 'storeLearningDevelopment'])->name('store-learning-development');
         Route::delete('{employee}/learning-development/{training}', [PDSController::class, 'destroyLearningDevelopment'])->name('destroy-learning-development');
-  
+
+        // PDS Export Routes
+        Route::get('export', [PDSExportController::class, 'index'])->name('export.index')->middleware('can:viewExportInterface,App\Models\Employee');
+        Route::get('export/single/{employee}', [PDSExportController::class, 'exportSingle'])->name('export.single')->middleware('can:export,employee');
+        Route::post('export/batch', [PDSExportController::class, 'exportBatch'])->name('export.batch')->middleware('can:batchExport,App\Models\Employee');
+        Route::get('export/status/{jobId}', [PDSExportController::class, 'getExportStatus'])->name('export.status')->middleware('can:viewExportStatus,App\Models\Employee');
+        Route::get('export/download/{filename}', [PDSExportController::class, 'downloadExport'])->name('export.download')->middleware('can:downloadExport,App\Models\Employee');
+        Route::get('export/history', [PDSExportController::class, 'getExportHistory'])->name('export.history')->middleware('can:viewExportHistory,App\Models\Employee');
+
+        // Super Admin System Audit Routes (New)
+        Route::prefix('export/admin')->name('export.admin.')->middleware('can:manageConcurrentExports,App\Models\Employee')->group(function () {
+            Route::get('concurrent-exports', [PDSExportController::class, 'getConcurrentExports'])->name('concurrent-exports');
+            Route::post('retry-export/{jobId}', [PDSExportController::class, 'retryExport'])->name('retry-export');
+            Route::delete('cancel-export/{jobId}', [PDSExportController::class, 'cancelExport'])->name('cancel-export');
+            Route::get('performance-metrics', [PDSExportController::class, 'getPerformanceMetrics'])->name('performance-metrics')->middleware('can:viewPerformanceMetrics,App\Models\Employee');
+        });
+
       });
 
   
@@ -146,6 +175,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [EmployeeSelfServiceController::class, 'dashboard'])->name('dashboard');
         Route::get('/service-record', [EmployeeSelfServiceController::class, 'serviceRecord'])->name('service-record');
         Route::get('/benefits-summary', [EmployeeSelfServiceController::class, 'benefitsSummary'])->name('benefits-summary');
+        Route::get('/my-201-file', [EmployeeSelfServiceController::class, 'my201File'])->name('my-201-file');
+
+        // PDS Export for Employee Self-Service
+        Route::get('/export-pds', [PDSExportController::class, 'exportSelfPDS'])->name('export-pds');
 
         // Document Request System
         Route::get('/document-requests', [EmployeeSelfServiceController::class, 'documentRequests'])->name('document-requests');

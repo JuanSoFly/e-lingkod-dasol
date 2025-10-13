@@ -579,25 +579,66 @@ class PDSController extends Controller
         // Initialize CSC Form Validation Service
         $cscValidator = new CSCFormValidationService();
 
+        // Validate array inputs for exactly 3 references
         $validated = $request->validate([
-            'full_name' => 'required|string|max:255',
-            'address' => 'required|string',
-            'telephone_no' => [
+            'full_name' => 'required|array|min:3|max:3',
+            'full_name.*' => 'required|string|max:255',
+            'address' => 'required|array|min:3|max:3',
+            'address.*' => 'required|string',
+            'telephone_no' => 'array|min:3|max:3',
+            'telephone_no.*' => [
                 'nullable',
                 'string',
                 'max:20',
                 new TelephoneNumberFormat()
             ],
+        ], [
+            'full_name.required' => 'All three character references are required for CSC Form No. 212.',
+            'full_name.min' => 'Please provide exactly three character references.',
+            'full_name.max' => 'Please provide exactly three character references.',
+            'address.required' => 'All three addresses are required.',
+            'address.min' => 'Please provide exactly three addresses.',
+            'address.max' => 'Please provide exactly three addresses.',
+            'full_name.*.required' => 'Reference :input is required.',
+            'address.*.required' => 'Address for reference :input is required.',
         ]);
 
-        // Validate reference count for CSC compliance
-        $currentReferenceCount = $employee->references()->count();
-        $cscValidator->validateReferenceCount($currentReferenceCount + 1);
+        // Use database transaction to ensure data integrity
+        return DB::transaction(function () use ($employee, $validated) {
+            // Delete existing references to avoid duplicates
+            $employee->references()->delete();
 
-        $employee->references()->create($validated);
+            // Create exactly 3 references with proper ordering
+            $references = [];
+            for ($i = 0; $i < 3; $i++) {
+                $references[] = [
+                    'employee_id' => $employee->id,
+                    'full_name' => $validated['full_name'][$i],
+                    'address' => $validated['address'][$i],
+                    'telephone_no' => $validated['telephone_no'][$i] ?? null,
+                    'reference_order' => $i + 1, // 1, 2, 3
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+
+            // Insert all references at once
+            $employee->references()->insert($references);
+
+            return redirect()->route('pds.references', $employee)
+                ->with('success', 'All three character references have been saved successfully. CSC Form No. 212 requirement is now complete.');
+        });
+    }
+
+    public function replaceReferences(Employee $employee)
+    {
+        $this->authorizePdsAccess($employee, 'update');
+
+        // Delete all existing references for this employee
+        $employee->references()->delete();
 
         return redirect()->route('pds.references', $employee)
-            ->with('success', 'Reference added successfully.');
+            ->with('success', 'All references have been cleared. Please enter three new character references.');
     }
 
     public function destroyReference(Employee $employee, EmployeeReference $reference)

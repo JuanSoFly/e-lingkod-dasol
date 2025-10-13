@@ -27,7 +27,7 @@ class EmployeeSelfServiceController extends Controller
     {
         $user = Auth::user();
         $employee = $user->employee;
-        
+
         if (!$employee) {
             return redirect()->route('dashboard')->with('error', 'Employee profile not found.');
         }
@@ -47,7 +47,7 @@ class EmployeeSelfServiceController extends Controller
     {
         $user = Auth::user();
         $employee = $user->employee;
-        
+
         if (!$employee) {
             return redirect()->route('dashboard')->with('error', 'Employee profile not found.');
         }
@@ -55,7 +55,7 @@ class EmployeeSelfServiceController extends Controller
         // Get complete service history
         $serviceHistory = $this->getServiceHistory($employee);
         $careerProgression = $employee->careerProgressions()->orderBy('effective_date', 'desc')->get();
-        $trainingHistory = $employee->employeeTrainings()->with('trainingProgram')->orderBy('start_date', 'desc')->get();
+        $trainingHistory = $employee->employeeTrainings() ? $employee->employeeTrainings()->with('trainingProgram')->orderBy('start_date', 'desc')->get() : collect();
         $performanceHistory = collect(); // Temporarily disabled - will implement when performance system is set up
         $educationHistory = collect(); // Temporarily disabled - will implement when education system is set up  
         $workExperience = collect(); // Temporarily disabled - will implement when work experience system is set up
@@ -255,7 +255,8 @@ class EmployeeSelfServiceController extends Controller
         $user = Auth::user();
         
         // Ensure user can only download their own requests
-        if ($documentRequest->employee_id !== $user->employee?->id) {
+        $employee = $user->employee;
+        if (!$employee || $documentRequest->employee_id !== $employee->id) {
             abort(403, 'Unauthorized access to document.');
         }
 
@@ -509,7 +510,7 @@ class EmployeeSelfServiceController extends Controller
     {
         $user = Auth::user();
         $employee = $user->employee;
-        
+
         if (!$employee) {
             return redirect()->route('dashboard')->with('error', 'Employee profile not found.');
         }
@@ -521,6 +522,47 @@ class EmployeeSelfServiceController extends Controller
             'employee',
             'changeTypes',
             'editableFields'
+        ));
+    }
+
+    /**
+     * Display employee's 201 file
+     */
+    public function my201File()
+    {
+        $user = Auth::user();
+        $employee = $user->employee;
+
+        if (!$employee) {
+            return redirect()->route('dashboard')->with('error', 'Employee profile not found.');
+        }
+
+        // Get comprehensive employee data for 201 file
+        $educationHistory = $employee->education()->orderBy('period_from', 'desc')->get();
+        $workExperience = $employee->workExperiences()->orderBy('from_date', 'desc')->get();
+        $documents = $employee->documents()->orderBy('document_type', 'asc')->get();
+        $familyBackground = $employee->familyBackground;
+        $children = $familyBackground ? $familyBackground->children()->orderBy('birth_date', 'desc')->get() : collect();
+        $eligibilities = $employee->pdsEligibilities()->orderBy('created_at', 'desc')->get();
+        $voluntaryWork = $employee->voluntaryWork()->orderBy('inclusive_date_from', 'desc')->get();
+        $trainingPrograms = $employee->employeeTrainings() ? $employee->employeeTrainings()->with('trainingProgram')->orderBy('start_date', 'desc')->get() : collect();
+        $otherInformation = $employee->otherInformation;
+        $references = $employee->references()->get();
+        $questionnaire = $employee->questionnaire;
+
+        return view('employee-portal.my-201-file', compact(
+            'employee',
+            'educationHistory',
+            'workExperience',
+            'documents',
+            'familyBackground',
+            'children',
+            'eligibilities',
+            'voluntaryWork',
+            'trainingPrograms',
+            'otherInformation',
+            'references',
+            'questionnaire'
         ));
     }
 }

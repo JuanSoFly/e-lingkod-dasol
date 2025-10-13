@@ -185,9 +185,7 @@ function enhanceFormFields() {
         'field_36_candidate',
         'field_37_resignation',
         'field_38_immigrant',
-        'field_39_gov_id_number',
-        'field_39_gov_id_date_issued',
-        'field_39_gov_id_place_issued',
+        'field_39_yes_no',
         'field_41_indigenous_member',
         'field_41_pwd_member',
         'field_41_solo_parent_member'
@@ -315,9 +313,7 @@ function formatFieldName(fieldId) {
         'field_36_candidate': 'Candidacy details',
         'field_37_resignation': 'Resignation to campaign details',
         'field_38_immigrant': 'Immigrant status details',
-        'field_39_gov_id_number': 'Government ID number',
-        'field_39_gov_id_date_issued': 'Government ID date issued',
-        'field_39_gov_id_place_issued': 'Government ID place issued',
+        'field_39_yes_no': 'Immigrant status (Field 39)',
         'field_41_indigenous_member': 'Indigenous group membership',
         'field_41_pwd_member': 'PWD membership',
         'field_41_solo_parent_member': 'Solo parent membership'

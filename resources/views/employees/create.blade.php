@@ -12,21 +12,52 @@
                 <p class="text-sm text-gray-500 mt-1">Add a new employee to the system</p>
             </div>
             <div class="p-6">
-                <form method="POST" action="{{ route('employees.store') }}" class="space-y-6">
-                        @csrf
+                <form method="POST" action="{{ route('employees.store') }}" id="employeeForm" class="space-y-6">
+                    @csrf
+
+                    <!-- Loading Overlay -->
+                    <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center">
+                        <div class="bg-white p-6 rounded-lg shadow-xl">
+                            <div class="flex items-center space-x-3">
+                                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                                <span class="text-gray-700">Creating employee...</span>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Personal Information Section -->
                     <div class="space-y-6">
                         <div class="border-b border-gray-200 pb-4">
                             <h4 class="text-base font-medium text-gray-900">Personal Information</h4>
-                            <p class="text-sm text-gray-500">Basic personal details of the employee</p>
+                            <p class="text-sm text-gray-500 mt-1">Basic personal details of the employee</p>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Employee Number -->
+                            <!-- Employee Number (Auto-generated) -->
                             <div>
-                                <x-input-label for="employee_number" :value="__('Employee Number')" />
-                                <x-text-input id="employee_number" class="block mt-1 w-full" type="text" name="employee_number" :value="old('employee_number')" required autofocus />
+                                <x-input-label for="employee_number_display" :value="__('Employee Number')" />
+                                <div class="flex items-center space-x-2 mt-1">
+                                    <x-text-input
+                                        id="employee_number_display"
+                                        class="block flex-1 bg-gray-50"
+                                        type="text"
+                                        name="employee_number"
+                                        value="{{ old('employee_number') }}"
+                                        readonly
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        id="refreshNumberBtn"
+                                        class="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                                        title="Generate new number"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                    </button>
+                                </div>
                                 <x-input-error :messages="$errors->get('employee_number')" class="mt-2" />
+                                <p class="text-xs text-gray-500 mt-1">Auto-generated unique employee ID</p>
                             </div>
 
                             <!-- First Name -->
@@ -65,7 +96,7 @@
                             </div>
 
                         </div>
-                        
+
                         <!-- Address -->
                         <div>
                             <x-input-label for="address" :value="__('Address')" />
@@ -101,10 +132,11 @@
                                 <x-input-label for="employment_status" :value="__('Employment Status')" />
                                 <select id="employment_status" name="employment_status" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                                     <option value="">Select Employment Status</option>
-                                    <option value="Regular" {{ old('employment_status') == 'Regular' ? 'selected' : '' }}>Regular</option>
-                                    <option value="Contractual" {{ old('employment_status') == 'Contractual' ? 'selected' : '' }}>Contractual</option>
-                                    <option value="Casual" {{ old('employment_status') == 'Casual' ? 'selected' : '' }}>Casual</option>
-                                    <option value="Job Order" {{ old('employment_status') == 'Job Order' ? 'selected' : '' }}>Job Order</option>
+                                    <option value="regular" {{ old('employment_status') == 'regular' ? 'selected' : '' }}>Regular</option>
+                                    <option value="probationary" {{ old('employment_status') == 'probationary' ? 'selected' : '' }}>Probationary</option>
+                                    <option value="contractual" {{ old('employment_status') == 'contractual' ? 'selected' : '' }}>Contractual</option>
+                                    <option value="casual" {{ old('employment_status') == 'casual' ? 'selected' : '' }}>Casual</option>
+                                    <option value="job-order" {{ old('employment_status') == 'job-order' ? 'selected' : '' }}>Job Order</option>
                                 </select>
                                 <x-input-error :messages="$errors->get('employment_status')" class="mt-2" />
                             </div>
@@ -131,6 +163,29 @@
                                 <x-input-error :messages="$errors->get('step_increment')" class="mt-2" />
                                 <p class="text-xs text-gray-500 mt-1">Step increment (1-8)</p>
                             </div>
+
+                            <!-- Basic Salary (NEW FIELD) -->
+                            <div>
+                                <x-input-label for="basic_salary" :value="__('Basic Salary')" />
+                                <div class="relative mt-1">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-gray-500 sm:text-sm">₱</span>
+                                    </div>
+                                    <x-text-input
+                                        id="basic_salary"
+                                        class="block mt-1 w-full pl-8"
+                                        type="number"
+                                        name="basic_salary"
+                                        :value="old('basic_salary', '0.00')"
+                                        step="0.01"
+                                        min="0"
+                                        required
+                                    />
+                                </div>
+                                <x-input-error :messages="$errors->get('basic_salary')" class="mt-2" />
+                                <p class="text-xs text-gray-500 mt-1">Monthly basic salary in Philippine Peso</p>
+                            </div>
+
                         </div>
                     </div>
 
@@ -153,8 +208,9 @@
                                 <x-input-label for="gender" :value="__('Gender')" />
                                 <select id="gender" name="gender" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                                     <option value="">Select Gender</option>
-                                    <option value="Male" {{ old('gender') == 'Male' ? 'selected' : '' }}>Male</option>
-                                    <option value="Female" {{ old('gender') == 'Female' ? 'selected' : '' }}>Female</option>
+                                    <option value="male" {{ old('gender') == 'male' ? 'selected' : '' }}>Male</option>
+                                    <option value="female" {{ old('gender') == 'female' ? 'selected' : '' }}>Female</option>
+                                    <option value="other" {{ old('gender') == 'other' ? 'selected' : '' }}>Other</option>
                                 </select>
                                 <x-input-error :messages="$errors->get('gender')" class="mt-2" />
                             </div>
@@ -164,10 +220,11 @@
                                 <x-input-label for="civil_status" :value="__('Civil Status')" />
                                 <select id="civil_status" name="civil_status" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                                     <option value="">Select Civil Status</option>
-                                    <option value="Single" {{ old('civil_status') == 'Single' ? 'selected' : '' }}>Single</option>
-                                    <option value="Married" {{ old('civil_status') == 'Married' ? 'selected' : '' }}>Married</option>
-                                    <option value="Divorced" {{ old('civil_status') == 'Divorced' ? 'selected' : '' }}>Divorced</option>
-                                    <option value="Widowed" {{ old('civil_status') == 'Widowed' ? 'selected' : '' }}>Widowed</option>
+                                    <option value="single" {{ old('civil_status') == 'single' ? 'selected' : '' }}>Single</option>
+                                    <option value="married" {{ old('civil_status') == 'married' ? 'selected' : '' }}>Married</option>
+                                    <option value="divorced" {{ old('civil_status') == 'divorced' ? 'selected' : '' }}>Divorced</option>
+                                    <option value="widowed" {{ old('civil_status') == 'widowed' ? 'selected' : '' }}>Widowed</option>
+                                    <option value="separated" {{ old('civil_status') == 'separated' ? 'selected' : '' }}>Separated</option>
                                 </select>
                                 <x-input-error :messages="$errors->get('civil_status')" class="mt-2" />
                             </div>
@@ -185,7 +242,7 @@
                                     {{ __('Cancel') }}
                                 </x-secondary-button>
                             </a>
-                            <x-primary-button>
+                            <x-primary-button type="submit" id="submitBtn">
                                 {{ __('Save Employee') }}
                             </x-primary-button>
                         </div>
@@ -194,4 +251,154 @@
             </div>
         </div>
     </div>
+
+    <!-- Success/Error Messages Modal -->
+    <div id="messageModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="flex items-center space-x-3">
+                <div id="messageIcon"></div>
+                <div>
+                    <h3 id="messageTitle" class="text-lg font-medium text-gray-900"></h3>
+                    <p id="messageText" class="text-sm text-gray-500 mt-1"></p>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button type="button" onclick="closeMessageModal()" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @push('scripts')
+    <script>
+        // Employee number generation
+        async function generateEmployeeNumber() {
+            try {
+                const response = await fetch('/api/employees/next-number', {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('employee_number_display').value = data.employee_number;
+                } else {
+                    console.error('Failed to generate employee number:', data.message);
+                }
+            } catch (error) {
+                console.error('Error generating employee number:', error);
+            }
+        }
+
+        // Form submission handling
+        document.getElementById('employeeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+
+            // Show loading state
+            submitBtn.disabled = true;
+            loadingOverlay.classList.remove('hidden');
+
+            try {
+                const formData = new FormData(this);
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('Success!', data.message || 'Employee created successfully.', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/employees';
+                    }, 2000);
+                } else {
+                    showMessage('Error', data.message || 'Failed to create employee.', 'error');
+
+                    // Handle validation errors
+                    if (data.errors) {
+                        // Display validation errors next to fields
+                        Object.keys(data.errors).forEach(field => {
+                            const input = document.querySelector(`[name="${field}"]`);
+                            if (input) {
+                                const errorDiv = input.closest('div').querySelector('.text-red-600');
+                                if (errorDiv) {
+                                    errorDiv.textContent = data.errors[field][0];
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Form submission error:', error);
+                showMessage('Error', 'An unexpected error occurred. Please try again.', 'error');
+            } finally {
+                // Hide loading state
+                submitBtn.disabled = false;
+                loadingOverlay.classList.add('hidden');
+            }
+        });
+
+        // Message modal functions
+        function showMessage(title, text, type) {
+            const modal = document.getElementById('messageModal');
+            const titleElement = document.getElementById('messageTitle');
+            const textElement = document.getElementById('messageText');
+            const iconElement = document.getElementById('messageIcon');
+
+            titleElement.textContent = title;
+            textElement.textContent = text;
+
+            // Set icon based on type
+            if (type === 'success') {
+                iconElement.innerHTML = '<div class="flex-shrink-0 w-6 h-6 bg-green-100 rounded-full flex items-center justify-center"><svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></div>';
+            } else {
+                iconElement.innerHTML = '<div class="flex-shrink-0 w-6 h-6 bg-red-100 rounded-full flex items-center justify-center"><svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></div>';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeMessageModal() {
+            document.getElementById('messageModal').classList.add('hidden');
+        }
+
+        // Refresh button functionality
+        document.getElementById('refreshNumberBtn').addEventListener('click', generateEmployeeNumber);
+
+        // Generate employee number on page load
+        document.addEventListener('DOMContentLoaded', generateEmployeeNumber);
+
+        // Real-time validation
+        document.querySelectorAll('input[required], select[required]').forEach(field => {
+            field.addEventListener('blur', function() {
+                if (!this.value.trim()) {
+                    this.classList.add('border-red-300');
+                } else {
+                    this.classList.remove('border-red-300');
+                }
+            });
+        });
+
+        // Format currency input for basic salary
+        document.getElementById('basic_salary').addEventListener('blur', function() {
+            const value = parseFloat(this.value);
+            if (!isNaN(value) && value >= 0) {
+                this.value = value.toFixed(2);
+            }
+        });
+    </script>
+    @endpush
 </x-app-layout>

@@ -23,9 +23,9 @@ class StoreEmployeeRequest extends FormRequest
     {
         return [
             'employee_number' => [
-                'required', 
-                'string', 
-                'max:20', 
+                'required',
+                'string',
+                'max:20',
                 'unique:employees,employee_number',
                 'regex:/^[A-Z0-9-]+$/'
             ],
@@ -91,8 +91,8 @@ class StoreEmployeeRequest extends FormRequest
                 'max:100'
             ],
             'employment_status' => [
-                'required', 
-                'in:probationary,regular,contractual,casual'
+                'required',
+                'in:probationary,regular,contractual,casual,job-order'
             ],
             'date_hired' => [
                 'required', 
@@ -135,6 +135,9 @@ class StoreEmployeeRequest extends FormRequest
             'date_hired.after' => 'Date hired must be after birth date.',
             'salary_grade.max' => 'Salary grade must not exceed 33.',
             'step_increment.max' => 'Step increment must not exceed 8.',
+            'basic_salary.required' => 'Basic salary is required.',
+            'basic_salary.numeric' => 'Basic salary must be a valid number.',
+            'basic_salary.min' => 'Basic salary cannot be negative.',
         ];
     }
 }

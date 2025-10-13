@@ -255,15 +255,7 @@ class CSCValidation {
             }
         });
 
-        // Government ID validation
-        const govIdFields = ['field_39_gov_id_number', 'field_39_gov_id_date_issued', 'field_39_gov_id_place_issued'];
-        govIdFields.forEach(fieldId => {
-            const field = document.getElementById(fieldId);
-            if (field) {
-                field.addEventListener('blur', () => this.validateGovernmentIDSection());
-            }
-        });
-    }
+        }
 
     setupPersonalInfoValidation() {
         const govIdFields = [
@@ -410,39 +402,7 @@ class CSCValidation {
         return result.valid;
     }
 
-    validateGovernmentIDSection() {
-        const govIdNumber = document.getElementById('field_39_gov_id_number');
-        const govIdDate = document.getElementById('field_39_gov_id_date_issued');
-        const govIdPlace = document.getElementById('field_39_gov_id_place_issued');
-
-        let isValid = true;
-        let hasContent = false;
-
-        if (govIdNumber) {
-            hasContent = hasContent || govIdNumber.value.trim() !== '';
-            const result = this.rules.government_id(govIdNumber.value);
-            this.showValidationFeedback(govIdNumber, result);
-            isValid = isValid && result.valid;
-        }
-
-        if (govIdDate) {
-            hasContent = hasContent || govIdDate.value.trim() !== '';
-            const result = this.rules.date_format(govIdDate.value);
-            this.showValidationFeedback(govIdDate, result);
-            isValid = isValid && result.valid;
-        }
-
-        if (govIdPlace) {
-            hasContent = hasContent || govIdPlace.value.trim() !== '';
-            if (govIdPlace.value.trim() === '') {
-                this.showValidationFeedback(govIdPlace, { valid: false, message: 'Place issued is required' });
-                isValid = false;
-            }
-        }
-
-        return isValid && hasContent;
-    }
-
+  
     showValidationFeedback(field, result) {
         // Remove existing feedback
         const existingFeedback = field.parentNode.querySelector('.validation-feedback');
@@ -556,10 +516,7 @@ class CSCValidation {
             'field_35_charges',
             'field_36_candidate',
             'field_37_resignation',
-            'field_38_immigrant',
-            'field_39_gov_id_number',
-            'field_39_gov_id_date_issued',
-            'field_39_gov_id_place_issued'
+            'field_38_immigrant'
         ];
 
         let missingFields = [];
