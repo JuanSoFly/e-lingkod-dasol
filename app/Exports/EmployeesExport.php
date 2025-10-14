@@ -43,7 +43,7 @@ class EmployeesExport implements FromCollection, WithHeadings, WithMapping, With
             'Date Hired',
             'Salary Grade',
             'Step Increment',
-            'Record Created',
+            'Date Created',
         ];
     }
 
@@ -70,7 +70,7 @@ class EmployeesExport implements FromCollection, WithHeadings, WithMapping, With
             $employee->date_hired?->format('m/d/Y'),
             $employee->salary_grade,
             $employee->step_increment,
-            $employee->creation_date,
+            $employee->created_at?->format('m/d/Y'),
         ];
     }
 

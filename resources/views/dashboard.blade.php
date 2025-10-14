@@ -7,7 +7,7 @@
 
     <div class="space-y-6">
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             <!-- Stat Card: Total Employees -->
             <div class="bg-white overflow-hidden shadow-sm rounded-lg p-6 border border-gray-200 hover:shadow-md transition-shadow duration-200">
                 <div class="flex items-center">
@@ -56,32 +56,7 @@
                     </div>
                 </div>
             </div>
-            <!-- Stat Card: Upcoming Birthdays -->
-            <div class="bg-white overflow-hidden shadow-sm rounded-lg p-6 border border-gray-200 hover:shadow-md transition-shadow duration-200">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4M8 7H3a1 1 0 00-1 1v2a1 1 0 001 1h5M8 7h8m0 0V6a2 2 0 012-2h1a2 2 0 012 2v1"></path>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="ml-4 flex-1">
-                        <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Upcoming Birthdays</h3>
-                        <div class="mt-2 space-y-1 max-h-16 overflow-y-auto">
-                            @forelse($upcomingBirthdays->take(3) as $employee)
-                                <div class="text-sm text-gray-700 truncate">{{ $employee->first_name }} {{ $employee->last_name }} - {{ $employee->birth_date?->format('M d') ?? 'Date unknown' }}</div>
-                            @empty
-                                <div class="text-sm text-gray-400">No upcoming birthdays</div>
-                            @endforelse
-                            @if($upcomingBirthdays->count() > 3)
-                                <div class="text-xs text-blue-600">+{{ $upcomingBirthdays->count() - 3 }} more</div>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            </div>
-            </div>
+        </div>
 
         <!-- Charts Section -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

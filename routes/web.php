@@ -42,12 +42,12 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Employee Management Routes
-    Route::resource('employees', EmployeeController::class)->middleware('can:employee.view');
-
-    // Employee Export Routes (clean approach - no conflicts)
+    // Employee Export Routes (must be defined before resource route to avoid conflicts)
     Route::get('employees/export', [EmployeeController::class, 'export'])->name('employees.export')->middleware('can:employee.view');
     Route::get('employees/export/filtered', [EmployeeController::class, 'exportFiltered'])->name('employees.export.filtered')->middleware('can:employee.view');
+
+    // Employee Management Routes
+    Route::resource('employees', EmployeeController::class)->middleware('can:employee.view');
 
     // API Routes for employee management
     Route::prefix('api/employees')->name('api.employees.')->group(function () {
