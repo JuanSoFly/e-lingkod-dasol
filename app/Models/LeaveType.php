@@ -12,6 +12,7 @@ class LeaveType extends Model
 
     protected $fillable = [
         'name',
+        'code',
         'description',
         'max_days_per_year',
         'is_active',
@@ -26,6 +27,11 @@ class LeaveType extends Model
     }
 
     public function leavePolicies(): HasMany
+    {
+        return $this->hasMany(LeavePolicy::class);
+    }
+
+    public function policies(): HasMany
     {
         return $this->hasMany(LeavePolicy::class);
     }

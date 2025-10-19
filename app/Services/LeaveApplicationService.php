@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\LeaveApplication;
+use App\Models\EmployeeDocument;
 use App\Models\User;
 use App\Notifications\LeaveApplicationActioned;
 use App\Notifications\LeaveApplicationSubmitted;
@@ -163,5 +164,47 @@ class LeaveApplicationService
         // This would typically calculate based on leave credits and used leave
         // For now, returning a placeholder
         return 15; // Placeholder - implement actual calculation
+    }
+
+    /**
+     * Attach document to leave application
+     */
+    public function attachDocument(LeaveApplication $application, $file, User $user): EmployeeDocument
+    {
+        // Store file
+        $filename = $this->generateUniqueFilename($file);
+        $filePath = $file->storeAs('leave-applications/' . $application->id, $filename, 'local');
+
+        // Create document record
+        $document = EmployeeDocument::create([
+            'employee_id' => $application->employee_id,
+            'document_type' => 'Leave Application Supporting Document',
+            'category' => 'Leave Documents',
+            'filename' => $filename,
+            'original_filename' => $file->getClientOriginalName(),
+            'file_path' => $filePath,
+            'file_size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+            'description' => 'Supporting document for leave application',
+            'is_verified' => false,
+            'uploaded_by' => $user->id,
+        ]);
+
+        // Link document to application (assuming there's a relationship table)
+        $application->documents()->attach($document->id);
+
+        return $document;
+    }
+
+    /**
+     * Generate unique filename
+     */
+    private function generateUniqueFilename($file): string
+    {
+        $extension = $file->getClientOriginalExtension();
+        $basename = \Illuminate\Support\Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
+        $timestamp = time();
+
+        return "{$basename}_{$timestamp}.{$extension}";
     }
 }

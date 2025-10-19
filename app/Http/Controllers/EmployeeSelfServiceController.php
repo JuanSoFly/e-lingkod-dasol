@@ -37,7 +37,7 @@ class EmployeeSelfServiceController extends Controller
         $notifications = $this->getPersonalNotifications($employee);
         $announcements = $this->getPersonalAnnouncements($employee);
 
-        return view('employee-portal.dashboard', compact('employee', 'metrics', 'notifications', 'announcements'));
+        return view('employee-portal.dashboard-old', compact('employee', 'metrics', 'notifications', 'announcements'));
     }
 
     /**

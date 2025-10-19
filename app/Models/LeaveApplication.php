@@ -54,6 +54,11 @@ class LeaveApplication extends Model
         return $this->hasMany(LeaveApproval::class);
     }
 
+    public function workflowSteps(): HasMany
+    {
+        return $this->hasMany(LeaveApplicationWorkflowStep::class)->orderBy('step_order');
+    }
+
     public function leavePolicy(): BelongsTo
     {
         return $this->belongsTo(LeavePolicy::class);

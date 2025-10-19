@@ -34,15 +34,15 @@
                 </div>
                 <div class="p-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                        <a href="{{ route('leave-applications.create') }}"
+                        <a href="{{ route('employee-portal.dashboard.leave') }}"
                            class="group relative bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-blue-200">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0">
                                     <i class="fas fa-calendar-alt text-blue-600 text-2xl"></i>
                                 </div>
                                 <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-blue-900 group-hover:text-blue-800">Apply for Leave</h3>
-                                    <p class="text-xs text-blue-700 mt-1">Submit leave requests</p>
+                                    <h3 class="text-sm font-medium text-blue-900 group-hover:text-blue-800">Leave Dashboard</h3>
+                                    <p class="text-xs text-blue-700 mt-1">Manage leave applications</p>
                                 </div>
                             </div>
                         </a>

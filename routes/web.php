@@ -4,6 +4,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LeaveApplicationController;
+use App\Http\Controllers\LeaveCardController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LeavePolicyController;
 use App\Http\Controllers\PerformancePeriodController;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\PDSController;
 use App\Http\Controllers\PDSExportController;
 use App\Http\Controllers\EducationController;
+use App\Http\Controllers\ApprovalWorkflowController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -135,6 +137,39 @@ Route::middleware('auth')->group(function () {
     Route::patch('/leave-applications/{leave_application}/approve', [LeaveApplicationController::class, 'approve'])->name('leave-applications.approve')->middleware('can:leave.approve');
     Route::patch('/leave-applications/{leave_application}/reject', [LeaveApplicationController::class, 'reject'])->name('leave-applications.reject')->middleware('can:leave.approve');
 
+    // Approval Workflow routes
+    Route::prefix('approvals')->name('approvals.')->middleware(['auth', 'can:leave.approve'])->group(function () {
+        Route::get('/pending', [ApprovalWorkflowController::class, 'pendingApprovals'])->name('pending');
+        Route::get('/{leave_application}/workflow', [ApprovalWorkflowController::class, 'workflowStatus'])->name('workflow-status');
+        Route::post('/{leave_application}/approve', [ApprovalWorkflowController::class, 'approve'])->name('approve');
+        Route::post('/{leave_application}/reject', [ApprovalWorkflowController::class, 'reject'])->name('reject');
+    });
+
+    // HR Management routes for escalation and override
+    Route::prefix('approvals')->name('approvals.')->middleware(['auth', 'can:leave.manage'])->group(function () {
+        Route::post('/{leave_application}/escalate', [ApprovalWorkflowController::class, 'escalate'])->name('escalate');
+        Route::post('/{leave_application}/override', [ApprovalWorkflowController::class, 'overrideApproval'])->name('override');
+    });
+
+    // Leave Card Routes
+    Route::prefix('leave-cards')->name('leave-cards.')->group(function () {
+        Route::get('/', [LeaveCardController::class, 'index'])->name('index');
+        Route::get('/{employee}', [LeaveCardController::class, 'show'])->name('show')->middleware('can:employee.view');
+        Route::post('/{employee}/initialize', [LeaveCardController::class, 'initializeBalances'])
+            ->name('initialize')->middleware('can:employee.manage');
+        Route::post('/manual-entry', [LeaveCardController::class, 'createManualEntry'])
+            ->name('manual-entry')->middleware('can:employee.manage');
+        Route::get('/api/data', [LeaveCardController::class, 'getLeaveCardData'])->name('api.data');
+        Route::get('/api/all', [LeaveCardController::class, 'getAllLeaveCards'])
+            ->name('api.all')->middleware('can:employee.manage');
+        Route::get('/print/{employeeId?}', [LeaveCardController::class, 'printLeaveCard'])->name('print');
+    });
+
+    // Legacy leave card routes (for backward compatibility)
+    Route::get('/leave-card', [LeaveCardController::class, 'index'])->name('leave-card.show')->middleware('can:leave.view');
+    Route::get('/leave-card/{employeeId}', [LeaveCardController::class, 'show'])->name('leave-card.employee')->middleware('can:employee.view');
+    Route::get('/leave-card/print/{employeeId?}', [LeaveCardController::class, 'printLeaveCard'])->name('leave-card.print')->middleware('can:leave.view');
+
     // Performance Management (SPMS/IPCR) Routes
     Route::resource('performance-periods', PerformancePeriodController::class)->except(['show'])->middleware('can:user.manage');
     Route::resource('performance-targets', PerformanceTargetController::class);
@@ -172,7 +207,47 @@ Route::middleware('auth')->group(function () {
 
     // Employee Self-Service Portal Routes (New)
     Route::prefix('employee-portal')->name('employee-portal.')->group(function () {
-        Route::get('/dashboard', [EmployeeSelfServiceController::class, 'dashboard'])->name('dashboard');
+        // Dashboard - Enhanced with API endpoints
+        Route::get('/dashboard', [App\Http\Controllers\EmployeeSelfServiceController::class, 'dashboard'])->name('dashboard');
+        Route::get('/leave-dashboard', [App\Http\Controllers\Employee\DashboardController::class, 'index'])->name('dashboard.leave');
+        Route::get('/dashboard/analytics', [App\Http\Controllers\Employee\DashboardController::class, 'getBalanceAnalytics'])->name('dashboard.analytics');
+
+        // Calendar and Announcements
+        Route::get('/calendar-data', [App\Http\Controllers\Employee\DashboardController::class, 'getCalendarData'])->name('calendar.data');
+        Route::get('/announcements', [App\Http\Controllers\Employee\DashboardController::class, 'getAnnouncements'])->name('announcements');
+
+        // Leave History and Analytics
+        Route::get('/leave-history', [App\Http\Controllers\Employee\DashboardController::class, 'getLeaveHistory'])->name('leave-history');
+        Route::get('/leave-analytics', [App\Http\Controllers\Employee\DashboardController::class, 'getAnalytics'])->name('leave-analytics');
+        Route::get('/leave-history/export', [App\Http\Controllers\Employee\DashboardController::class, 'exportLeaveHistory'])->name('leave-history.export');
+        Route::get('/leave-card/print', [App\Http\Controllers\Employee\DashboardController::class, 'getPrintableLeaveCard'])->name('leave-card.print');
+
+        // Profile Management
+        Route::get('/profile', [App\Http\Controllers\Employee\ProfileController::class, 'index'])->name('profile.index');
+        Route::put('/profile', [App\Http\Controllers\Employee\ProfileController::class, 'update'])->name('profile.update');
+        Route::get('/profile/notifications', [App\Http\Controllers\Employee\ProfileController::class, 'getNotificationPreferences'])->name('profile.notifications');
+        Route::put('/profile/notifications', [App\Http\Controllers\Employee\ProfileController::class, 'updateNotificationPreferences'])->name('profile.notifications.update');
+        Route::put('/profile/change-password', [App\Http\Controllers\Employee\ProfileController::class, 'changePassword'])->name('profile.change-password');
+
+        // Document Management
+        Route::get('/documents', [App\Http\Controllers\Employee\DocumentController::class, 'index'])->name('documents.index');
+        Route::post('/documents', [App\Http\Controllers\Employee\DocumentController::class, 'store'])->name('documents.store');
+        Route::get('/documents/{document}/download', [App\Http\Controllers\Employee\DocumentController::class, 'download'])->name('documents.download');
+        Route::get('/documents/{document}/download-file', [App\Http\Controllers\Employee\DocumentController::class, 'downloadFile'])->name('documents.download-file');
+        Route::put('/documents/{document}', [App\Http\Controllers\Employee\DocumentController::class, 'update'])->name('documents.update');
+        Route::delete('/documents/{document}', [App\Http\Controllers\Employee\DocumentController::class, 'destroy'])->name('documents.destroy');
+
+        // Legacy Dashboard Route (kept for compatibility)
+        Route::get('/dashboard-legacy', [EmployeeSelfServiceController::class, 'dashboard'])->name('dashboard.legacy');
+
+        // Leave Applications - Enhanced employee-specific system
+        Route::get('/leave-applications', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'index'])->name('leave-applications.index');
+        Route::get('/leave-applications/create', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'create'])->name('leave-applications.create');
+        Route::post('/leave-applications', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'store'])->name('leave-applications.store')->middleware(\App\Http\Middleware\RateLimitLeaveApplications::class);
+        Route::post('/leave-applications/draft', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'saveDraft'])->name('leave-applications.draft')->middleware(\App\Http\Middleware\RateLimitLeaveApplications::class);
+        Route::delete('/leave-applications/{leave_application}/withdraw', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'withdraw'])->name('leave-applications.withdraw');
+
+        // Original Employee Portal Routes
         Route::get('/service-record', [EmployeeSelfServiceController::class, 'serviceRecord'])->name('service-record');
         Route::get('/benefits-summary', [EmployeeSelfServiceController::class, 'benefitsSummary'])->name('benefits-summary');
         Route::get('/my-201-file', [EmployeeSelfServiceController::class, 'my201File'])->name('my-201-file');
@@ -185,6 +260,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/document-requests/new', [EmployeeSelfServiceController::class, 'newDocumentRequest'])->name('document-requests.new');
         Route::post('/document-requests', [EmployeeSelfServiceController::class, 'storeDocumentRequest'])->name('document-requests.store');
         Route::get('/document-requests/{documentRequest}/download', [EmployeeSelfServiceController::class, 'downloadDocumentRequest'])->name('document-requests.download');
+
+        // Leave Card System
+        Route::get('/leave-card', [LeaveCardController::class, 'index'])->name('leave-card');
 
         // Personal Data Update System
         Route::get('/personal-data-update', [EmployeeSelfServiceController::class, 'personalDataUpdate'])->name('personal-data-update');

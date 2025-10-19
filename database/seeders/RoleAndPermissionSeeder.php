@@ -20,6 +20,7 @@ class RoleAndPermissionSeeder extends Seeder
         // create permissions
         $permissions = [
             'user.manage',
+            'employee.manage',
             'employee.view', 'employee.create', 'employee.edit', 'employee.delete',
             'leave.view', 'leave.create', 'leave.approve', 'leave.reject',
             'performance.view', 'performance.create', 'performance.evaluate',
@@ -72,7 +73,8 @@ class RoleAndPermissionSeeder extends Seeder
 
         $hrAdminRole = Role::firstOrCreate(['name' => 'HR Admin']);
         $hrAdminRole->syncPermissions([
-            'user.manage', // Add this permission
+            'user.manage',
+            'employee.manage',
             'employee.view', 'employee.create', 'employee.edit', 'employee.delete',
             'leave.view', 'leave.approve', 'leave.reject',
             'performance.view', 'performance.create', 'performance.evaluate',

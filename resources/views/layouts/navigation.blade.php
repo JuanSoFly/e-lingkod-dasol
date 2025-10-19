@@ -49,6 +49,9 @@
                                         {{ __('My Applications') }}
                                     </x-dropdown-link>
                                 @endif
+                                <x-dropdown-link :href="route('leave-card.show')">
+                                    {{ __('Leave Card') }}
+                                </x-dropdown-link>
                                 @can('leave.approve')
                                      <x-dropdown-link :href="route('leave-applications.index', ['status' => 'pending'])">
                                         {{ __('Leave Approvals') }}

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class LeaveCredit extends Model
 {
@@ -13,6 +14,7 @@ class LeaveCredit extends Model
     protected $fillable = [
         'employee_id',
         'leave_type_id',
+        'effective_date',
         'year',
         'earned_credits',
         'used_credits',
@@ -28,4 +30,8 @@ class LeaveCredit extends Model
     {
         return $this->belongsTo(LeaveType::class);
     }
+
+    protected $casts = [
+        'effective_date' => 'date',
+    ];
 }
