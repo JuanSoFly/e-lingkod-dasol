@@ -32,4 +32,12 @@ class PerformancePeriod extends Model
     {
         return $this->hasMany(PerformanceReview::class, 'period_id');
     }
+
+    /**
+     * Get OPCR workflows for this period
+     */
+    public function opcrWorkflows(): HasMany
+    {
+        return $this->hasMany(OPCRWorkflow::class, 'period_id');
+    }
 }

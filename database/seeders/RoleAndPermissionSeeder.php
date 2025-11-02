@@ -22,10 +22,16 @@ class RoleAndPermissionSeeder extends Seeder
             'user.manage',
             'employee.manage',
             'employee.view', 'employee.create', 'employee.edit', 'employee.delete',
+            'employee.restore', 'employee.force-delete', 'employee.manage-archive',
             'leave.view', 'leave.create', 'leave.approve', 'leave.reject',
             'performance.view', 'performance.create', 'performance.evaluate',
+            'performance-period.view', 'performance-period.create', 'performance-period.edit', 'performance-period.delete', 'performance-period.manage',
             'reports.view', 'reports.generate', 'reports.export',
             'document-approval.view', 'document-approval.create', 'document-approval.edit', 'document-approval.delete', 'document-approval.approve',
+            'opcr.view', 'opcr.create', 'opcr.edit', 'opcr.commit', 'opcr.submit', 'opcr.assess', 'opcr.approve', 'opcr.manage', 'opcr.return',
+            'opcr.export', 'opcr.analytics', 'opcr.settings', 'opcr.admin',
+            'mfo.view', 'mfo.create', 'mfo.edit', 'mfo.delete',
+            'si.view', 'si.create', 'si.edit', 'si.delete',
             // Granular permissions for employees
             'employee.view-own',
             'leave.view-own',
@@ -66,9 +72,22 @@ class RoleAndPermissionSeeder extends Seeder
             'leave.reject',
             'performance.view',
             'performance.evaluate',
+            'performance-period.view',
             'reports.view',
             'document-approval.view',
             'document-approval.approve',
+            'opcr.view',
+            'opcr.create',
+            'opcr.edit',
+            'opcr.commit',
+            'opcr.submit',
+            'opcr.settings',
+            'mfo.view',
+            'mfo.create',
+            'mfo.edit',
+            'si.view',
+            'si.create',
+            'si.edit',
         ]);
 
         $hrAdminRole = Role::firstOrCreate(['name' => 'HR Admin']);
@@ -76,10 +95,29 @@ class RoleAndPermissionSeeder extends Seeder
             'user.manage',
             'employee.manage',
             'employee.view', 'employee.create', 'employee.edit', 'employee.delete',
+            'employee.restore', 'employee.manage-archive',
             'leave.view', 'leave.approve', 'leave.reject',
             'performance.view', 'performance.create', 'performance.evaluate',
+            'performance-period.view', 'performance-period.create', 'performance-period.edit', 'performance-period.delete', 'performance-period.manage',
             'reports.view', 'reports.generate', 'reports.export',
             'document-approval.view', 'document-approval.create', 'document-approval.edit', 'document-approval.delete', 'document-approval.approve',
+            'opcr.view', 'opcr.create', 'opcr.edit', 'opcr.submit', 'opcr.assess', 'opcr.approve', 'opcr.manage',
+            'opcr.export', 'opcr.analytics', 'opcr.settings', 'opcr.admin',
+            'si.view', 'si.create', 'si.edit', 'si.delete',
+        ]);
+
+        $assessorRole = Role::firstOrCreate(['name' => 'Assessor']);
+        $assessorRole->syncPermissions([
+            'opcr.view',
+            'opcr.assess',
+            'opcr.return',
+        ]);
+
+        $finalApproverRole = Role::firstOrCreate(['name' => 'Final Approver']);
+        $finalApproverRole->syncPermissions([
+            'opcr.view',
+            'opcr.approve',
+            'opcr.return',
         ]);
 
         $superAdminRole = Role::firstOrCreate(['name' => 'Super Admin']);

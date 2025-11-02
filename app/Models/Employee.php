@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\OPCRWorkflow;
+use App\Models\OfficeAssignment;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +39,7 @@ class Employee extends Model
         'date_hired',
         'salary_grade',
         'step_increment',
+        'basic_salary',
         // CSC Reporting fields
         'appointment_type',
         'appointment_date',
@@ -93,6 +99,13 @@ class Employee extends Model
         'gov_id_number',
         'gov_id_date_issued',
         'gov_id_place_issued',
+        // Office relationships
+        'office_id',
+        'office_code',
+        'is_department_head',
+        // Archive fields
+        'archived_at',
+        'archived_by',
     ];
 
     protected $casts = [
@@ -107,20 +120,103 @@ class Employee extends Model
         'awol_start_date' => 'date',
         'gov_id_date_issued' => 'date',
         'latest_performance_rating' => 'decimal:2',
+        'basic_salary' => 'decimal:2',
         'training_hours_ytd' => 'integer',
         'consecutive_absent_days' => 'integer',
         'is_awol' => 'boolean',
         'deleted_at' => 'datetime',
+        'archived_at' => 'datetime',
     ];
-
-    public function users(): HasMany
-    {
-        return $this->hasMany(User::class);
-    }
 
     public function user(): HasOne
     {
         return $this->hasOne(User::class);
+    }
+
+    /**
+     * Get the user who archived this employee
+     */
+    public function archivedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'archived_by');
+    }
+
+    /**
+     * Get employees archived by this user
+     */
+    public function archivedEmployees(): HasMany
+    {
+        return $this->hasMany(Employee::class, 'archived_by');
+    }
+
+    /**
+     * Get the office for this employee
+     */
+    public function office()
+    {
+        return $this->belongsTo(Office::class);
+    }
+
+    /**
+     * OPCR Workflow Relationships
+     */
+    public function opcrWorkflows()
+    {
+        // Get OPCR workflows where this employee is involved in any role
+        $userId = $this->user_id;
+        return OPCRWorkflow::where(function ($query) use ($userId) {
+            $query->where('submitted_by', $userId)
+                  ->orWhere('committed_by', $userId)
+                  ->orWhere('assessed_by', $userId)
+                  ->orWhere('approved_by', $userId);
+        });
+    }
+
+    public function committedOPCRWorkflows()
+    {
+        // Get committed OPCR workflows where this employee is the committer
+        $userId = $this->user_id;
+        return OPCRWorkflow::where('committed_by', $userId)
+                              ->where('workflow_state', '!=', 'draft');
+    }
+
+    public function officeAssignments()
+    {
+        return $this->hasManyThrough(
+            OfficeAssignment::class,
+            User::class,
+            'employee_id',
+            'user_id',
+            'id',
+            'id'
+        );
+    }
+
+    /**
+     * Check if employee is a department head for any office
+     */
+    public function isDepartmentHead(): bool
+    {
+        return $this->officeAssignments()
+            ->where('role', 'Department Head')
+            ->where('office_assignments.is_active', true)
+            ->exists();
+    }
+
+    /**
+     * Get offices where employee is department head
+     */
+    public function managedOffices()
+    {
+        return $this->hasManyThrough(
+            Office::class,
+            OfficeAssignment::class,
+            'user_id',
+            'id',
+            'id',
+            'office_id'
+        )->where('role', 'Department Head')
+         ->where('office_assignments.is_active', true);
     }
 
     public function documents(): HasMany

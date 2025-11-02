@@ -6,6 +6,7 @@ use Spatie\Activitylog\Facades\CauserResolver;
 use Spatie\Activitylog\Models\Activity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use App\Models\Employee;
 
 class AuditService
 {
@@ -15,7 +16,7 @@ class AuditService
     public static function logEmployeeAccess(int $employeeId, string $action = 'viewed', array $additional = []): void
     {
         $user = auth()->user();
-        
+
         $properties = array_merge([
             'employee_id' => $employeeId,
             'action' => $action,
@@ -24,13 +25,16 @@ class AuditService
             'url' => request()->fullUrl(),
             'method' => request()->method(),
         ], $additional);
-        
+
+        // Generate meaningful description based on employee context
+        $employeeDescription = static::getEmployeeDescription($employeeId);
+
         // Log to activity log
         activity('employee_access')
             ->causedBy($user)
             ->withProperties($properties)
-            ->log("User {$user->email} {$action} employee data for employee ID {$employeeId}");
-        
+            ->log("User {$user->email} {$action} {$employeeDescription}");
+
         // Also log to Laravel log for monitoring
         Log::info('Employee data access', $properties);
     }
@@ -120,7 +124,7 @@ class AuditService
             'user_agent' => request()->userAgent(),
             'timestamp' => now(),
         ], $additional);
-        
+
         if (auth()->check()) {
             $user = auth()->user();
             activity('authentication')
@@ -132,7 +136,28 @@ class AuditService
                 ->withProperties($properties)
                 ->log("Authentication event: {$event}");
         }
-        
+
         Log::info('Authentication event', $properties);
+    }
+
+    /**
+     * Get meaningful employee description for audit logs
+     */
+    private static function getEmployeeDescription(int $employeeId): string
+    {
+        // Handle index/general access (employee_id = 0)
+        if ($employeeId === 0) {
+            return 'employee list';
+        }
+
+        // Try to find the employee and get their name
+        $employee = Employee::find($employeeId);
+
+        if ($employee) {
+            return "employee data for {$employee->full_name}";
+        }
+
+        // Employee not found but ID was provided
+        return "employee data for employee ID {$employeeId} (not found)";
     }
 }

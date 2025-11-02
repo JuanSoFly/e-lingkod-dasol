@@ -550,6 +550,17 @@ class EmployeeSelfServiceController extends Controller
         $references = $employee->references()->get();
         $questionnaire = $employee->questionnaire;
 
+        // Get office assignments for role display
+        $officeAssignments = $user->officeAssignments()
+            ->with('office')
+            ->where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('ended_date')
+                      ->orWhere('ended_date', '>=', now());
+            })
+            ->orderBy('assigned_date', 'desc')
+            ->get();
+
         return view('employee-portal.my-201-file', compact(
             'employee',
             'educationHistory',
@@ -562,7 +573,8 @@ class EmployeeSelfServiceController extends Controller
             'trainingPrograms',
             'otherInformation',
             'references',
-            'questionnaire'
+            'questionnaire',
+            'officeAssignments'
         ));
     }
 }

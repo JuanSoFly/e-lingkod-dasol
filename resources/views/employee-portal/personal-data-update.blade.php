@@ -11,12 +11,12 @@
                     <p class="text-lg text-gray-600 mt-1">Request changes to your personal information</p>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3">
-                    <a href="{{ route('employee-portal.dashboard') }}" 
+                    <a href="{{ route('employee-portal.dashboard') }}"
                        class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
                         <i class="fas fa-arrow-left mr-2"></i>
                         Back to Dashboard
                     </a>
-                    <a href="{{ route('employee-portal.personal-data-update.new') }}" 
+                    <a href="{{ route('employee-portal.personal-data-update.new') }}"
                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
                         <i class="fas fa-plus mr-2"></i>
                         Request Change
@@ -51,7 +51,7 @@
                                     <span class="text-sm text-gray-900">{{ $employee->birth_date?->format('F d, Y') ?? 'Not set' }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-200">
-                                    <span class="text-sm font-medium text-gray-600">Gender:</span>
+                                    <span class="text-sm font-medium text-gray-600">Sex:</span>
                                     <span class="text-sm text-gray-900">{{ ucfirst($employee->gender ?? 'Not set') }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-200">
@@ -161,8 +161,8 @@
                                             <div class="text-xs text-gray-500">{{ $request->created_at->diffForHumans() }}</div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <button type="button" 
-                                                    class="text-blue-600 hover:text-blue-900 transition-colors duration-200 p-1 rounded hover:bg-blue-50" 
+                                            <button type="button"
+                                                    class="text-blue-600 hover:text-blue-900 transition-colors duration-200 p-1 rounded hover:bg-blue-50"
                                                     onclick="toggleChangeRequestDetails('{{ $request->id }}')"
                                                     title="View Details">
                                                 <i class="fas fa-eye"></i>
@@ -184,7 +184,7 @@
                                                                 <h6 class="fw-bold">Change Information</h6>
                                                                 <p><strong>Field:</strong> {{ $request->formatted_field_name }}</p>
                                                                 <p><strong>Change Type:</strong> {{ $request->formatted_change_type }}</p>
-                                                                <p><strong>Priority:</strong> 
+                                                                <p><strong>Priority:</strong>
                                                                     <span class="badge bg-{{ $request->priority_badge }}">{{ ucfirst($request->priority) }}</span>
                                                                 </p>
                                                                 <p><strong>Current Value:</strong> {{ $request->current_value ?: 'Not set' }}</p>
@@ -195,10 +195,10 @@
                                                             </div>
                                                             <div class="col-md-6">
                                                                 <h6 class="fw-bold">Request Status</h6>
-                                                                <p><strong>Status:</strong> 
+                                                                <p><strong>Status:</strong>
                                                                     <span class="badge bg-{{ $request->status_badge }}">{{ ucfirst(str_replace('_', ' ', $request->status)) }}</span>
                                                                 </p>
-                                                                <p><strong>Requires Approval:</strong> 
+                                                                <p><strong>Requires Approval:</strong>
                                                                     @if($request->requires_approval)
                                                                         <span class="text-info">Yes</span>
                                                                     @else
@@ -287,7 +287,7 @@
                                 </tbody>
                             </table>
                         </div>
-                        
+
                         <!-- Pagination -->
                         <div class="mt-4">
                             {{ $changeRequests->links() }}
@@ -314,18 +314,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const changeTypeSelect = document.getElementById('change_type');
     const fieldNameSelect = document.getElementById('field_name');
     const currentValueDisplay = document.getElementById('current_value_display');
-    
+
     // Field options for each change type
     const editableFields = @json($editableFields);
-    
+
     // Current employee data
     const employeeData = @json($employee->toArray());
-    
+
     changeTypeSelect.addEventListener('change', function() {
         const selectedType = this.value;
         fieldNameSelect.innerHTML = '<option value="">Select field...</option>';
         currentValueDisplay.value = '';
-        
+
         if (selectedType && editableFields[selectedType]) {
             Object.entries(editableFields[selectedType]).forEach(([key, value]) => {
                 const option = new Option(value, key);
@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    
+
     fieldNameSelect.addEventListener('change', function() {
         const selectedField = this.value;
         if (selectedField && employeeData[selectedField] !== undefined) {

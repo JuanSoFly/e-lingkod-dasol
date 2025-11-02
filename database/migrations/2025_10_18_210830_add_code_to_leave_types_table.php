@@ -20,13 +20,20 @@ return new class extends Migration
         // Update existing leave types with appropriate codes
         DB::table('leave_types')->update(['code' => DB::raw('UPPER(LEFT(name, 2))')]);
 
-        // Specific updates for proper codes
+        // Specific updates for proper codes (updated for new government standard)
         DB::table('leave_types')->where('name', 'Vacation Leave')->update(['code' => 'VL']);
         DB::table('leave_types')->where('name', 'Sick Leave')->update(['code' => 'SL']);
         DB::table('leave_types')->where('name', 'Maternity Leave')->update(['code' => 'ML']);
         DB::table('leave_types')->where('name', 'Paternity Leave')->update(['code' => 'PL']);
-        DB::table('leave_types')->where('name', 'Special Leave Benefits for Women')->update(['code' => 'SLBW']);
         DB::table('leave_types')->where('name', 'Solo Parent Leave')->update(['code' => 'SPL']);
+        DB::table('leave_types')->where('name', 'Special Privilege Leave')->update(['code' => 'SPLV']);
+        DB::table('leave_types')->where('name', 'Mandatory/Forced Leave')->update(['code' => 'MFL']);
+        DB::table('leave_types')->where('name', '10-Day VAWC Leave')->update(['code' => 'VAWC']);
+        DB::table('leave_types')->where('name', 'Compensatory Time Off')->update(['code' => 'CTO']);
+        DB::table('leave_types')->where('name', 'Special Emergency (Calamity) Leave')->update(['code' => 'CALAM']);
+
+        // Legacy leave types (for existing installations)
+        DB::table('leave_types')->where('name', 'Special Leave Benefits for Women')->update(['code' => 'SLBW']);
         DB::table('leave_types')->where('name', 'Emergency Leave')->update(['code' => 'EL']);
         DB::table('leave_types')->where('name', 'Leave Without Pay')->update(['code' => 'LWOP']);
 

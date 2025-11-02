@@ -11,11 +11,13 @@
                     <p class="text-lg text-gray-600 mt-1">Complete employee record and information</p>
                 </div>
                 <div class="flex space-x-3">
+                    <!--
                     <button onclick="downloadPDSExcel(this)"
                             class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200">
                         <i class="fas fa-file-excel mr-2"></i>
                         <span id="download-text">Download Excel</span>
                     </button>
+                    -->
                     <a href="{{ route('employee-portal.dashboard') }}"
                        class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         <i class="fas fa-arrow-left mr-2"></i>
@@ -63,6 +65,10 @@
                         <p class="text-lg font-medium text-gray-900">{{ $employee->employment_status ?? 'N/A' }}</p>
                     </div>
                     <div>
+                        <h3 class="text-sm font-medium text-gray-500">Basic Salary</h3>
+                        <p class="text-lg font-medium text-gray-900">₱{{ number_format($employee->basic_salary, 2) }}</p>
+                    </div>
+                    <div>
                         <h3 class="text-sm font-medium text-gray-500">Birth Date</h3>
                         <p class="text-lg font-medium text-gray-900">{{ $employee->birth_date ? $employee->birth_date->format('F d, Y') : 'N/A' }}</p>
                     </div>
@@ -72,7 +78,7 @@
                     </div>
                     <div>
                         <h3 class="text-sm font-medium text-gray-500">Sex</h3>
-                        <p class="text-lg font-medium text-gray-900">{{ $employee->sex ?? 'N/A' }}</p>
+                        <p class="text-lg font-medium text-gray-900">{{ $employee->gender ?? 'N/A' }}</p>
                     </div>
                 </div>
 
@@ -102,6 +108,52 @@
                 @endif
             </div>
         </div>
+
+        <!-- Office Assignments and Roles -->
+        @if($officeAssignments->count() > 0)
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b border-gray-200 bg-purple-50">
+                <h2 class="text-xl font-semibold text-gray-900 flex items-center">
+                    <i class="fas fa-building text-purple-600 mr-3"></i>
+                    Office Assignments and Roles
+                </h2>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    @foreach($officeAssignments as $assignment)
+                        <div class="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-200">
+                            <div class="flex items-center space-x-4">
+                                <div class="flex-shrink-0">
+                                    <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user-tie text-purple-600"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-medium text-gray-900">{{ $assignment->role }}</h3>
+                                    <p class="text-sm text-gray-600">{{ $assignment->office->name }}</p>
+                                    <p class="text-xs text-gray-500">
+                                        Assigned: {{ $assignment->assigned_date->format('F j, Y') }}
+                                        @if($assignment->ended_date)
+                                        - Ended: {{ $assignment->ended_date->format('F j, Y') }}
+                                        @endif
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="flex-shrink-0">
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                                    @if($assignment->is_active)
+                                        Active
+                                    @else
+                                        Inactive
+                                    @endif
+                                </span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endif
 
         <!-- Education History -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">

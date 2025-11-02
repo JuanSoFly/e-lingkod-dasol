@@ -14,43 +14,102 @@ class LeaveCardService
 {
     /**
      * Process approved leave application and update leave card
+     * Note: This method should be called within a DB transaction from the controller
      */
     public function processApprovedLeave(LeaveApplication $application): LeaveCard
     {
-        try {
-            DB::beginTransaction();
+        $employee = $application->employee;
+        $year = $application->start_date->year;
 
-            $employee = $application->employee;
-            $year = $application->start_date->year;
+        // Get or create leave card for the year
+        $leaveCard = LeaveCard::getOrCreateCard($employee, $year);
 
-            // Get or create leave card for the year
-            $leaveCard = LeaveCard::getOrCreateCard($employee, $year);
+        // Capture pre-update balances for logging
+        $vlBefore = $leaveCard->vl_balance;
+        $slBefore = $leaveCard->sl_balance;
 
-            // Add entry to leave card
-            $leaveCard->addLeaveEntry($application);
+        // Add entry to leave card (this updates LeaveCard balances and captures snapshots)
+        $leaveCard->addLeaveEntry($application);
 
-            // Update remarks with all entries
-            $leaveCard->remarks = $leaveCard->getFormattedRemarks();
-            $leaveCard->save();
+        // Synchronize LeaveCredit records for consistency within same transaction
+        $this->syncLeaveCredits($application, $employee, $year);
 
-            Log::info('Leave card updated', [
-                'application_id' => $application->id,
+        // Update remarks with all entries
+        $leaveCard->remarks = $leaveCard->getFormattedRemarks();
+        $leaveCard->save();
+
+        Log::info('Leave card updated', [
+            'application_id' => $application->id,
+            'employee_id' => $employee->id,
+            'leave_card_id' => $leaveCard->id,
+            'balances_before' => ['vl' => $vlBefore, 'sl' => $slBefore],
+            'balances_after' => ['vl' => $leaveCard->vl_balance, 'sl' => $leaveCard->sl_balance],
+        ]);
+
+        return $leaveCard;
+    }
+
+    /**
+     * Synchronize LeaveCredit records with LeaveCard balances
+     * Ensures both systems stay in sync within the same transaction
+     */
+    private function syncLeaveCredits(LeaveApplication $application, Employee $employee, int $year): void
+    {
+        $leaveType = $application->leaveType;
+        $daysUsed = $application->days_requested;
+
+        // Find or create LeaveCredit record (should be locked by controller)
+        $leaveCredit = \App\Models\LeaveCredit::firstOrCreate(
+            [
                 'employee_id' => $employee->id,
-                'leave_card_id' => $leaveCard->id,
-            ]);
+                'leave_type_id' => $leaveType->id,
+                'year' => $year,
+            ],
+            [
+                'earned_credits' => $leaveType->max_days_per_year ?? 15,
+                'used_credits' => 0,
+                'remaining_credits' => $leaveType->max_days_per_year ?? 15,
+                'effective_date' => now(),
+                // Don't set created_by here as auth might not be available in all contexts
+            ]
+        );
 
-            DB::commit();
+        // For VL and SL, ensure LeaveCredit matches LeaveCard balance
+        if ($leaveType->code === 'VL' || $leaveType->code === 'SL') {
+            $leaveCard = \App\Models\LeaveCard::where('employee_id', $employee->id)
+                ->where('year', $year)
+                ->first();
 
-            return $leaveCard;
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Failed to process leave card update', [
-                'application_id' => $application->id,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
+            if ($leaveCard) {
+                if ($leaveType->code === 'VL') {
+                    $leaveCredit->remaining_credits = max(0, $leaveCard->vl_balance);
+                    $leaveCredit->used_credits = max(0, ($leaveCredit->earned_credits ?? 15) - $leaveCard->vl_balance);
+                } elseif ($leaveType->code === 'SL') {
+                    $leaveCredit->remaining_credits = max(0, $leaveCard->sl_balance);
+                    $leaveCredit->used_credits = max(0, ($leaveCredit->earned_credits ?? 15) - $leaveCard->sl_balance);
+                }
+            }
+        } else {
+            // For other leave types, use the standard calculation
+            $leaveCredit->used_credits += $daysUsed;
+            $leaveCredit->remaining_credits = max(0, $leaveCredit->earned_credits - $leaveCredit->used_credits);
         }
+
+        // Set audit fields if user is authenticated
+        if (auth()->check()) {
+            $leaveCredit->updated_by = auth()->id();
+        }
+        $leaveCredit->save();
+
+        Log::info('LeaveCredit synchronized', [
+            'employee_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'leave_type_code' => $leaveType->code,
+            'year' => $year,
+            'days_used' => $daysUsed,
+            'used_credits' => $leaveCredit->used_credits,
+            'remaining_credits' => $leaveCredit->remaining_credits,
+        ]);
     }
 
     /**
@@ -60,20 +119,23 @@ class LeaveCardService
     {
         $leaveCard = LeaveCard::getOrCreateCard($employee, $year);
 
-        // Get current leave credits using credits_earned and effective_date
+        // Ensure leave credits exist for VL and SL
+        $this->ensureInitialCreditsExist($employee, $year);
+
+        // Get current leave credits using earned_credits and effective_date
         $vlCredits = LeaveCredit::where('employee_id', $employee->id)
             ->where('leave_type_id', function($query) {
                 $query->select('id')->from('leave_types')->where('code', 'VL');
             })
-            ->whereYear('effective_date', $year)
-            ->sum('credits_earned');
+            ->where('year', $year)
+            ->sum('earned_credits');
 
         $slCredits = LeaveCredit::where('employee_id', $employee->id)
             ->where('leave_type_id', function($query) {
                 $query->select('id')->from('leave_types')->where('code', 'SL');
             })
-            ->whereYear('effective_date', $year)
-            ->sum('credits_earned');
+            ->where('year', $year)
+            ->sum('earned_credits');
 
         // Update balances
         $leaveCard->vl_balance = $vlCredits;
@@ -82,6 +144,77 @@ class LeaveCardService
         $leaveCard->save();
 
         return $leaveCard;
+    }
+
+    /**
+     * Ensure initial leave credits exist for an employee
+     * Creates VL and SL credits if they don't exist
+     */
+    public function ensureInitialCreditsExist(Employee $employee, int $year): void
+    {
+        // Get VL and SL leave types
+        $vlType = \App\Models\LeaveType::where('code', 'VL')->first();
+        $slType = \App\Models\LeaveType::where('code', 'SL')->first();
+
+        if (!$vlType || !$slType) {
+            Log::warning('VL or SL leave types not found', [
+                'employee_id' => $employee->id,
+                'year' => $year
+            ]);
+            return;
+        }
+
+        // Create VL credit if doesn't exist
+        $vlCredit = LeaveCredit::where('employee_id', $employee->id)
+            ->where('leave_type_id', $vlType->id)
+            ->where('year', $year)
+            ->first();
+
+        if (!$vlCredit) {
+            LeaveCredit::create([
+                'employee_id' => $employee->id,
+                'leave_type_id' => $vlType->id,
+                'year' => $year,
+                'earned_credits' => 15, // Standard VL entitlement
+                'used_credits' => 0,
+                'remaining_credits' => 15,
+                'effective_date' => now()->startOfYear(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            Log::info('Created initial VL credit for employee', [
+                'employee_id' => $employee->id,
+                'year' => $year,
+                'credits' => 15
+            ]);
+        }
+
+        // Create SL credit if doesn't exist
+        $slCredit = LeaveCredit::where('employee_id', $employee->id)
+            ->where('leave_type_id', $slType->id)
+            ->where('year', $year)
+            ->first();
+
+        if (!$slCredit) {
+            LeaveCredit::create([
+                'employee_id' => $employee->id,
+                'leave_type_id' => $slType->id,
+                'year' => $year,
+                'earned_credits' => 15, // Standard SL entitlement
+                'used_credits' => 0,
+                'remaining_credits' => 15,
+                'effective_date' => now()->startOfYear(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            Log::info('Created initial SL credit for employee', [
+                'employee_id' => $employee->id,
+                'year' => $year,
+                'credits' => 15
+            ]);
+        }
     }
 
     /**
@@ -98,11 +231,54 @@ class LeaveCardService
             $leaveCard = $this->initializeYearlyBalances($employee, $year);
         }
 
-        return [
+        // Get all leave types with their current balances
+        $leaveTypes = \App\Models\LeaveType::where('is_active', true)->get();
+        $balances = [];
+
+        foreach ($leaveTypes as $type) {
+            $balances[$type->code] = $this->getLeaveTypeBalance($employee, $type, $year);
+        }
+
+        return array_merge([
             'vl_balance' => $leaveCard->vl_balance,
             'sl_balance' => $leaveCard->sl_balance,
             'last_updated' => $leaveCard->last_updated,
-        ];
+        ], $balances);
+    }
+
+    /**
+     * Get balance for a specific leave type using LeaveCredit data
+     */
+    private function getLeaveTypeBalance(Employee $employee, \App\Models\LeaveType $leaveType, int $year): float
+    {
+        // For VL and SL, use LeaveCard data (existing functionality)
+        if ($leaveType->code === 'VL') {
+            $leaveCard = LeaveCard::where('employee_id', $employee->id)
+                ->where('year', $year)
+                ->first();
+            return $leaveCard ? $leaveCard->vl_balance : 0;
+        }
+
+        if ($leaveType->code === 'SL') {
+            $leaveCard = LeaveCard::where('employee_id', $employee->id)
+                ->where('year', $year)
+                ->first();
+            return $leaveCard ? $leaveCard->sl_balance : 0;
+        }
+
+        // For other leave types, use LeaveCredit data
+        $leaveCredit = LeaveCredit::where('employee_id', $employee->id)
+            ->where('leave_type_id', $leaveType->id)
+            ->where('year', $year)
+            ->first();
+
+        if ($leaveCredit) {
+            return $leaveCredit->remaining_credits;
+        }
+
+        // If no LeaveCredit record exists, return the max days from LeaveType
+        // This ensures all leave types show a meaningful value
+        return $leaveType->max_days_per_year ?? 0;
     }
 
     /**

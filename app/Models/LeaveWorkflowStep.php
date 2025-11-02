@@ -118,11 +118,24 @@ class LeaveWorkflowStep extends Model
      */
     private function getDepartmentHead(Employee $employee): array
     {
-        // Implementation depends on your organizational structure
+        // First try to find department head using the is_department_head flag
         $head = User::whereHas('employee', function ($query) use ($employee) {
-            $query->where('department_id', $employee->department_id)
-                ->where('position', 'like', '%head%');
+            $query->where('department', $employee->department)
+                ->where('is_department_head', true);
         })->first();
+
+        // Fallback: try position-based matching if no head found
+        if (!$head) {
+            $head = User::whereHas('employee', function ($query) use ($employee) {
+                $query->where('department', $employee->department)
+                    ->where(function ($q) {
+                        $q->where('position', 'like', '%head%')
+                            ->orWhere('position', 'like', '%chief%')
+                            ->orWhere('position', 'like', '%manager%')
+                            ->orWhere('position', 'like', '%supervisor%');
+                    });
+            })->first();
+        }
 
         return $head ? [$head] : [];
     }

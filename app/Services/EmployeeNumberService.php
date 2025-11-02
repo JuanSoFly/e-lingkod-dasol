@@ -16,7 +16,20 @@ class EmployeeNumberService
      */
     public function generateUniqueNumber(): string
     {
-        return DB::transaction(function () {
+        return $this->generateUniqueNumberWithDepth(0);
+    }
+
+    /**
+     * Generate unique employee number with recursion depth protection
+     */
+    private function generateUniqueNumberWithDepth(int $depth): string
+    {
+        // Prevent infinite recursion
+        if ($depth >= 10) {
+            throw new \Exception('Unable to generate unique employee number after 10 attempts. Please check the system.');
+        }
+
+        return DB::transaction(function () use ($depth) {
             $year = now()->format(self::YEAR_FORMAT);
             $prefix = self::PREFIX . '-' . $year;
 
@@ -24,7 +37,7 @@ class EmployeeNumberService
             $lastEmployee = DB::table('employees')
                 ->where('employee_number', 'like', $prefix . '%')
                 ->lockForUpdate() // Prevent race conditions
-                ->orderByRaw('CAST(SUBSTRING(employee_number, 12) AS UNSIGNED) DESC')
+                ->orderByRaw('CAST(SUBSTRING(employee_number, 10) AS UNSIGNED) DESC')
                 ->first();
 
             $nextSequence = 1;
@@ -39,15 +52,18 @@ class EmployeeNumberService
             // Double-check uniqueness
             if (DB::table('employees')->where('employee_number', $employeeNumber)->exists()) {
                 Log::warning('Employee number collision detected, regenerating', [
-                    'attempted_number' => $employeeNumber
+                    'attempted_number' => $employeeNumber,
+                    'depth' => $depth + 1,
+                    'last_employee_number' => $lastEmployee->employee_number ?? 'none'
                 ]);
-                return $this->generateUniqueNumber(); // Recursive retry
+                return $this->generateUniqueNumberWithDepth($depth + 1); // Recursive retry with depth tracking
             }
 
             Log::info('Generated unique employee number', [
                 'employee_number' => $employeeNumber,
                 'sequence' => $nextSequence,
-                'year' => $year
+                'year' => $year,
+                'depth' => $depth
             ]);
 
             return $employeeNumber;
@@ -80,20 +96,30 @@ class EmployeeNumberService
      */
     public function getNextAvailableNumber(): string
     {
-        $year = now()->format(self::YEAR_FORMAT);
-        $prefix = self::PREFIX . '-' . $year;
+        try {
+            $year = now()->format(self::YEAR_FORMAT);
+            $prefix = self::PREFIX . '-' . $year;
 
-        $lastEmployee = DB::table('employees')
-            ->where('employee_number', 'like', $prefix . '%')
-            ->orderByRaw('CAST(SUBSTRING(employee_number, 12) AS UNSIGNED) DESC')
-            ->first();
+            $lastEmployee = DB::table('employees')
+                ->where('employee_number', 'like', $prefix . '%')
+                ->orderByRaw('CAST(SUBSTRING(employee_number, 10) AS UNSIGNED) DESC')
+                ->first();
 
-        $nextSequence = 1;
-        if ($lastEmployee) {
-            $lastSequence = (int) substr($lastEmployee->employee_number, -4);
-            $nextSequence = $lastSequence + 1;
+            $nextSequence = 1;
+            if ($lastEmployee) {
+                $lastSequence = (int) substr($lastEmployee->employee_number, -4);
+                $nextSequence = $lastSequence + 1;
+            }
+
+            return $prefix . '-' . str_pad($nextSequence, 4, '0', STR_PAD_LEFT);
+        } catch (\Exception $e) {
+            Log::error('Error generating next available employee number', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Fallback to timestamp-based number
+            return $prefix . '-' . str_pad(now()->timestamp % 10000, 4, '0', STR_PAD_LEFT);
         }
-
-        return $prefix . '-' . str_pad($nextSequence, 4, '0', STR_PAD_LEFT);
     }
 }

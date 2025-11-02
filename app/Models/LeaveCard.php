@@ -56,6 +56,11 @@ class LeaveCard extends Model
      */
     public function addLeaveEntry(LeaveApplication $application): LeaveCardEntry
     {
+        // Capture balances BEFORE update for audit trail
+        $vlBalanceBefore = $this->vl_balance;
+        $slBalanceBefore = $this->sl_balance;
+
+        // Create entry first (without balance snapshots)
         $entry = $this->entries()->create([
             'leave_application_id' => $application->id,
             'leave_type_code' => $application->leaveType->code,
@@ -68,6 +73,12 @@ class LeaveCard extends Model
 
         // Update balances
         $this->updateBalances($application);
+
+        // Update entry with balance snapshots AFTER update
+        $entry->update([
+            'vl_balance_after' => $this->vl_balance,
+            'sl_balance_after' => $this->sl_balance,
+        ]);
 
         return $entry;
     }

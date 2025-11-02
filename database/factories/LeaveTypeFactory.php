@@ -12,7 +12,7 @@ class LeaveTypeFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->randomElement(['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Maternity Leave', 'Paternity Leave']),
+            'name' => $this->faker->randomElement(['Vacation Leave', 'Sick Leave', 'Special Privilege Leave', 'Solo Parent Leave', 'Maternity Leave', 'Paternity Leave', 'Mandatory/Forced Leave', '10-Day VAWC Leave', 'Compensatory Time Off', 'Special Emergency (Calamity) Leave']),
             'description' => $this->faker->sentence(),
             'days_per_year' => $this->faker->numberBetween(5, 30),
             'is_active' => true,

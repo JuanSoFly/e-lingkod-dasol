@@ -240,4 +240,39 @@ class LeaveCardController extends Controller
             'printable' => true,
         ]);
     }
+
+    /**
+     * Show printable leave card view
+     */
+    public function showPrintableLeaveCard(Request $request, $employeeId = null)
+    {
+        $user = auth()->user();
+
+        // Use provided employee ID or current user
+        $targetEmployeeId = $employeeId ?? ($user->employee ? $user->employee->id : null);
+
+        if (!$targetEmployeeId) {
+            abort(404, 'Employee not found');
+        }
+
+        // Non-HR users can only view their own leave card
+        if (!$user->hasPermissionTo('employee.manage')) {
+            if ($user->employee && $targetEmployeeId != $user->employee->id) {
+                abort(403, 'Unauthorized');
+            }
+        }
+
+        $employee = Employee::findOrFail($targetEmployeeId);
+        $year = $request->get('year', date('Y'));
+
+        $leaveHistory = $this->leaveCardService->getLeaveHistory($employee, $year);
+        $currentBalances = $this->leaveCardService->getCurrentBalances($employee);
+
+        return view('leave-cards.print', compact(
+            'employee',
+            'year',
+            'currentBalances',
+            'leaveHistory'
+        ));
+    }
 }

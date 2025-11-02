@@ -35,6 +35,61 @@ class UserFactory extends Factory
     }
 
     /**
+     * Create a user without an employee (for Super Admin cases)
+     */
+    public function withoutEmployee(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'employee_id' => null,
+        ]);
+    }
+
+    /**
+     * Create a Super Admin user
+     */
+    public function superAdmin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => 'Super Admin',
+            'email' => 'admin@example.com',
+            'employee_id' => null,
+        ]);
+    }
+
+    /**
+     * Create a Department Head for Office of the Municipal Mayor
+     */
+    public function mayorDepartmentHead(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => 'Department Head - Mayor Office',
+            'email' => 'depthead.mayor@dasol.gov.ph',
+        ]);
+    }
+
+    /**
+     * Create an Assessor user (Performance Management Team)
+     */
+    public function assessor(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => 'Assessor - PMT',
+            'email' => 'assessor.pmt@dasol.gov.ph',
+        ]);
+    }
+
+    /**
+     * Create a Final Approver user (Senior Management)
+     */
+    public function finalApprover(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => 'Final Approver - Administrator',
+            'email' => 'administrator@dasol.gov.ph',
+        ]);
+    }
+
+    /**
      * Indicate that the model's email address should be unverified.
      */
     public function unverified(): static

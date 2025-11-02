@@ -52,6 +52,22 @@ class EmployeePolicy
         return $user->hasAnyRole(['Super Admin', 'HR Admin']);
     }
 
+    public function restore(User $user, Employee $employee): bool
+    {
+        return $user->hasAnyRole(['Super Admin', 'HR Admin']);
+    }
+
+    public function forceDelete(User $user, Employee $employee): bool
+    {
+        // Only Super Admin can permanently delete archived employees
+        return $user->hasRole('Super Admin');
+    }
+
+    public function manageArchive(User $user): bool
+    {
+        return $user->hasAnyRole(['Super Admin', 'HR Admin']);
+    }
+
     public function manage(User $user): bool
     {
         return $user->hasAnyRole(['Super Admin', 'HR Admin']);

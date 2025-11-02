@@ -15,6 +15,7 @@ use App\Models\EmployeeTraining;
 use App\Models\EmployeePhoto;
 use App\Http\Controllers\Controller;
 use App\Services\CSCFormValidationService;
+use App\Services\AuditTrailService;
 use App\Rules\CscDateFormat;
 use App\Rules\GovernmentIdFormat;
 use App\Rules\SalaryGradeFormat;
@@ -29,6 +30,13 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class PDSController extends Controller
 {
     use AuthorizesRequests;
+
+    private AuditTrailService $auditTrailService;
+
+    public function __construct(AuditTrailService $auditTrailService)
+    {
+        $this->auditTrailService = $auditTrailService;
+    }
 
     /**
      * Authorize PDS access - Employees can only access their own PDS, HR/Admin can access all
@@ -175,7 +183,16 @@ class PDSController extends Controller
                 ->withErrors($govIdValidation['errors']);
         }
 
+        // Capture old values before update
+        $oldValues = $employee->getAttributes();
+
+        // Get only the fields that are being updated
+        $changes = array_intersect_key($validated, $oldValues);
+
         $employee->update($validated);
+
+        // Log the PDS Panel 1 update
+        $this->auditTrailService->logPDSUpdate('Panel 1 - Personal Information', $employee, $changes);
 
         return redirect()->route('pds.dashboard', $employee)
             ->with('success', 'Personal information updated successfully.');
@@ -230,28 +247,35 @@ class PDSController extends Controller
             'children.*.date_of_birth' => 'required|date',
         ]);
 
-        DB::transaction(function () use ($employee, $validated) {
+        // Capture old values for audit
+        $oldFamilyBackground = $employee->familyBackground;
+        $oldChildren = $employee->children()->get()->toArray();
+
+        DB::transaction(function () use ($employee, $validated, &$oldFamilyBackground) {
+            // Prepare family background data
+            $familyBackgroundData = array_filter([
+                'spouse_surname' => $validated['spouse_surname'] ?? null,
+                'spouse_first_name' => $validated['spouse_first_name'] ?? null,
+                'spouse_middle_name' => $validated['spouse_middle_name'] ?? null,
+                'spouse_occupation' => $validated['spouse_occupation'] ?? null,
+                'spouse_employer' => $validated['spouse_employer'] ?? null,
+                'spouse_business_address' => $validated['spouse_business_address'] ?? null,
+                'spouse_telephone_no' => $validated['spouse_telephone_no'] ?? null,
+                'father_surname' => $validated['father_surname'] ?? null,
+                'father_first_name' => $validated['father_first_name'] ?? null,
+                'father_middle_name' => $validated['father_middle_name'] ?? null,
+                'mother_maiden_name' => $validated['mother_maiden_name'] ?? null,
+                'mother_surname' => $validated['mother_surname'] ?? null,
+                'mother_first_name' => $validated['mother_first_name'] ?? null,
+                'mother_middle_name' => $validated['mother_middle_name'] ?? null,
+            ], function($value) {
+                return $value !== null && $value !== '';
+            });
+
             // Update or create family background
             $employee->familyBackground()->updateOrCreate(
                 ['employee_id' => $employee->id],
-                array_filter([
-                    'spouse_surname' => $validated['spouse_surname'] ?? null,
-                    'spouse_first_name' => $validated['spouse_first_name'] ?? null,
-                    'spouse_middle_name' => $validated['spouse_middle_name'] ?? null,
-                    'spouse_occupation' => $validated['spouse_occupation'] ?? null,
-                    'spouse_employer' => $validated['spouse_employer'] ?? null,
-                    'spouse_business_address' => $validated['spouse_business_address'] ?? null,
-                    'spouse_telephone_no' => $validated['spouse_telephone_no'] ?? null,
-                    'father_surname' => $validated['father_surname'] ?? null,
-                    'father_first_name' => $validated['father_first_name'] ?? null,
-                    'father_middle_name' => $validated['father_middle_name'] ?? null,
-                    'mother_maiden_name' => $validated['mother_maiden_name'] ?? null,
-                    'mother_surname' => $validated['mother_surname'] ?? null,
-                    'mother_first_name' => $validated['mother_first_name'] ?? null,
-                    'mother_middle_name' => $validated['mother_middle_name'] ?? null,
-                ], function($value) {
-                    return $value !== null && $value !== '';
-                })
+                $familyBackgroundData
             );
 
             // Handle spouse salary grade separately if the field doesn't exist in database
@@ -277,6 +301,16 @@ class PDSController extends Controller
                 }
             }
         });
+
+        // Prepare changes for audit logging
+        $changes = [];
+        $changes['family_background_fields'] = array_keys($validated);
+        if (!empty($validated['children'])) {
+            $changes['children_count'] = count($validated['children']);
+        }
+
+        // Log the PDS Panel 2 update
+        $this->auditTrailService->logPDSUpdate('Panel 2 - Family Background', $employee, $changes);
 
         return redirect()->route('pds.dashboard', $employee)
             ->with('success', 'Family background updated successfully.');
@@ -866,11 +900,21 @@ public function updateQuestionnaire(Request $request, Employee $employee)
                 'timestamp' => now()->toDateTimeString()
             ]);
 
+            // Capture old values before update
+            $oldQuestionnaire = $employee->questionnaire;
+
             // Use updateOrCreate to handle both new and existing records gracefully
             $questionnaire = $employee->questionnaire()->updateOrCreate(
                 ['employee_id' => $employee->id],
                 $validated
             );
+
+            // Log the PDS Panel 10 update
+            $this->auditTrailService->logPDSUpdate('Panel 10 - Questionnaire', $employee, [
+                'fields_updated' => array_keys($validated),
+                'completion_percentage' => $completionPercentage,
+                'is_new_record' => $questionnaire->wasRecentlyCreated
+            ]);
 
             // Log the database operation
             $queries = DB::getQueryLog();

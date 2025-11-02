@@ -200,10 +200,10 @@ class LeaveWorkflowSeeder extends Seeder
      */
     private function createSpecialWorkflows(): void
     {
-        // Emergency Leave Workflow (Immediate approval needed)
+        // Special Emergency (Calamity) Leave Workflow (Immediate approval needed)
         $emergencyWorkflow = LeaveWorkflow::create([
-            'name' => 'Emergency Leave Approval',
-            'description' => 'Fast-track approval for emergency situations',
+            'name' => 'Special Emergency (Calamity) Leave Approval',
+            'description' => 'Fast-track approval for declared calamities and emergency situations',
             'is_active' => true,
             'conditions' => [
                 'leave_types' => [], // Will be populated with emergency leave types

@@ -19,7 +19,7 @@ class LeavePolicySeeder extends Seeder
         $sickLeave = LeaveType::where('name', 'Sick Leave')->first();
         $maternityLeave = LeaveType::where('name', 'Maternity Leave')->first();
         $paternityLeave = LeaveType::where('name', 'Paternity Leave')->first();
-        $emergencyLeave = LeaveType::where('name', 'Emergency Leave')->first();
+        $emergencyLeave = LeaveType::where('name', 'Special Emergency (Calamity) Leave')->first();
 
         // If leave types don't exist, create them first
         if (!$vacationLeave) {
@@ -60,9 +60,9 @@ class LeavePolicySeeder extends Seeder
 
         if (!$emergencyLeave) {
             $emergencyLeave = LeaveType::create([
-                'name' => 'Emergency Leave',
-                'description' => 'Leave for emergency situations',
-                'max_days_per_year' => 3,
+                'name' => 'Special Emergency (Calamity) Leave',
+                'description' => 'Leave during declared calamities per LGU policy',
+                'max_days_per_year' => 5,
                 'is_active' => true
             ]);
         }
@@ -265,18 +265,18 @@ class LeavePolicySeeder extends Seeder
             'effective_end_date' => null,
         ]);
 
-        // Emergency Leave Policy
+        // Special Emergency (Calamity) Leave Policy
         LeavePolicy::create([
-            'name' => 'Emergency Leave',
-            'description' => 'Emergency leave for unforeseen circumstances',
+            'name' => 'Special Emergency (Calamity) Leave',
+            'description' => 'Leave during declared calamities and special emergency situations',
             'is_active' => true,
             'employment_statuses' => ['regular', 'contractual', 'probationary'],
             'positions' => null,
             'employee_type' => 'government',
             'leave_type_id' => $emergencyLeave->id,
-            'max_days_per_year' => 3,
+            'max_days_per_year' => 5,
             'max_days_per_month' => null,
-            'max_consecutive_days' => 3,
+            'max_consecutive_days' => 5,
             'min_days_per_application' => 0.5,
             'minimum_tenure_months' => 0,
             'requires_medical_certificate' => false,
@@ -291,13 +291,13 @@ class LeavePolicySeeder extends Seeder
             'min_advance_notice_days' => 0, // emergency = no advance notice
             'max_advance_notice_days' => null,
             'blocked_dates' => null,
-            'required_documents' => ['incident_report'],
+            'required_documents' => ['calamity_declaration'],
             'requires_approval' => true,
             'approval_hierarchy' => ['immediate_supervisor'],
             'auto_approve_threshold' => false,
             'auto_approve_days' => null,
             'is_government_policy' => true,
-            'legal_basis' => 'Office Memorandum',
+            'legal_basis' => 'LGU Policy & CSC Guidelines',
             'csc_reportable' => false,
             'gender_restriction' => 'none',
             'effective_start_date' => Carbon::now()->startOfYear(),

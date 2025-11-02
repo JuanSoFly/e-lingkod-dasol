@@ -25,9 +25,15 @@ class RateLimitLeaveApplications
             // Get current attempts
             $attempts = Cache::get($key, 0);
 
-            // Rate limit: max 3 attempts per 30 minutes
-            $maxAttempts = 3;
-            $windowMinutes = 30;
+            // Rate limit: max 10 attempts per hour (more reasonable for production)
+            $maxAttempts = 10;
+            $windowMinutes = 60;
+
+            // Basic validation before counting toward rate limit
+            if (!$this->passesBasicValidation($request)) {
+                // Don't count clearly invalid requests toward rate limit
+                return $next($request);
+            }
 
             if ($attempts >= $maxAttempts) {
                 $ttl = Cache::get($key . ':ttl', 60);
@@ -36,6 +42,9 @@ class RateLimitLeaveApplications
                 return response()->json([
                     'message' => 'Too many leave application attempts. Please try again later.',
                     'retry_after' => $retryAfter,
+                    'attempts_used' => $attempts,
+                    'max_attempts' => $maxAttempts,
+                    'window_minutes' => $windowMinutes,
                 ], 429)->header('Retry-After', $retryAfter);
             }
 
@@ -44,6 +53,60 @@ class RateLimitLeaveApplications
             Cache::put($key . ':ttl', $windowMinutes * 60, $windowMinutes * 60);
         }
 
-        return $next($request);
+        $response = $next($request);
+
+        // Reset rate limit counter on successful submission (2xx status)
+        if ($response->isSuccessful() && str_contains($request->path(), '/leave-applications')) {
+            $userId = auth()->id();
+            $key = "leave_application_rate_limit:{$userId}";
+            Cache::forget($key);
+            Cache::forget($key . ':ttl');
+        }
+
+        return $response;
+    }
+
+    /**
+     * Check if request passes basic validation before counting toward rate limit
+     */
+    private function passesBasicValidation(Request $request): bool
+    {
+        // Must have leave type ID
+        if (!$request->input('leave_type_id')) {
+            return false;
+        }
+
+        // Must have dates (unless it's a draft)
+        $isDraft = $request->input('is_draft', false);
+        if (!$isDraft && (!$request->input('start_date') || !$request->input('end_date'))) {
+            return false;
+        }
+
+        // Must have reason (unless it's a draft)
+        if (!$isDraft && !$request->input('reason')) {
+            return false;
+        }
+
+        // Dates must be valid if provided
+        if ($request->input('start_date')) {
+            try {
+                $startDate = \Carbon\Carbon::parse($request->input('start_date'));
+                if ($startDate->isPast()) {
+                    return false; // Don't count past dates toward rate limit
+                }
+            } catch (\Exception $e) {
+                return false; // Invalid date format
+            }
+        }
+
+        if ($request->input('end_date')) {
+            try {
+                $endDate = \Carbon\Carbon::parse($request->input('end_date'));
+            } catch (\Exception $e) {
+                return false; // Invalid date format
+            }
+        }
+
+        return true;
     }
 }

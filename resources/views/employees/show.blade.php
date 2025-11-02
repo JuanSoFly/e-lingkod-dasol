@@ -42,7 +42,7 @@
                         <div><dt class="text-sm font-medium text-gray-500">Contact Number</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->contact_number }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Address</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->address }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Birth Date</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->birth_date?->format('F d, Y') ?? 'Not provided' }}</dd></div>
-                        <div><dt class="text-sm font-medium text-gray-500">Gender</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->gender }}</dd></div>
+                        <div><dt class="text-sm font-medium text-gray-500">Sex</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->gender }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Civil Status</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->civil_status }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Record Created</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->created_at_formatted }}</dd></div>
                     </div>
@@ -61,6 +61,7 @@
                         <div><dt class="text-sm font-medium text-gray-500">Date Hired</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->date_hired?->format('F d, Y') ?? 'Not provided' }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Salary Grade</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->salary_grade }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Step Increment</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->step_increment }}</dd></div>
+                        <div><dt class="text-sm font-medium text-gray-500">Basic Salary</dt><dd class="mt-1 text-sm text-gray-900">₱{{ number_format($employee->basic_salary, 2) }}</dd></div>
                     </div>
                 </div>
             </div>
@@ -76,7 +77,7 @@
                         </a>
                         @endcan
                     </div>
-                    
+
                     @if($employee->education->count() > 0)
                         <div class="space-y-4">
                             @foreach($employee->education->groupBy('education_level') as $level => $levelEducations)
@@ -105,7 +106,7 @@
                                         @endswitch
                                         {{ $level }}
                                     </h4>
-                                    
+
                                     <div class="space-y-3">
                                         @foreach($levelEducations->take(3) as $education)
                                             <div class="text-sm">
@@ -125,7 +126,7 @@
                                                 @endif
                                             </div>
                                         @endforeach
-                                        
+
                                         @if($levelEducations->count() > 3)
                                             <div class="text-xs text-gray-500">
                                                 + {{ $levelEducations->count() - 3 }} more record(s)
@@ -135,7 +136,7 @@
                                 </div>
                             @endforeach
                         </div>
-                        
+
                         <div class="mt-4 text-center">
                             @can('employee.edit', $employee)
                             <a href="{{ route('employees.education.index', $employee) }}" class="text-blue-600 hover:text-blue-800 text-sm">
@@ -158,7 +159,128 @@
                     @endif
                 </div>
             </div>
-            
+
+            <!-- OPCR Information -->
+            @can('opcr.view')
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 bg-white border-b border-gray-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">OPCR Information</h3>
+                        @can('opcr.manage')
+                        <a href="{{ route('opcr.workflows.create') }}?employee_id={{ $employee->id }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            Create OPCR Workflow →
+                        </a>
+                        @endcan
+                    </div>
+
+                    @if($employee->user && $employee->user->officeAssignments->count() > 0)
+                        <div class="space-y-4">
+                            @foreach($employee->user->officeAssignments as $assignment)
+                                <div class="border border-gray-200 rounded-lg p-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <dt class="text-sm font-medium text-gray-500">Office</dt>
+                                            <dd class="mt-1 text-sm text-gray-900">{{ $assignment->office->name }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-sm font-medium text-gray-500">OPCR Role</dt>
+                                            <dd class="mt-1">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                                    @switch($assignment->role)
+                                                        @case('Department Head')
+                                                            bg-blue-100 text-blue-800
+                                                            @break
+                                                        @case('Assessor')
+                                                            bg-green-100 text-green-800
+                                                            @break
+                                                        @case('Final Approver')
+                                                            bg-purple-100 text-purple-800
+                                                            @break
+                                                        @default
+                                                            bg-gray-100 text-gray-800
+                                                    @endswitch
+                                                ">
+                                                    {{ $assignment->role }}
+                                                </span>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-sm font-medium text-gray-500">Assigned Since</dt>
+                                            <dd class="mt-1 text-sm text-gray-900">{{ $assignment->created_at->format('F d, Y') }}</dd>
+                                        </div>
+                                    </div>
+
+                                    <!-- Show current workflow status for this office -->
+                                    @if($currentWorkflow = \App\Models\OPCRWorkflow::where('office_id', $assignment->office_id)
+                                        ->whereHas('committedBy', function($q) use ($employee) {
+                                            $q->where('employee_id', $employee->id);
+                                        })
+                                        ->with('period')
+                                        ->first())
+                                    <div class="mt-4 pt-4 border-t border-gray-200">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <dt class="text-sm font-medium text-gray-500">Current Period</dt>
+                                                <dd class="mt-1 text-sm text-gray-900">{{ $currentWorkflow->period->name }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt class="text-sm font-medium text-gray-500">Workflow Status</dt>
+                                                <dd class="mt-1">
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                                        @switch($currentWorkflow->workflow_state)
+                                                            @case('draft')
+                                                                bg-gray-100 text-gray-800
+                                                                @break
+                                                            @case('committed')
+                                                                bg-blue-100 text-blue-800
+                                                                @break
+                                                            @case('in_progress')
+                                                                bg-yellow-100 text-yellow-800
+                                                                @break
+                                                            @case('evaluation')
+                                                                bg-orange-100 text-orange-800
+                                                                @break
+                                                            @case('final_approval')
+                                                                bg-purple-100 text-purple-800
+                                                                @break
+                                                            @case('approved')
+                                                                bg-green-100 text-green-800
+                                                                @break
+                                                            @default
+                                                                bg-red-100 text-red-800
+                                                        @endswitch
+                                                    ">
+                                                        {{ ucfirst(str_replace('_', ' ', $currentWorkflow->workflow_state)) }}
+                                                    </span>
+                                                </dd>
+                                            </div>
+                                        </div>
+                                        @if($currentWorkflow->updated_at)
+                                        <div class="mt-2">
+                                            <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
+                                            <dd class="mt-1 text-sm text-gray-900">{{ $currentWorkflow->updated_at->format('F d, Y g:i A') }}</dd>
+                                        </div>
+                                        @endif
+                                    </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="text-center py-4">
+                            <p class="text-sm text-gray-500">No OPCR office assignments found for this employee.</p>
+                            @can('opcr.manage')
+                            <a href="{{ route('admin.office-assignments.create') }}?user_id={{ $employee->user->id ?? '' }}"
+                               class="mt-2 inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                Assign Office Role →
+                            </a>
+                            @endcan
+                        </div>
+                    @endif
+                </div>
+            </div>
+            @endcan
+
             <!-- Employee Documents -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 bg-white border-b border-gray-200">
@@ -226,6 +348,126 @@
                     </div>
                 </div>
             </div>
+
+            <!-- OPCR Information Section -->
+            @if(auth()->user()->can('opcr.view') && !empty($opcrData))
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 bg-white border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        OPCR Performance Information
+                    </h3>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Department Head Status -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="font-medium text-gray-900 mb-3">Department Head Status</h4>
+                            <div class="space-y-2">
+                                <div class="flex items-center">
+                                    <span class="text-sm font-medium text-gray-500 w-24">Is Dept. Head:</span>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $opcrData['is_department_head'] ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                                        {{ $opcrData['is_department_head'] ? 'Yes' : 'No' }}
+                                    </span>
+                                </div>
+                                @if($opcrData['is_department_head'] && $opcrData['managed_offices']->isNotEmpty())
+                                    <div class="flex items-center">
+                                        <span class="text-sm font-medium text-gray-500 w-24">Manages:</span>
+                                        <span class="text-sm text-gray-900">{{ $opcrData['managed_offices']->implode(', ') }}</span>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <!-- Office Assignments -->
+                        @if($opcrData['office_assignments']->isNotEmpty())
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="font-medium text-gray-900 mb-3">Office Assignments</h4>
+                            <div class="space-y-2">
+                                @foreach($opcrData['office_assignments'] as $assignment)
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <span class="text-sm font-medium text-gray-900">{{ $assignment->office->name }}</span>
+                                            <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                {{ $assignment->role }}
+                                            </span>
+                                        </div>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ $assignment->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                                            {{ $assignment->is_active ? 'Active' : 'Inactive' }}
+                                        </span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+
+                    <!-- Recent OPCR Workflows -->
+                    @if($opcrData['opcr_workflows']->isNotEmpty() || $opcrData['committed_workflows']->isNotEmpty())
+                        <div class="mt-6">
+                            <h4 class="font-medium text-gray-900 mb-3">Recent OPCR Workflows</h4>
+                            <div class="space-y-3">
+                                @foreach($opcrData['committed_workflows']->take(3) as $workflow)
+                                    <div class="border border-gray-200 rounded-lg p-3">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <div class="font-medium text-gray-900">{{ $workflow->title }}</div>
+                                                <div class="text-sm text-gray-500">
+                                                    {{ $workflow->office->name }} • {{ $workflow->period->name }}
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                    {{ ucfirst($workflow->workflow_state) }}
+                                                </span>
+                                                <div class="text-xs text-gray-500 mt-1">
+                                                    {{ $workflow->updated_at->format('M d, Y') }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+
+                                @if($opcrData['committed_workflows']->count() > 3)
+                                    <div class="text-center">
+                                        <a href="{{ route('opcr.archive.index', ['committed_by' => $employee->user_id]) }}"
+                                           class="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
+                                            View All OPCR Workflows →
+                                        </a>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- Quick Actions -->
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        @can('opcr.view')
+                            <a href="{{ route('opcr.dashboard') }}"
+                               class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:border-indigo-900 focus:ring focus:ring-indigo-300 transition ease-in-out duration-150">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                                OPCR Dashboard
+                            </a>
+                        @endcan
+
+                        @if($opcrData['is_department_head'])
+                            @can('opcr.manage')
+                                <a href="{{ route('opcr.workflows.create') }}"
+                                   class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 transition ease-in-out duration-150">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                    Create OPCR
+                                </a>
+                            @endcan
+                        @endif
+                    </div>
+                </div>
+            </div>
+            @endif
 
             <div class="mt-6">
                 <a href="{{ route('employees.index') }}">

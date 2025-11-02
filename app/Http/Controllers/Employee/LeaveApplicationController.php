@@ -8,6 +8,7 @@ use App\Services\LeaveCardService;
 use App\Models\LeaveApplication;
 use App\Models\LeaveType;
 use App\Models\Employee;
+use App\Http\Requests\StoreEmployeeLeaveApplicationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -45,11 +46,7 @@ class LeaveApplicationController extends Controller
                     'description' => $type->description,
                     'requires_document' => $type->requires_document,
                     'max_consecutive_days' => $type->max_consecutive_days,
-                    'current_balance' => match($type->code) {
-                        'VL' => $currentBalances['vl_balance'],
-                        'SL' => $currentBalances['sl_balance'],
-                        default => null,
-                    },
+                    'current_balance' => $currentBalances[$type->code] ?? 0,
                 ];
             }),
             'current_balances' => $currentBalances,
@@ -59,18 +56,11 @@ class LeaveApplicationController extends Controller
     /**
      * Store a new leave application
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreEmployeeLeaveApplicationRequest $request): JsonResponse
     {
         $employee = auth()->user()->employee;
 
-        $validated = $request->validate([
-            'leave_type_id' => ['required', 'exists:leave_types,id'],
-            'start_date' => ['required', 'date', 'after_or_equal:today'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'reason' => ['required', 'string', 'max:500'],
-            'documents' => ['nullable', 'array'],
-            'documents.*' => ['file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:2048'],
-        ]);
+        $validated = $request->validated();
 
         try {
             // Check for overlapping applications
@@ -82,14 +72,18 @@ class LeaveApplicationController extends Controller
                 $validated['end_date']
             );
 
-            $application = $this->leaveApplicationService->createApplication(
-                $employee,
-                $validated['leave_type_id'],
-                $validated['start_date'],
-                $validated['end_date'],
-                $daysRequested,
-                $validated['reason']
-            );
+            $application = $this->leaveApplicationService->createApplication([
+                'employee_id' => $employee->id,
+                'leave_type_id' => $validated['leave_type_id'],
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+                'days_requested' => $daysRequested,
+                'reason' => $validated['reason'],
+                'status' => 'pending',
+                'applied_date' => now(),
+                'dept_head_informed' => ($validated['dept_head_informed'] ?? '0') === '1',
+                'dept_head_informed_date' => ($validated['dept_head_informed'] ?? '0') === '1' ? now() : null,
+            ], auth()->user());
 
             // Handle document uploads
             if (!empty($validated['documents'])) {
@@ -116,9 +110,21 @@ class LeaveApplicationController extends Controller
     }
 
     /**
-     * Get employee's leave applications
+     * Display leave applications page
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): \Illuminate\View\View
+    {
+        $employee = auth()->user()->employee;
+
+        return view('employee-portal.leave-applications.index', [
+            'employee' => $employee,
+        ]);
+    }
+
+    /**
+     * Get employee's leave applications data (API endpoint)
+     */
+    public function getData(Request $request): JsonResponse
     {
         $employee = auth()->user()->employee;
 
@@ -208,18 +214,13 @@ class LeaveApplicationController extends Controller
     /**
      * Save leave application as draft
      */
-    public function saveDraft(Request $request): JsonResponse
+    public function saveDraft(StoreEmployeeLeaveApplicationRequest $request): JsonResponse
     {
         $employee = auth()->user()->employee;
 
-        $validated = $request->validate([
-            'leave_type_id' => ['required', 'exists:leave_types,id'],
-            'start_date' => ['nullable', 'date', 'after_or_equal:today'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'reason' => ['nullable', 'string', 'max:500'],
-            'documents' => ['nullable', 'array'],
-            'documents.*' => ['file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:2048'],
-        ]);
+        // Add is_draft flag to request data
+        $request->merge(['is_draft' => true]);
+        $validated = $request->validated();
 
         try {
             // Calculate days if dates are provided
@@ -235,12 +236,14 @@ class LeaveApplicationController extends Controller
             $application = LeaveApplication::create([
                 'employee_id' => $employee->id,
                 'leave_type_id' => $validated['leave_type_id'],
-                'start_date' => $validated['start_date'] ?? null,
-                'end_date' => $validated['end_date'] ?? null,
+                'start_date' => $validated['start_date'] ?? now()->format('Y-m-d'),
+                'end_date' => $validated['end_date'] ?? $validated['start_date'] ?? now()->format('Y-m-d'),
                 'days_requested' => $daysRequested,
                 'reason' => $validated['reason'] ?? '',
                 'status' => 'draft',
                 'applied_date' => now(),
+                'dept_head_informed' => ($validated['dept_head_informed'] ?? '0') === '1',
+                'dept_head_informed_date' => ($validated['dept_head_informed'] ?? '0') === '1' ? now() : null,
             ]);
 
             // Handle document uploads if provided

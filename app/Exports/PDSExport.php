@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Exports\Traits\WithExcelFormatting;
 use App\Models\Employee;
 use App\Services\FilipinoCharacterService;
 use App\Services\PDSDataOptimizationService;
@@ -11,10 +12,8 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
-use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Style\Font;
@@ -24,8 +23,9 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Carbon\Carbon;
 
-class PDSExport implements FromQuery, WithMapping, WithHeadings, WithStyles, WithColumnFormatting, WithColumnWidths, WithEvents
+class PDSExport implements FromQuery, WithMapping, WithHeadings, WithColumnWidths, WithStyles
 {
+    use WithExcelFormatting;
     protected $employeeIds;
     protected $user;
     protected $includeMetadata;
@@ -640,13 +640,13 @@ class PDSExport implements FromQuery, WithMapping, WithHeadings, WithStyles, Wit
     }
 
     /**
-     * Apply styles to the Excel sheet
+     * Override base formatting with PDS-specific styles
      */
     public function styles(Worksheet $sheet): array
     {
         $styles = [];
 
-        // Header row styling
+        // Header row styling - maintain PDS blue color scheme
         $styles[1] = [
             'font' => [
                 'bold' => true,
@@ -686,45 +686,53 @@ class PDSExport implements FromQuery, WithMapping, WithHeadings, WithStyles, Wit
     }
 
     /**
-     * Define column formats
+     * Custom column formatting for PDS data
      */
-    public function columnFormats(): array
+    protected function getColumnFormats(): array
     {
         return [
             'F' => NumberFormat::FORMAT_DATE_YYYYMMDD, // Birth Date
             'U' => NumberFormat::FORMAT_DATE_YYYYMMDD, // Employment Date (if applicable)
-            // Add more date columns as needed based on the data structure
+            // Add more date columns as needed based on the PDS data structure
         ];
     }
 
     /**
-     * Define column widths
+     * Custom column widths for PDS data
      */
     public function columnWidths(): array
     {
         $widths = [];
 
-        // Personal Information columns
+        // Personal Information columns - improved widths for better readability
         $personalInfoColumns = range('A', 'Z');
         $personalInfoColumns = array_merge($personalInfoColumns, ['AA', 'AB', 'AC', 'AD', 'AE']);
 
         foreach ($personalInfoColumns as $col) {
-            $widths[$col] = 15;
+            $widths[$col] = 25; // Increased from 15 to 25 characters
         }
 
-        // Set specific widths for important columns
-        $widths['B'] = 20; // Last Name
-        $widths['C'] = 15; // First Name
-        $widths['G'] = 25; // Place of Birth
-        $widths['U'] = 30; // Residential Address
-        $widths['X'] = 30; // Permanent Address
-        $widths['AE'] = 25; // Email
+        // Set specific widths for important columns with longer content
+        $widths['B'] = 25; // Last Name
+        $widths['C'] = 25; // First Name
+        $widths['G'] = 30; // Place of Birth
+        $widths['U'] = 40; // Residential Address - increased
+        $widths['X'] = 40; // Permanent Address - increased
+        $widths['AE'] = 35; // Email - increased
 
         return $widths;
     }
 
     /**
-     * Register events for additional processing
+     * Custom title for the export
+     */
+    public function title(): string
+    {
+        return 'Personal Data Sheet (PDS)';
+    }
+
+    /**
+     * Override base event registration to add PDS-specific features
      */
     public function registerEvents(): array
     {
@@ -732,21 +740,13 @@ class PDSExport implements FromQuery, WithMapping, WithHeadings, WithStyles, Wit
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
-                // Set auto filter for the entire data range
-                $highestColumn = $sheet->getHighestColumn();
-                $highestRow = $sheet->getHighestRow();
+                // Apply base formatting from trait
+                $this->setPrintSettings($sheet);
+                $this->enableAutoFilter($sheet);
+                $this->setFrozenPanes($sheet);
+                $this->adjustRowHeights($sheet);
 
-                $sheet->setAutoFilter("A1:{$highestColumn}{$highestRow}");
-
-                // Freeze the first row
-                $sheet->freezePane('A2');
-
-                // Set paper size and orientation
-                $sheet->getPageSetup()
-                    ->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4)
-                    ->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE);
-
-                // Set margins
+                // Set PDS-specific margins
                 $sheet->getPageMargins()
                     ->setTop(0.5)
                     ->setRight(0.25)

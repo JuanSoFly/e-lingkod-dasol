@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Employee;
 use App\Models\EmployeeEducation;
 use App\Models\EmployeeDocument;
+use App\Services\AuditTrailService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -15,6 +16,13 @@ use Illuminate\Support\Facades\Storage;
 class EducationController extends Controller
 {
     use AuthorizesRequests;
+
+    private AuditTrailService $auditTrailService;
+
+    public function __construct(AuditTrailService $auditTrailService)
+    {
+        $this->auditTrailService = $auditTrailService;
+    }
 
     /**
      * Display education records for an employee
@@ -108,27 +116,37 @@ class EducationController extends Controller
 
         $validated = $this->validateEducation($request);
 
-        DB::transaction(function () use ($validated, $education, $request, $employee) {
+        // Capture old values before update
+        $oldValues = $education->getAttributes();
+
+        DB::transaction(function () use ($validated, $education, $request, $employee, &$oldValues) {
             // Set legacy fields to maintain compatibility
             if (!empty($validated['year_graduated_pds'])) {
                 $validated['year_graduated'] = (string) $validated['year_graduated_pds'];
             } elseif (!empty($validated['period_to'])) {
                 $validated['year_graduated'] = (string) $validated['period_to'];
             }
-            
+
             // Set legacy course field from degree_course if available
             if (!empty($validated['degree_course'])) {
                 $validated['course'] = $validated['degree_course'];
             } elseif (empty($validated['course'])) {
                 $validated['course'] = $validated['education_level'] ?? 'Not specified';
             }
-            
+
+            // Get the final values that will be updated
+            $newValues = array_intersect_key($validated, $oldValues);
+
             $education->update($validated);
-            
+
             // Handle file upload if provided
             if ($request->hasFile('attachment')) {
                 $this->handleFileUpload($request, $education, $employee);
+                $newValues['attachment_updated'] = true;
             }
+
+            // Log the education record update
+            $this->auditTrailService->logEducationUpdate($education, $oldValues, $newValues);
         });
 
         return redirect()

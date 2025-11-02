@@ -2,17 +2,18 @@
 
 namespace App\Exports;
 
+use App\Exports\Traits\WithExcelFormatting;
 use App\Models\Employee;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class EmployeesExport implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting, WithStyles
+class EmployeesExport implements FromCollection, WithHeadings, WithMapping, WithColumnWidths, WithStyles
 {
+    use WithExcelFormatting;
     /**
      * @return \Illuminate\Support\Collection
      */
@@ -43,6 +44,7 @@ class EmployeesExport implements FromCollection, WithHeadings, WithMapping, With
             'Date Hired',
             'Salary Grade',
             'Step Increment',
+            'Basic Salary',
             'Date Created',
         ];
     }
@@ -70,64 +72,78 @@ class EmployeesExport implements FromCollection, WithHeadings, WithMapping, With
             $employee->date_hired?->format('m/d/Y'),
             $employee->salary_grade,
             $employee->step_increment,
+            $employee->basic_salary,
             $employee->created_at?->format('m/d/Y'),
         ];
     }
 
     /**
-     * @return array
+     * Custom column formatting for employee data.
      */
-    public function columnFormats(): array
+    protected function getColumnFormats(): array
     {
         return [
-            'A' => NumberFormat::FORMAT_TEXT,
-            'B' => NumberFormat::FORMAT_TEXT,
-            'C' => NumberFormat::FORMAT_TEXT,
-            'D' => NumberFormat::FORMAT_TEXT,
-            'E' => NumberFormat::FORMAT_TEXT,
-            'F' => NumberFormat::FORMAT_TEXT,
-            'G' => NumberFormat::FORMAT_TEXT,
-            'H' => 'mm/dd/yyyy',
-            'I' => NumberFormat::FORMAT_TEXT,
-            'J' => NumberFormat::FORMAT_TEXT,
-            'K' => NumberFormat::FORMAT_TEXT,
-            'L' => NumberFormat::FORMAT_TEXT,
-            'M' => NumberFormat::FORMAT_TEXT,
-            'N' => 'mm/dd/yyyy',
-            'O' => NumberFormat::FORMAT_NUMBER,
-            'P' => NumberFormat::FORMAT_NUMBER,
-            'Q' => 'mm/dd/yyyy',
+            'A' => NumberFormat::FORMAT_TEXT,        // Employee Number
+            'B' => NumberFormat::FORMAT_TEXT,        // First Name
+            'C' => NumberFormat::FORMAT_TEXT,        // Middle Name
+            'D' => NumberFormat::FORMAT_TEXT,        // Last Name
+            'E' => NumberFormat::FORMAT_TEXT,        // Email
+            'F' => NumberFormat::FORMAT_TEXT,        // Contact Number
+            'G' => NumberFormat::FORMAT_TEXT,        // Address
+            'H' => 'mm/dd/yyyy',                     // Birth Date
+            'I' => NumberFormat::FORMAT_TEXT,        // Gender
+            'J' => NumberFormat::FORMAT_TEXT,        // Civil Status
+            'K' => NumberFormat::FORMAT_TEXT,        // Position
+            'L' => NumberFormat::FORMAT_TEXT,        // Department
+            'M' => NumberFormat::FORMAT_TEXT,        // Employment Status
+            'N' => 'mm/dd/yyyy',                     // Date Hired
+            'O' => NumberFormat::FORMAT_NUMBER,      // Salary Grade
+            'P' => NumberFormat::FORMAT_NUMBER,      // Step Increment
+            'Q' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1, // Basic Salary
+            'R' => 'mm/dd/yyyy',                     // Date Created
         ];
     }
 
     /**
-     * @param Worksheet $sheet
-     * @return array
+     * Custom column widths for employee data.
      */
-    public function styles(Worksheet $sheet): array
+    public function columnWidths(): array
     {
         return [
-            // Style the first row as bold text
-            1 => ['font' => ['bold' => true]],
-
-            // Set column widths
-            'A' => ['width' => 15],
-            'B' => ['width' => 15],
-            'C' => ['width' => 15],
-            'D' => ['width' => 15],
-            'E' => ['width' => 25],
-            'F' => ['width' => 15],
-            'G' => ['width' => 30],
-            'H' => ['width' => 12],
-            'I' => ['width' => 10],
-            'J' => ['width' => 12],
-            'K' => ['width' => 20],
-            'L' => ['width' => 15],
-            'M' => ['width' => 15],
-            'N' => ['width' => 12],
-            'O' => ['width' => 10],
-            'P' => ['width' => 10],
-            'Q' => ['width' => 12],
+            'A' => 15, // Employee Number
+            'B' => 20, // First Name
+            'C' => 20, // Middle Name
+            'D' => 20, // Last Name
+            'E' => 30, // Email
+            'F' => 18, // Contact Number
+            'G' => 35, // Address
+            'H' => 12, // Birth Date
+            'I' => 12, // Gender
+            'J' => 15, // Civil Status
+            'K' => 25, // Position
+            'L' => 25, // Department
+            'M' => 20, // Employment Status
+            'N' => 12, // Date Hired
+            'O' => 12, // Salary Grade
+            'P' => 15, // Step Increment
+            'Q' => 18, // Basic Salary
+            'R' => 12, // Date Created
         ];
+    }
+
+    /**
+     * Get the number of columns for this export.
+     */
+    protected function getColumnCount(): int
+    {
+        return 18; // A to R columns
+    }
+
+    /**
+     * Custom title for the export.
+     */
+    public function title(): string
+    {
+        return 'Employees List';
     }
 }

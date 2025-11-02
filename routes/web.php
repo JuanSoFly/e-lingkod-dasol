@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LeaveApplicationController;
@@ -19,6 +20,17 @@ use App\Http\Controllers\PDSController;
 use App\Http\Controllers\PDSExportController;
 use App\Http\Controllers\EducationController;
 use App\Http\Controllers\ApprovalWorkflowController;
+use App\Http\Controllers\OPCRController;
+use App\Http\Controllers\API\OPCRController as ApiOPCRController;
+use App\Http\Controllers\MFOController;
+use App\Http\Controllers\SuccessIndicatorController;
+use App\Http\Controllers\OPCRWorkflowController;
+use App\Http\Controllers\OfficeController;
+use App\Http\Controllers\OfficeAssignmentController;
+use App\Http\Controllers\OPCRExportController;
+use App\Http\Controllers\OPCRAnalyticsController;
+use App\Http\Controllers\RatingScaleController;
+use App\Http\Controllers\AuditTrailController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -48,6 +60,17 @@ Route::middleware('auth')->group(function () {
     Route::get('employees/export', [EmployeeController::class, 'export'])->name('employees.export')->middleware('can:employee.view');
     Route::get('employees/export/filtered', [EmployeeController::class, 'exportFiltered'])->name('employees.export.filtered')->middleware('can:employee.view');
 
+    // Employee Archive Routes (must be defined before resource route to avoid conflicts)
+    Route::prefix('employees/archive')->name('employees.archive.')->middleware(['auth', 'verified'])->group(function () {
+        Route::get('/', [ArchiveController::class, 'index'])->name('index')->middleware('can:employee.view');
+        Route::get('export', [ArchiveController::class, 'export'])->name('export')->middleware('can:employee.view');
+        Route::get('stats', [ArchiveController::class, 'stats'])->name('stats')->middleware('can:employee.view');
+        Route::post('bulk-restore', [ArchiveController::class, 'bulkRestore'])->name('bulkRestore')->middleware('can:employee.delete');
+        Route::get('{employee}', [ArchiveController::class, 'show'])->name('show')->middleware('can:employee.view');
+        Route::post('{employee}/restore', [ArchiveController::class, 'restore'])->name('restore')->middleware('can:employee.delete');
+        Route::delete('{employee}/force-delete', [ArchiveController::class, 'forceDelete'])->name('forceDelete')->middleware('can:employee.delete');
+    });
+
     // Employee Management Routes
     Route::resource('employees', EmployeeController::class)->middleware('can:employee.view');
 
@@ -56,6 +79,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/next-number', [App\Http\Controllers\Api\EmployeeNumberController::class, 'getNextNumber'])
             ->name('next-number')
             ->middleware('can:employee.create');
+    });
+
+    Route::prefix('api/offices')->name('api.offices.')->group(function () {
+        Route::get('{office}/mfos', [ApiOPCRController::class, 'officeMfos'])
+            ->name('mfos')
+            ->middleware('permission:opcr.view');
     });
 
     // Education Routes (nested under employees)
@@ -169,9 +198,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/leave-card', [LeaveCardController::class, 'index'])->name('leave-card.show')->middleware('can:leave.view');
     Route::get('/leave-card/{employeeId}', [LeaveCardController::class, 'show'])->name('leave-card.employee')->middleware('can:employee.view');
     Route::get('/leave-card/print/{employeeId?}', [LeaveCardController::class, 'printLeaveCard'])->name('leave-card.print')->middleware('can:leave.view');
+    Route::get('/leave-card/print/{employeeId?}/view', [LeaveCardController::class, 'showPrintableLeaveCard'])->name('leave-card.print-view')->middleware('can:leave.view');
 
-    // Performance Management (SPMS/IPCR) Routes
-    Route::resource('performance-periods', PerformancePeriodController::class)->except(['show'])->middleware('can:user.manage');
+    // Leave Card View Route
+    Route::get('/leave-card-view/{employeeId?}', [LeaveApplicationController::class, 'showLeaveCard'])->name('leave-card.view')->middleware('can:leave.view');
+
+    // Performance Management Routes
+    Route::resource('performance-periods', PerformancePeriodController::class)->except(['show']);
     Route::resource('performance-targets', PerformanceTargetController::class);
 
     // Performance Rating Routes
@@ -242,6 +275,7 @@ Route::middleware('auth')->group(function () {
 
         // Leave Applications - Enhanced employee-specific system
         Route::get('/leave-applications', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'index'])->name('leave-applications.index');
+        Route::get('/leave-applications/data', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'getData'])->name('leave-applications.data');
         Route::get('/leave-applications/create', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'create'])->name('leave-applications.create');
         Route::post('/leave-applications', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'store'])->name('leave-applications.store')->middleware(\App\Http\Middleware\RateLimitLeaveApplications::class);
         Route::post('/leave-applications/draft', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'saveDraft'])->name('leave-applications.draft')->middleware(\App\Http\Middleware\RateLimitLeaveApplications::class);
@@ -270,7 +304,151 @@ Route::middleware('auth')->group(function () {
         Route::post('/change-requests', [EmployeeSelfServiceController::class, 'storeChangeRequest'])->name('change-requests.store');
     });
 
-    
+    // OPCR System Routes
+    Route::prefix('opcr')->name('opcr.')->middleware(['auth', 'can:opcr.view'])->group(function () {
+        // OPCR Dashboard
+        Route::get('/dashboard', [OPCRController::class, 'dashboard'])->name('dashboard');
+
+        // OPCR Workflows
+        Route::prefix('workflows')->name('workflows.')->group(function () {
+            Route::get('/', [OPCRController::class, 'index'])->name('index')->middleware('can:opcr.view');
+            Route::get('/create', [OPCRController::class, 'create'])->name('create')->middleware('can:opcr.create');
+            Route::post('/', [OPCRController::class, 'store'])->name('store')->middleware('can:opcr.create');
+            Route::get('/{workflow}', [OPCRController::class, 'show'])->name('show')->middleware('can:opcr.view');
+            Route::get('/{workflow}/edit', [OPCRController::class, 'edit'])->name('edit')->middleware(['can:opcr.edit']);
+            Route::patch('/{workflow}', [OPCRController::class, 'update'])->name('update')->middleware(['can:opcr.edit']);
+            Route::post('/{workflow}/submit', [OPCRController::class, 'submit'])->name('submit')->middleware(['can:opcr.submit']);
+            Route::delete('/{workflow}', [OPCRController::class, 'destroy'])->name('destroy')->middleware(['can:opcr.delete']);
+
+            // Workflow Evaluation and Approval
+            Route::get('/{workflow}/evaluate', [OPCRController::class, 'evaluate'])->name('evaluate')->middleware(['can:opcr.assess']);
+            Route::post('/{workflow}/evaluate', [OPCRController::class, 'submitEvaluation'])->name('submit.evaluation')->middleware(['can:opcr.assess']);
+            Route::get('/{workflow}/review', [OPCRController::class, 'review'])->name('review')->middleware(['can:opcr.view']);
+            Route::post('/{workflow}/approve', [OPCRController::class, 'finalApprove'])->name('approve')->middleware(['can:opcr.approve']);
+            Route::post('/{workflow}/reject', [OPCRController::class, 'reject'])->name('reject')->middleware(['can:opcr.approve']);
+            Route::post('/{workflow}/return', [OPCRController::class, 'returnForRevision'])->name('return')->middleware(['can:opcr.return']);
+        });
+
+        // MFO Management
+        Route::prefix('mfos')->name('mfos.')->middleware('can:opcr.settings')->group(function () {
+            Route::get('/', [MFOController::class, 'index'])->name('index');
+            Route::get('/create', [MFOController::class, 'create'])->name('create')->middleware('can:opcr.create');
+            Route::post('/', [MFOController::class, 'store'])->name('store')->middleware('can:opcr.create');
+            Route::get('/{mfo}', [MFOController::class, 'show'])->name('show');
+            Route::get('/{mfo}/edit', [MFOController::class, 'edit'])->name('edit')->middleware('can:opcr.edit');
+            Route::patch('/{mfo}', [MFOController::class, 'update'])->name('update')->middleware('can:opcr.edit');
+            Route::delete('/{mfo}', [MFOController::class, 'destroy'])->name('destroy')->middleware('can:opcr.delete');
+        });
+
+        // Success Indicators
+        Route::prefix('success-indicators')->name('success-indicators.')->middleware('can:opcr.settings')->group(function () {
+            Route::get('/', [SuccessIndicatorController::class, 'index'])->name('index');
+            Route::get('/create', [SuccessIndicatorController::class, 'create'])->name('create')->middleware('can:opcr.create');
+            Route::post('/', [SuccessIndicatorController::class, 'store'])->name('store')->middleware('can:opcr.create');
+            Route::get('/{indicator}', [SuccessIndicatorController::class, 'show'])->name('show');
+            Route::get('/{indicator}/edit', [SuccessIndicatorController::class, 'edit'])->name('edit')->middleware('can:opcr.edit');
+            Route::patch('/{indicator}', [SuccessIndicatorController::class, 'update'])->name('update')->middleware('can:opcr.edit');
+            Route::delete('/{indicator}', [SuccessIndicatorController::class, 'destroy'])->name('destroy')->middleware('can:opcr.delete');
+        });
+
+        // Office Management
+        Route::prefix('offices')->name('offices.')->middleware('can:opcr.settings')->group(function () {
+            Route::get('/', [OfficeController::class, 'opcrIndex'])->name('index');
+            Route::get('/create', [OfficeController::class, 'opcrCreate'])->name('create')->middleware('can:opcr.create');
+            Route::post('/', [OfficeController::class, 'store'])->name('store')->middleware('can:opcr.create');
+            Route::get('/{office}', [OfficeController::class, 'opcrShow'])->name('show');
+            Route::get('/{office}/edit', [OfficeController::class, 'opcrEdit'])->name('edit')->middleware('can:opcr.edit');
+            Route::patch('/{office}', [OfficeController::class, 'update'])->name('update')->middleware('can:opcr.edit');
+            Route::delete('/{office}', [OfficeController::class, 'destroy'])->name('destroy')->middleware('can:opcr.delete');
+
+            // Office Assignments
+            Route::prefix('{office}/assignments')->name('assignments.')->group(function () {
+                Route::get('/', [OfficeAssignmentController::class, 'opcrIndex'])->name('index');
+                Route::get('/create', [OfficeAssignmentController::class, 'opcrCreate'])->name('create')->middleware('can:opcr.create');
+                Route::post('/', [OfficeAssignmentController::class, 'opcrStore'])->name('store')->middleware('can:opcr.create');
+                Route::get('/{assignment}/edit', [OfficeAssignmentController::class, 'opcrEdit'])->name('edit')->middleware('can:opcr.edit');
+                Route::patch('/{assignment}', [OfficeAssignmentController::class, 'opcrUpdate'])->name('update')->middleware('can:opcr.edit');
+                Route::delete('/{assignment}', [OfficeAssignmentController::class, 'destroy'])->name('destroy')->middleware('can:opcr.delete');
+            });
+        });
+
+        // Analytics and Reports
+        Route::prefix('analytics')->name('analytics.')->middleware('can:opcr.analytics')->group(function () {
+            Route::get('/', [OPCRAnalyticsController::class, 'index'])->name('index');
+            Route::get('/performance', [OPCRAnalyticsController::class, 'performance'])->name('performance');
+            Route::get('/workflow', [OPCRAnalyticsController::class, 'workflow'])->name('workflow');
+            Route::get('/compliance', [OPCRAnalyticsController::class, 'compliance'])->name('compliance');
+            Route::get('/export', [OPCRAnalyticsController::class, 'exportAnalytics'])->name('export');
+        });
+
+  
+        // Export System
+        Route::prefix('export')->name('export.')->middleware('can:opcr.export')->group(function () {
+            Route::get('/', [OPCRExportController::class, 'index'])->name('index');
+            Route::post('/workflow/{workflow}', [OPCRExportController::class, 'exportWorkflow'])->name('workflow')->middleware('opcr.state:can_view');
+            Route::post('/summary', [OPCRExportController::class, 'exportSummary'])->name('summary');
+            Route::post('/batch', [OPCRExportController::class, 'exportBatch'])->name('batch');
+            Route::get('/pdf/{workflow}', [OPCRExportController::class, 'exportPDF'])->name('pdf')->middleware('opcr.state:can_view');
+        });
+
+        // Historical Archive
+        Route::prefix('archive')->name('archive.')->middleware('can:opcr.admin')->group(function () {
+            Route::get('/', [OPCRController::class, 'archive'])->name('index');
+            Route::get('/export', [OPCRController::class, 'exportArchive'])->name('export');
+        });
+    });
+
+    // Office Assignment Administration Routes
+    Route::prefix('admin/office-assignments')->name('admin.office-assignments.')->middleware('verified')->group(function () {
+        Route::get('/', [OfficeAssignmentController::class, 'index'])->name('index');
+        Route::get('/create', [OfficeAssignmentController::class, 'create'])->name('create');
+        Route::post('/', [OfficeAssignmentController::class, 'store'])->name('store');
+        Route::get('/bulk/create', [OfficeAssignmentController::class, 'bulkCreate'])->name('bulk-create');
+        Route::post('/bulk', [OfficeAssignmentController::class, 'bulkStore'])->name('bulk-store');
+        Route::get('/{officeAssignment}', [OfficeAssignmentController::class, 'show'])->name('show');
+        Route::get('/{officeAssignment}/edit', [OfficeAssignmentController::class, 'edit'])->name('edit');
+        Route::patch('/{officeAssignment}', [OfficeAssignmentController::class, 'update'])->name('update');
+        Route::post('/{officeAssignment}/toggle-status', [OfficeAssignmentController::class, 'toggleStatus'])->name('toggle-status');
+        Route::delete('/{officeAssignment}', [OfficeAssignmentController::class, 'destroy'])->name('destroy');
+    });
+
+    // Admin Routes for Rating Scale Configuration
+    Route::prefix('admin')->name('admin.')->middleware(['auth', 'can:opcr.manage'])->group(function () {
+        Route::prefix('rating-scales')->name('rating-scales.')->group(function () {
+            Route::get('/', [RatingScaleController::class, 'index'])->name('index');
+            Route::get('/create', [RatingScaleController::class, 'create'])->name('create');
+            Route::post('/', [RatingScaleController::class, 'store'])->name('store');
+            Route::get('/{ratingScale}', [RatingScaleController::class, 'show'])->name('show');
+            Route::get('/{ratingScale}/edit', [RatingScaleController::class, 'edit'])->name('edit');
+            Route::patch('/{ratingScale}', [RatingScaleController::class, 'update'])->name('update');
+            Route::post('/{ratingScale}/set-default', [RatingScaleController::class, 'setDefault'])->name('set-default');
+            Route::delete('/{ratingScale}', [RatingScaleController::class, 'destroy'])->name('destroy');
+        });
+
+        // Performance Period Management
+        Route::prefix('performance-periods')->name('performance-periods.')->group(function () {
+            Route::get('/', [PerformancePeriodController::class, 'index'])->name('index');
+            Route::get('/create', [PerformancePeriodController::class, 'create'])->name('create');
+            Route::post('/', [PerformancePeriodController::class, 'store'])->name('store');
+            Route::get('/{period}', [PerformancePeriodController::class, 'show'])->name('show');
+            Route::get('/{period}/edit', [PerformancePeriodController::class, 'edit'])->name('edit');
+            Route::patch('/{period}', [PerformancePeriodController::class, 'update'])->name('update');
+            Route::post('/{period}/activate', [PerformancePeriodController::class, 'activate'])->name('activate');
+            Route::post('/{period}/close', [PerformancePeriodController::class, 'close'])->name('close');
+            Route::delete('/{period}', [PerformancePeriodController::class, 'destroy'])->name('destroy');
+        });
+
+    });
+
+    // Audit Trail Management (moved outside OPCR admin group)
+    Route::prefix('admin/audit-trail')->name('admin.audit-trail.')->middleware(['auth', 'verified'])->group(function () {
+        Route::get('/', [AuditTrailController::class, 'index'])->name('index');
+        Route::get('/{activity}', [AuditTrailController::class, 'show'])->name('show');
+        Route::post('/export', [AuditTrailController::class, 'export'])->name('export');
+        Route::post('/cleanup', [AuditTrailController::class, 'cleanup'])->name('cleanup');
+    });
+
+
 });
 
 require __DIR__ . '/auth.php';

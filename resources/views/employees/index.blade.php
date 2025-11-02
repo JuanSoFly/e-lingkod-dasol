@@ -33,13 +33,19 @@
                         @endif
                     </p>
                 </div>
-                <div class="flex space-x-2">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-3">
                     @can('employee.view')
-                    <a href="{{ route('employees.export') }}" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 disabled:opacity-25 transition ease-in-out duration-150">
+                    <a href="{{ route('employees.export') }}" class="inline-flex items-center justify-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:border-green-900 focus:ring focus:ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 w-full sm:w-auto">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                         Export Excel
+                    </a>
+                    <a href="{{ route('employees.archive.index') }}" class="inline-flex items-center justify-center px-4 py-2 bg-purple-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-purple-700 active:bg-purple-900 focus:outline-none focus:border-purple-900 focus:ring focus:ring-purple-300 disabled:opacity-25 transition ease-in-out duration-150 w-full sm:w-auto">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+                        </svg>
+                        View Archives
                     </a>
                     @endcan
                     @can('employee.create')
@@ -66,15 +72,15 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
                     </div>
-                    <input type="text" 
-                           name="search" 
+                    <input type="text"
+                           name="search"
                            value="{{ request('search') }}"
-                           placeholder="Search employees by name, email, position, department, or employee number..." 
+                           placeholder="Search employees by name, email, position, department, or employee number..."
                            class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
 
                 <!-- Filters Row -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     <!-- Department Filter -->
                     <div>
                         <label for="department" class="block text-sm font-medium text-gray-700 mb-1">Department</label>
@@ -144,7 +150,7 @@
                         <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
                             {{ strtoupper(substr($employee->first_name, 0, 1) . substr($employee->last_name, 0, 1)) }}
                         </div>
-                        
+
                         <!-- Employee Info -->
                         <div class="flex-1 min-w-0">
                             <div class="flex items-start justify-between">
@@ -154,7 +160,7 @@
                                     </h3>
                                     <p class="text-sm text-gray-500 truncate employee-email">{{ $employee->email }}</p>
                                 </div>
-                                
+
                                 <!-- Quick Actions -->
                                 <div class="flex space-x-1 flex-shrink-0 ml-2">
                                     <a href="{{ route('employees.show', $employee) }}" class="inline-flex items-center p-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors duration-150">
@@ -172,7 +178,7 @@
                                     @endcan
                                 </div>
                             </div>
-                            
+
                             <!-- Employee Details -->
                             <div class="mt-3 space-y-2">
                                 <div class="flex items-center text-xs text-gray-500">
@@ -181,14 +187,14 @@
                                     </svg>
                                     <span class="truncate employee-position">{{ $employee->position }}</span>
                                 </div>
-                                
+
                                 <div class="flex items-center text-xs text-gray-500">
                                     <svg class="w-3 h-3 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                     </svg>
                                     <span class="truncate employee-department">{{ $employee->department }}</span>
                                 </div>
-                                
+
                                 <div class="flex items-center text-xs text-gray-500">
                                     <svg class="w-3 h-3 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a1 1 0 012-2h4a1 1 0 012 2v4m0 0v11a1 1 0 01-1 1H9a1 1 0 01-1-1V7m0 0h8m-8 0h8m-8 0V7"></path>
@@ -196,7 +202,7 @@
                                     <span>Hired: {{ $employee->date_hired?->format('M d, Y') ?? 'Not provided' }}</span>
                                 </div>
                             </div>
-                            
+
                             <!-- Actions Row for Mobile -->
                             <div class="mt-3 flex space-x-2">
                                 <a href="{{ route('employees.show', $employee) }}" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors duration-150">
@@ -215,14 +221,14 @@
                                 </a>
                                 @endcan
                                 @can('employee.delete')
-                                <form action="{{ route('employees.destroy', $employee) }}" method="POST" class="flex-1" onsubmit="return confirm('Are you sure you want to delete this employee? This action cannot be undone.');">
+                                <form action="{{ route('employees.destroy', $employee) }}" method="POST" class="flex-1" onsubmit="return confirm('Are you sure you want to archive this employee? Their data will be preserved and can be restored later. Do you want to continue?');">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="w-full inline-flex items-center justify-center px-3 py-2 bg-red-100 text-red-700 text-xs font-medium rounded hover:bg-red-200 transition-colors duration-150">
                                         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                         </svg>
-                                        Delete
+                                        Archive
                                     </button>
                                 </form>
                                 @endcan
@@ -259,60 +265,60 @@
 
         <!-- Desktop Table View -->
         <div class="hidden lg:block bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
+            <div class="overflow-x-auto lg:overflow-visible">
+                <table class="min-w-full divide-y divide-gray-200 lg:table-fixed lg:w-full">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Hired</th>
-                            <th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+                            <th class="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider lg:w-1/4">Employee</th>
+                            <th class="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider lg:w-1/5">Position</th>
+                            <th class="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider lg:w-1/5">Department</th>
+                            <th class="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider lg:w-1/6 hidden md:table-cell">Date Hired</th>
+                            <th class="relative px-3 lg:px-6 py-3 lg:w-1/4"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse ($employees as $employee)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                <td class="px-3 lg:px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center min-w-0">
+                                        <div class="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-xs lg:text-sm flex-shrink-0">
                                             {{ strtoupper(substr($employee->first_name, 0, 1) . substr($employee->last_name, 0, 1)) }}
                                         </div>
-                                        <div class="ml-4">
-                                            <div class="text-sm font-medium text-gray-900 employee-name">{{ $employee->first_name }} {{ $employee->last_name }}</div>
-                                            <div class="text-sm text-gray-500 employee-email">{{ $employee->email }}</div>
+                                        <div class="ml-2 lg:ml-4 min-w-0 flex-1">
+                                            <div class="text-xs lg:text-sm font-medium text-gray-900 employee-name truncate">{{ $employee->first_name }} {{ $employee->last_name }}</div>
+                                            <div class="text-xs lg:text-sm text-gray-500 employee-email truncate">{{ $employee->email }}</div>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 employee-position">{{ $employee->position }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 employee-department">{{ $employee->department }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $employee->date_hired?->format('M d, Y') ?? 'Not provided' }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <div class="flex justify-end space-x-2">
-                                        <a href="{{ route('employees.show', $employee) }}" class="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors duration-150">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <td class="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-900 employee-position truncate">{{ $employee->position }}</td>
+                                <td class="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-500 employee-department truncate">{{ $employee->department }}</td>
+                                <td class="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-500 hidden md:table-cell">{{ $employee->date_hired?->format('M d, Y') ?? 'Not provided' }}</td>
+                                <td class="px-3 lg:px-6 py-4 whitespace-nowrap text-right text-xs lg:text-sm font-medium">
+                                    <div class="flex justify-end space-x-1 lg:space-x-2">
+                                        <a href="{{ route('employees.show', $employee) }}" class="inline-flex items-center px-2 lg:px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors duration-150">
+                                            <svg class="w-3 h-3 lg:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                             </svg>
-                                            View
+                                            <span class="hidden lg:inline">View</span>
                                         </a>
                                         @can('employee.edit')
-                                        <a href="{{ route('employees.edit', $employee) }}" class="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors duration-150">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <a href="{{ route('employees.edit', $employee) }}" class="inline-flex items-center px-2 lg:px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors duration-150">
+                                            <svg class="w-3 h-3 lg:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                             </svg>
-                                            Edit
+                                            <span class="hidden lg:inline">Edit</span>
                                         </a>
                                         @endcan
                                         @can('employee.delete')
-                                        <form action="{{ route('employees.destroy', $employee) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this employee? This action cannot be undone.');">
+                                        <form action="{{ route('employees.destroy', $employee) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to archive this employee? Their data will be preserved and can be restored later. Do you want to continue?');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors duration-150">
-                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <button type="submit" class="inline-flex items-center px-2 lg:px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors duration-150">
+                                                <svg class="w-3 h-3 lg:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                                 </svg>
-                                                Delete
+                                                <span class="hidden lg:inline">Archive</span>
                                             </button>
                                         </form>
                                         @endcan
@@ -321,7 +327,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-6 py-12 text-center">
+                                <td colspan="5" class="px-3 lg:px-6 py-12 text-center">
                                     <svg class="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                     </svg>
@@ -368,7 +374,7 @@
                         if (this.value.length >= 2 || this.value.length === 0) {
                             form.submit();
                         }
-                    }, 500); // 500ms delay
+                    }, 800); // 800ms delay for beginner typists
                 });
 
                 // Submit on Enter key
@@ -428,7 +434,7 @@
 
             const terms = searchTerm.split(' ').filter(term => term.length > 1);
             const employeeCards = document.querySelectorAll('.employee-name, .employee-email, .employee-position, .employee-department');
-            
+
             terms.forEach(term => {
                 employeeCards.forEach(element => {
                     const regex = new RegExp(`(${term})`, 'gi');

@@ -4,7 +4,7 @@
 <div class="container-fluid" x-data="employeeDashboard()">
     <!-- Page Header -->
     <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Employee Dashboard</h1>
+        <h1 class="text-2xl font-bold text-gray-900">Leave Dashboard</h1>
         <p class="text-gray-600">Manage your leave applications and view your leave balances</p>
     </div>
 
@@ -116,6 +116,33 @@
                         <p class="text-xs text-gray-500 mt-1">PDF, DOC, DOCX, JPG, JPEG, PNG files only (Max 2MB each)</p>
                     </div>
 
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0 mt-1">
+                                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-medium text-blue-900 mb-2">Approval of Department Head</h3>
+                                <p class="text-sm text-blue-700 mb-3">By submitting the application, you confirm that your respective department head has already been informed.</p>
+                                <div class="space-y-2">
+                                    <label class="flex items-center space-x-3 cursor-pointer">
+                                        <input type="radio" name="dept_head_informed" x-model="application.dept_head_informed" value="1" class="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                        <span class="text-sm text-gray-700">Yes, my department head has been informed</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 cursor-pointer">
+                                        <input type="radio" name="dept_head_informed" x-model="application.dept_head_informed" value="0" class="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                        <span class="text-sm text-gray-700">No, my department head has not been informed</span>
+                                    </label>
+                                </div>
+                                <p x-show="application.dept_head_informed === '0'" class="text-sm text-red-600 mt-2">
+                                    <strong>Please note:</strong> You must inform your department head before submitting this leave application.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="flex justify-end space-x-3">
                         <button type="button" @click="saveAsDraft" :disabled="submitting" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
                             Save as Draft
@@ -123,9 +150,16 @@
                         <button type="button" @click="resetApplication" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
                             Clear
                         </button>
-                        <button type="submit" :disabled="submitting" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
-                            <span x-show="!submitting">Submit Application</span>
+                        <button type="submit" :disabled="submitting || rateLimitActive" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+                            <span x-show="!submitting && !rateLimitActive">Submit Application</span>
                             <span x-show="submitting">Submitting...</span>
+                            <span x-show="rateLimitActive && !submitting" class="flex items-center">
+                                <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Wait <span x-text="rateLimitCountdown"></span>s
+                            </span>
                         </button>
                     </div>
                 </form>
@@ -261,7 +295,7 @@
                     <div class="border rounded-lg p-4 bg-blue-50 border-blue-200">
                         <p class="font-medium text-blue-900" x-text="leave.leave_type"></p>
                         <p class="text-sm text-blue-700" x-text="leave.start_date + ' - ' + leave.end_date"></p>
-                        <p class="text-xs text-blue-600" x-text="leave.days + ' days'"></p>
+                        <p class="text-xs text-blue-600" x-text="leave.days + ' days (' + leave.remaining_days + ' remaining)'"></p>
                     </div>
                 </template>
 
@@ -292,9 +326,12 @@ function employeeDashboard() {
             end_date: '',
             days_requested: 0,
             reason: '',
-            documents: []
+            documents: [],
+            dept_head_informed: ''
         },
         submitting: false,
+        rateLimitActive: false,
+        rateLimitCountdown: 0,
 
         init() {
             this.loadLeaveTypes();
@@ -342,6 +379,7 @@ function employeeDashboard() {
                 formData.append('start_date', this.application.start_date);
                 formData.append('end_date', this.application.end_date);
                 formData.append('reason', this.application.reason);
+                formData.append('dept_head_informed', this.application.dept_head_informed === '1' ? '1' : '0');
 
                 // Add documents
                 this.application.documents.forEach((doc, index) => {
@@ -364,7 +402,11 @@ function employeeDashboard() {
                 if (response.ok) {
                     this.showNotification('Leave application submitted successfully!', 'success');
                     this.resetApplication();
-                    this.loadDashboardData();
+                    // Reload page to show updated data
+                    setTimeout(() => location.reload(), 1500);
+                } else if (response.status === 429) {
+                    // Handle rate limiting with user-friendly message
+                    this.handleRateLimitResponse(data);
                 } else {
                     this.showNotification(data.error || 'Failed to submit application', 'error');
                 }
@@ -392,6 +434,7 @@ function employeeDashboard() {
                 formData.append('start_date', this.application.start_date);
                 formData.append('end_date', this.application.end_date);
                 formData.append('reason', this.application.reason);
+                formData.append('dept_head_informed', this.application.dept_head_informed === '1' ? '1' : '0');
                 formData.append('is_draft', 'true');
 
                 // Add documents
@@ -472,6 +515,16 @@ function employeeDashboard() {
                 return false;
             }
 
+            if (this.application.dept_head_informed === '') {
+                this.showNotification('Please confirm if your department head has been informed', 'error');
+                return false;
+            }
+
+            if (this.application.dept_head_informed === '0' || this.application.dept_head_informed === 0) {
+                this.showNotification('You must inform your department head before submitting this leave application', 'error');
+                return false;
+            }
+
             return true;
         },
 
@@ -482,8 +535,78 @@ function employeeDashboard() {
                 end_date: '',
                 days_requested: 0,
                 reason: '',
-                documents: []
+                documents: [],
+                dept_head_informed: ''
             };
+        },
+
+        handleRateLimitResponse(data) {
+            const retryAfter = data.retry_after || 60;
+            const attemptsUsed = data.attempts_used || 0;
+            const maxAttempts = data.max_attempts || 10;
+
+            // Start countdown timer
+            this.startRateLimitCountdown(retryAfter);
+
+            // Show detailed rate limit message
+            const message = `Rate limit reached (${attemptsUsed}/${maxAttempts} attempts). Please wait ${retryAfter} seconds before trying again.`;
+            this.showRateLimitNotification(message, retryAfter);
+        },
+
+        startRateLimitCountdown(seconds) {
+            this.rateLimitCountdown = seconds;
+            this.rateLimitActive = true;
+
+            const countdownInterval = setInterval(() => {
+                this.rateLimitCountdown--;
+
+                if (this.rateLimitCountdown <= 0) {
+                    clearInterval(countdownInterval);
+                    this.rateLimitActive = false;
+                }
+            }, 1000);
+        },
+
+        showRateLimitNotification(message, retryAfter) {
+            // Create a special rate limit notification with countdown
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 bg-yellow-500 text-white max-w-md';
+            notification.innerHTML = `
+                <div class="flex items-start">
+                    <svg class="w-6 h-6 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                    <div>
+                        <p class="font-medium">Please Slow Down</p>
+                        <p class="text-sm mt-1">${message}</p>
+                        <div class="mt-2 text-sm font-medium">
+                            You can try again in: <span id="countdown">${retryAfter}</span> seconds
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(notification);
+
+            // Update countdown display
+            const countdownElement = notification.querySelector('#countdown');
+            const countdownInterval = setInterval(() => {
+                const currentSeconds = parseInt(countdownElement.textContent);
+                if (currentSeconds > 0) {
+                    countdownElement.textContent = currentSeconds - 1;
+                } else {
+                    clearInterval(countdownInterval);
+                    notification.remove();
+                }
+            }, 1000);
+
+            // Auto-remove after retryAfter + 5 seconds
+            setTimeout(() => {
+                clearInterval(countdownInterval);
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, (retryAfter + 5) * 1000);
         },
 
         showNotification(message, type = 'info') {

@@ -473,16 +473,44 @@ class RedisMonitor extends Command
     private function parseRedisInfo($info)
     {
         $parsed = [];
-        $lines = explode("\r\n", $info);
 
-        foreach ($lines as $line) {
-            if (strpos($line, ':') !== false) {
-                list($key, $value) = explode(':', $line, 2);
-                $parsed[trim($key)] = trim($value);
+        // Handle array response (newer PhpRedis versions)
+        if (is_array($info)) {
+            $parsed = $this->flattenRedisInfoArray($info);
+        } elseif (is_string($info)) {
+            // Handle string response (traditional format)
+            $lines = explode("\r\n", $info);
+
+            foreach ($lines as $line) {
+                if (strpos($line, ':') !== false) {
+                    list($key, $value) = explode(':', $line, 2);
+                    $parsed[trim($key)] = trim($value);
+                }
             }
         }
 
         return $parsed;
+    }
+
+    /**
+     * Flatten Redis INFO array response into key-value pairs
+     */
+    private function flattenRedisInfoArray($infoArray)
+    {
+        $flattened = [];
+
+        foreach ($infoArray as $section => $data) {
+            if (is_array($data)) {
+                foreach ($data as $key => $value) {
+                    $flattened[$key] = is_string($value) ? $value : (string) $value;
+                }
+            } else {
+                // Handle case where section might not be an array
+                $flattened[$section] = is_string($data) ? $data : (string) $data;
+            }
+        }
+
+        return $flattened;
     }
 
     /**

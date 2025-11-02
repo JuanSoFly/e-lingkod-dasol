@@ -101,12 +101,63 @@ class LeaveApplicationController extends Controller
     /**
      * Approve leave application and update leave card
      */
-    public function approve(LeaveApplication $leaveApplication, Request $request): JsonResponse
+    public function approve(Request $request, LeaveApplication $leaveApplication)
     {
         $this->authorize('leave.approve');
 
+        // Validate sufficient balance before approval
+        $currentBalances = $this->leaveCardService->getCurrentBalances($leaveApplication->employee);
+        $leaveTypeCode = $leaveApplication->leaveType->code;
+
+        // For VL and SL, check LeaveCard balances
+        $availableBalance = 0;
+        if ($leaveTypeCode === 'VL') {
+            $availableBalance = $currentBalances['vl_balance'] ?? 0;
+        } elseif ($leaveTypeCode === 'SL') {
+            $availableBalance = $currentBalances['sl_balance'] ?? 0;
+        } else {
+            // For other leave types, check LeaveCredit records
+            $availableBalance = $currentBalances[$leaveTypeCode] ?? 0;
+        }
+
+        if ($availableBalance < $leaveApplication->days_requested) {
+            return back()->with('error', "Insufficient leave balance. Available: {$availableBalance} days, Requested: {$leaveApplication->days_requested} days.");
+        }
+
         try {
             DB::beginTransaction();
+
+            // Lock employee's leave records to prevent race conditions
+            $employeeId = $leaveApplication->employee_id;
+            $year = $leaveApplication->start_date->year;
+
+            // Lock LeaveCard records for this employee/year
+            $lockedLeaveCard = \App\Models\LeaveCard::where('employee_id', $employeeId)
+                ->where('year', $year)
+                ->lockForUpdate()
+                ->first();
+
+            // Lock LeaveCredit records for this employee/year
+            $lockedLeaveCredits = \App\Models\LeaveCredit::where('employee_id', $employeeId)
+                ->where('year', $year)
+                ->lockForUpdate()
+                ->get();
+
+            // Re-validate balance with locked records
+            $lockedBalances = $this->leaveCardService->getCurrentBalances($leaveApplication->employee);
+            $availableBalance = 0;
+            if ($leaveTypeCode === 'VL') {
+                $availableBalance = $lockedBalances['vl_balance'] ?? 0;
+            } elseif ($leaveTypeCode === 'SL') {
+                $availableBalance = $lockedBalances['sl_balance'] ?? 0;
+            } else {
+                $availableBalance = $lockedBalances[$leaveTypeCode] ?? 0;
+            }
+
+            if ($availableBalance < $leaveApplication->days_requested) {
+                DB::rollBack();
+                return back()->with('error', "Insufficient leave balance. Available: {$availableBalance} days, Requested: {$leaveApplication->days_requested} days. Balance was updated by another transaction.");
+            }
 
             // Update application status
             $leaveApplication->update([
@@ -129,18 +180,12 @@ class LeaveApplicationController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'message' => 'Leave application approved successfully',
-                'application' => $leaveApplication->load(['employee', 'leaveType', 'approver']),
-                'leave_card' => $leaveCard,
-            ]);
+            return redirect()->route('leave-applications.index', ['status' => 'pending'])
+                ->with('success', 'Leave application approved successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'message' => 'Failed to approve leave application',
-                'error' => $e->getMessage(),
-            ], 500);
+            return back()->with('error', 'Failed to approve leave application: ' . $e->getMessage());
         }
     }
 
@@ -170,6 +215,24 @@ class LeaveApplicationController extends Controller
     {
         $this->authorize('leave.view');
 
+        // HR users without employee ID should see employee selection list
+        if (Auth::user()->can('leave.approve') && !$employeeId) {
+            $employees = Employee::query()
+                ->when($request->filled('search'), function ($query) use ($request) {
+                    $search = $request->get('search');
+                    $query->where(function ($q) use ($search) {
+                        $q->where('first_name', 'LIKE', "%{$search}%")
+                          ->orWhere('last_name', 'LIKE', "%{$search}%")
+                          ->orWhere('employee_number', $search);
+                    });
+                })
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->paginate(20);
+
+            return view('leave-applications.employee-selection', compact('employees'));
+        }
+
         // Use provided employee ID or current user
         $targetEmployeeId = $employeeId ?? Auth::user()->employee_id;
 
@@ -181,10 +244,11 @@ class LeaveApplicationController extends Controller
         $employee = Employee::findOrFail($targetEmployeeId);
         $year = $request->get('year', date('Y'));
 
-        // Get leave applications for the year
+        // Get approved leave applications for the year
         $leaveApplications = LeaveApplication::with('leaveType')
             ->where('employee_id', $targetEmployeeId)
             ->whereYear('start_date', $year)
+            ->where('status', 'approved')
             ->orderBy('start_date', 'desc')
             ->get();
 
@@ -227,10 +291,11 @@ class LeaveApplicationController extends Controller
         $employee = Employee::findOrFail($targetEmployeeId);
         $year = $request->get('year', date('Y'));
 
-        // Get leave applications for the year
+        // Get approved leave applications for the year
         $leaveApplications = LeaveApplication::with('leaveType')
             ->where('employee_id', $targetEmployeeId)
             ->whereYear('start_date', $year)
+            ->where('status', 'approved')
             ->orderBy('start_date', 'desc')
             ->get();
 

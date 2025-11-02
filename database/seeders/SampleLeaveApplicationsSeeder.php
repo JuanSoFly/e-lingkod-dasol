@@ -73,10 +73,10 @@ class SampleLeaveApplicationsSeeder extends Seeder
             ],
             [
                 'employee_number' => 'EMP-50793',
-                'leave_type' => 'Emergency Leave',
+                'leave_type' => 'Special Emergency (Calamity) Leave',
                 'start_date' => Carbon::create($currentYear, 1, 15),
                 'end_date' => Carbon::create($currentYear, 1, 15),
-                'reason' => 'Family emergency',
+                'reason' => 'Community flood emergency response',
                 'status' => 'approved',
                 'with_pay' => false,
             ],

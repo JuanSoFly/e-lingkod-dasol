@@ -23,10 +23,9 @@ class StoreEmployeeRequest extends FormRequest
     {
         return [
             'employee_number' => [
-                'required',
+                'nullable',
                 'string',
                 'max:20',
-                'unique:employees,employee_number',
                 'regex:/^[A-Z0-9-]+$/'
             ],
             'first_name' => [
@@ -54,12 +53,12 @@ class StoreEmployeeRequest extends FormRequest
                 'after:1900-01-01'
             ],
             'gender' => [
-                'required', 
-                'in:male,female,other'
+                'required',
+                'in:Male,Female,Other'
             ],
             'civil_status' => [
-                'required', 
-                'in:single,married,divorced,widowed,separated'
+                'required',
+                'in:Single,Married,Widowed,Separated,Divorced'
             ],
             'address' => [
                 'required', 
@@ -73,12 +72,13 @@ class StoreEmployeeRequest extends FormRequest
                 'regex:/^(\+63|0)[0-9]{10}$/'
             ],
             'email' => [
-                'required', 
-                'string', 
-                'lowercase', 
-                'email:rfc,dns', 
-                'max:255', 
-                'unique:users,email'
+                'required',
+                'string',
+                'lowercase',
+                'email:rfc,dns',
+                'max:255',
+                'unique:employees,email,NULL,id,deleted_at,NULL',
+                'unique:users,email,NULL,id,deleted_at,NULL'
             ],
             'position' => [
                 'required', 
@@ -86,9 +86,13 @@ class StoreEmployeeRequest extends FormRequest
                 'max:100'
             ],
             'department' => [
-                'required', 
-                'string', 
+                'nullable',
+                'string',
                 'max:100'
+            ],
+            'office_id' => [
+                'nullable',
+                'exists:offices,id'
             ],
             'employment_status' => [
                 'required',

@@ -3,6 +3,7 @@
 use App\Http\Controllers\DocumentSearchController;
 use App\Http\Controllers\CSCReportController;
 use App\Http\Controllers\CSCReportManagementController;
+use App\Http\Controllers\API\OPCRController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -71,4 +72,92 @@ Route::middleware(['auth:sanctum', 'can:reports.generate'])->prefix('csc-reports
     
     // Cache management for reports
     Route::post('/clear-cache', [CSCReportController::class, 'clearCache'])->name('clear-cache');
+});
+
+// OPCR Mobile API Routes
+Route::prefix('v1')->group(function () {
+
+    // Authentication endpoints
+    Route::prefix('auth')->group(function () {
+        Route::post('login', [OPCRController::class, 'login']);
+        Route::post('refresh', [OPCRController::class, 'refresh'])->middleware('auth:sanctum');
+    });
+
+    // OPCR endpoints (require authentication)
+    Route::middleware('auth:sanctum')->group(function () {
+
+        // OPCR Workflows
+        Route::prefix('opcr')->group(function () {
+            Route::get('workflows', [OPCRController::class, 'workflows']);
+            Route::post('workflows', [OPCRController::class, 'workflowStore']);
+            Route::get('workflows/{workflow}', [OPCRController::class, 'workflowShow']);
+            Route::get('workflows/{workflow}/history', [OPCRController::class, 'workflowHistory']);
+            Route::post('workflows/{workflow}/ratings', [OPCRController::class, 'submitRatings']);
+        });
+
+        // Performance Periods
+        Route::get('periods', [OPCRController::class, 'periods']);
+
+        // Offices
+        Route::get('offices', [OPCRController::class, 'offices']);
+        Route::get('offices/{office}/mfos', [OPCRController::class, 'officeMfos']);
+
+        // Configuration
+        Route::get('config', [OPCRController::class, 'configuration']);
+
+        // Data Synchronization
+        Route::post('sync', [OPCRController::class, 'sync']);
+    });
+});
+
+// Health check endpoint
+Route::get('health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toISOString(),
+        'version' => config('app.version', '1.0.0'),
+        'maintenance' => config('app.maintenance_mode', false)
+    ]);
+});
+
+// API documentation endpoint
+Route::get('docs', function () {
+    return response()->json([
+        'title' => 'E-Lingkod Dasol HRIS API',
+        'version' => '1.0.0',
+        'description' => 'RESTful API for OPCR mobile and external integrations',
+        'base_url' => url('/api/v1'),
+        'endpoints' => [
+            'Authentication' => [
+                'POST /api/v1/auth/login' => 'Authenticate user and get API token',
+                'POST /api/v1/auth/refresh' => 'Refresh existing API token (requires auth)'
+            ],
+            'OPCR Workflows' => [
+                'GET /api/v1/opcr/workflows' => 'List user\'s OPCR workflows',
+                'POST /api/v1/opcr/workflows' => 'Create new OPCR workflow',
+                'GET /api/v1/opcr/workflows/{id}' => 'Get specific workflow details',
+                'GET /api/v1/opcr/workflows/{id}/history' => 'Get workflow action history',
+                'POST /api/v1/opcr/workflows/{id}/ratings' => 'Submit QET ratings for workflow'
+            ],
+            'Reference Data' => [
+                'GET /api/v1/periods' => 'List available performance periods',
+                'GET /api/v1/offices' => 'List accessible offices',
+                'GET /api/v1/config' => 'Get app configuration and settings'
+            ],
+            'Utilities' => [
+                'POST /api/v1/sync' => 'Synchronize offline data',
+                'GET /api/health' => 'API health check'
+            ]
+        ],
+        'authentication' => [
+            'type' => 'Bearer Token',
+            'header' => 'Authorization: Bearer {token}',
+            'login_endpoint' => '/api/v1/auth/login'
+        ],
+        'rate_limits' => [
+            'requests_per_minute' => 60,
+            'requests_per_hour' => 1000,
+            'burst_limit' => 100
+        ]
+    ]);
 });

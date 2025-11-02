@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ Auth::user()->can('performance.evaluate') && !request()->routeIs('performance-targets.*') ? 'Performance Reviews' : 'My IPCR' }}
+                {{ Auth::user()->can('performance.evaluate') && !request()->routeIs('performance-targets.*') ? 'Performance Reviews' : 'My Performance Targets' }}
             </h2>
             @if($selectedPeriodId && $periods->firstWhere('id', $selectedPeriodId)->status == 'active' && Auth::user()->can('performance.create'))
             <a href="{{ route('performance-targets.create', ['period_id' => $selectedPeriodId]) }}">
@@ -36,7 +36,7 @@
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                     <h3 class="text-lg font-bold">IPCR for {{ $periods->firstWhere('id', $selectedPeriodId)?->semester ?? 'N/A' }} {{ $periods->firstWhere('id', $selectedPeriodId)?->year ?? '' }}</h3>
+                     <h3 class="text-lg font-bold">Performance Targets for {{ $periods->firstWhere('id', $selectedPeriodId)?->semester ?? 'N/A' }} {{ $periods->firstWhere('id', $selectedPeriodId)?->year ?? '' }}</h3>
                     <div class="overflow-x-auto mt-4">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">

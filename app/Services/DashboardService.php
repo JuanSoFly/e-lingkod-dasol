@@ -263,9 +263,10 @@ class DashboardService implements DashboardServiceInterface
                 'error' => $e->getMessage(),
                 'user_id' => $user?->id,
                 'roles' => $user?->getRoleNames(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            // Return empty data structure on error
+            // Return empty data structure on error to prevent dashboard failures
             return $this->getEmptyDashboardData();
         }
     }

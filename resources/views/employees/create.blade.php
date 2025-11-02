@@ -33,31 +33,17 @@
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Employee Number (Auto-generated) -->
+                            <input type="hidden" name="employee_number" value="" />
                             <div>
                                 <x-input-label for="employee_number_display" :value="__('Employee Number')" />
-                                <div class="flex items-center space-x-2 mt-1">
-                                    <x-text-input
-                                        id="employee_number_display"
-                                        class="block flex-1 bg-gray-50"
-                                        type="text"
-                                        name="employee_number"
-                                        value="{{ old('employee_number') }}"
-                                        readonly
-                                        required
-                                    />
-                                    <button
-                                        type="button"
-                                        id="refreshNumberBtn"
-                                        class="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-                                        title="Generate new number"
-                                    >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <x-input-error :messages="$errors->get('employee_number')" class="mt-2" />
-                                <p class="text-xs text-gray-500 mt-1">Auto-generated unique employee ID</p>
+                                <x-text-input
+                                    id="employee_number_display"
+                                    class="block mt-1 w-full bg-gray-50"
+                                    type="text"
+                                    value="Auto-generated on save"
+                                    readonly
+                                />
+                                <p class="text-xs text-gray-500 mt-1">Unique employee ID will be generated automatically</p>
                             </div>
 
                             <!-- First Name -->
@@ -120,11 +106,18 @@
                                 <x-input-error :messages="$errors->get('position')" class="mt-2" />
                             </div>
 
-                            <!-- Department -->
+                            <!-- Office -->
                             <div>
-                                <x-input-label for="department" :value="__('Department')" />
-                                <x-text-input id="department" class="block mt-1 w-full" type="text" name="department" :value="old('department')" required />
-                                <x-input-error :messages="$errors->get('department')" class="mt-2" />
+                                <x-input-label for="office_id" :value="__('Office')" />
+                                <select id="office_id" name="office_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="">Select Office</option>
+                                    @foreach($offices as $office)
+                                        <option value="{{ $office->id }}" {{ old('office_id') == $office->id ? 'selected' : '' }}>
+                                            {{ $office->name }} ({{ $office->code }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('office_id')" class="mt-2" />
                             </div>
 
                             <!-- Employment Status -->
@@ -208,9 +201,9 @@
                                 <x-input-label for="gender" :value="__('Gender')" />
                                 <select id="gender" name="gender" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                                     <option value="">Select Gender</option>
-                                    <option value="male" {{ old('gender') == 'male' ? 'selected' : '' }}>Male</option>
-                                    <option value="female" {{ old('gender') == 'female' ? 'selected' : '' }}>Female</option>
-                                    <option value="other" {{ old('gender') == 'other' ? 'selected' : '' }}>Other</option>
+                                    <option value="Male" {{ old('gender') == 'Male' ? 'selected' : '' }}>Male</option>
+                                    <option value="Female" {{ old('gender') == 'Female' ? 'selected' : '' }}>Female</option>
+                                    <option value="Other" {{ old('gender') == 'Other' ? 'selected' : '' }}>Other</option>
                                 </select>
                                 <x-input-error :messages="$errors->get('gender')" class="mt-2" />
                             </div>
@@ -220,11 +213,11 @@
                                 <x-input-label for="civil_status" :value="__('Civil Status')" />
                                 <select id="civil_status" name="civil_status" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                                     <option value="">Select Civil Status</option>
-                                    <option value="single" {{ old('civil_status') == 'single' ? 'selected' : '' }}>Single</option>
-                                    <option value="married" {{ old('civil_status') == 'married' ? 'selected' : '' }}>Married</option>
-                                    <option value="divorced" {{ old('civil_status') == 'divorced' ? 'selected' : '' }}>Divorced</option>
-                                    <option value="widowed" {{ old('civil_status') == 'widowed' ? 'selected' : '' }}>Widowed</option>
-                                    <option value="separated" {{ old('civil_status') == 'separated' ? 'selected' : '' }}>Separated</option>
+                                    <option value="Single" {{ old('civil_status') == 'Single' ? 'selected' : '' }}>Single</option>
+                                    <option value="Married" {{ old('civil_status') == 'Married' ? 'selected' : '' }}>Married</option>
+                                    <option value="Divorced" {{ old('civil_status') == 'Divorced' ? 'selected' : '' }}>Divorced</option>
+                                    <option value="Widowed" {{ old('civil_status') == 'Widowed' ? 'selected' : '' }}>Widowed</option>
+                                    <option value="Separated" {{ old('civil_status') == 'Separated' ? 'selected' : '' }}>Separated</option>
                                 </select>
                                 <x-input-error :messages="$errors->get('civil_status')" class="mt-2" />
                             </div>
@@ -272,29 +265,6 @@
 
     @push('scripts')
     <script>
-        // Employee number generation
-        async function generateEmployeeNumber() {
-            try {
-                const response = await fetch('/api/employees/next-number', {
-                    method: 'GET',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Accept': 'application/json',
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    document.getElementById('employee_number_display').value = data.employee_number;
-                } else {
-                    console.error('Failed to generate employee number:', data.message);
-                }
-            } catch (error) {
-                console.error('Error generating employee number:', error);
-            }
-        }
-
         // Form submission handling
         document.getElementById('employeeForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -375,11 +345,7 @@
             document.getElementById('messageModal').classList.add('hidden');
         }
 
-        // Refresh button functionality
-        document.getElementById('refreshNumberBtn').addEventListener('click', generateEmployeeNumber);
-
-        // Generate employee number on page load
-        document.addEventListener('DOMContentLoaded', generateEmployeeNumber);
+        // Employee number is now auto-generated in the backend, no need to pre-fetch
 
         // Real-time validation
         document.querySelectorAll('input[required], select[required]').forEach(field => {

@@ -94,11 +94,18 @@
                                 <x-input-error :messages="$errors->get('position')" class="mt-2" />
                             </div>
 
-                            <!-- Department -->
+                            <!-- Office -->
                             <div>
-                                <x-input-label for="department" :value="__('Department')" />
-                                <x-text-input id="department" class="block mt-1 w-full" type="text" name="department" :value="old('department', $employee->department)" required />
-                                <x-input-error :messages="$errors->get('department')" class="mt-2" />
+                                <x-input-label for="office_id" :value="__('Office')" />
+                                <select id="office_id" name="office_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="">Select Office</option>
+                                    @foreach($offices as $office)
+                                        <option value="{{ $office->id }}" {{ old('office_id', $employee->office_id ?? null) == $office->id ? 'selected' : '' }}>
+                                            {{ $office->name }} ({{ $office->code }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('office_id')" class="mt-2" />
                             </div>
 
                             <!-- Employment Status -->
@@ -127,6 +134,28 @@
                                 <x-input-label for="step_increment" :value="__('Step Increment')" />
                                 <x-text-input id="step_increment" class="block mt-1 w-full" type="number" name="step_increment" :value="old('step_increment', $employee->step_increment)" required />
                                 <x-input-error :messages="$errors->get('step_increment')" class="mt-2" />
+                            </div>
+
+                            <!-- Basic Salary -->
+                            <div>
+                                <x-input-label for="basic_salary" :value="__('Basic Salary')" />
+                                <div class="relative mt-1">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-gray-500 sm:text-sm">₱</span>
+                                    </div>
+                                    <x-text-input
+                                        id="basic_salary"
+                                        class="block mt-1 w-full pl-8"
+                                        type="number"
+                                        name="basic_salary"
+                                        :value="old('basic_salary', $employee->basic_salary)"
+                                        step="0.01"
+                                        min="0"
+                                        required
+                                    />
+                                </div>
+                                <x-input-error :messages="$errors->get('basic_salary')" class="mt-2" />
+                                <p class="text-xs text-gray-500 mt-1">Monthly basic salary in Philippine Peso</p>
                             </div>
 
                         </div>

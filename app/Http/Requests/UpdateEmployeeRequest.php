@@ -37,11 +37,13 @@ class UpdateEmployeeRequest extends FormRequest
             'contact_number' => ['required', 'string', 'max:20'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users')->ignore($userId)],
             'position' => ['required', 'string', 'max:255'],
-            'department' => ['required', 'string', 'max:255'],
+            'department' => ['nullable', 'string', 'max:255'],
+            'office_id' => ['nullable', 'exists:offices,id'],
             'employment_status' => ['required', 'string', 'max:255'],
             'date_hired' => ['required', 'date'],
             'salary_grade' => ['required', 'integer'],
             'step_increment' => ['required', 'integer'],
+            'basic_salary' => ['required', 'numeric', 'min:0', 'max:999999.99'],
         ];
     }
 }

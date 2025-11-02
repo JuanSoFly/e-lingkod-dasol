@@ -5,7 +5,7 @@
                 {{ __('Personal Data Sheet (PDS)') }} - {{ $employee->full_name }}
             </h2>
             <div class="flex space-x-2">
-                <a href="{{ route('employees.show', $employee) }}">
+                <a href="{{ route('employee-portal.my-201-file') }}">
                     <x-secondary-button>
                         {{ __('Back to 201 File') }}
                     </x-secondary-button>

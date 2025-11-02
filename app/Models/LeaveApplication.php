@@ -25,6 +25,8 @@ class LeaveApplication extends Model
         'applied_date',
         'approved_by',
         'approved_date',
+        'dept_head_informed',
+        'dept_head_informed_date',
     ];
 
     protected $casts = [
@@ -32,6 +34,8 @@ class LeaveApplication extends Model
         'end_date' => 'date',
         'applied_date' => 'date',
         'approved_date' => 'date',
+        'dept_head_informed' => 'boolean',
+        'dept_head_informed_date' => 'datetime',
     ];
 
     public function employee(): BelongsTo
@@ -115,7 +119,7 @@ class LeaveApplication extends Model
     /**
      * Get linked documents
      */
-    public function getLinkedDocuments(bool $activeOnly = true): \Illuminate\Database\Eloquent\Collection
+    public function getLinkedDocuments(bool $activeOnly = true): \Illuminate\Support\Collection
     {
         $query = $this->targetLinks()->whereIn('link_type', [
             'leave_supporting_doc', 
@@ -132,7 +136,7 @@ class LeaveApplication extends Model
     /**
      * Get supporting documents for this leave application
      */
-    public function getSupportingDocuments(): \Illuminate\Database\Eloquent\Collection
+    public function getSupportingDocuments(): \Illuminate\Support\Collection
     {
         return $this->getLinkedDocuments()->filter(function ($document) {
             return $document instanceof EmployeeDocument;

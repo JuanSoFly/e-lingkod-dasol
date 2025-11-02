@@ -22,11 +22,36 @@ class PerformanceTargetController extends Controller
      */
     public function index(Request $request)
     {
-        $employee = Auth::user()->employee;
-        if (!$employee) {
+        $user = Auth::user();
+        $employee = $user->employee;
+
+        // Check if user is a system administrator (HR Admin or Super Admin)
+        $isSystemAdmin = $user->hasRole(['HR Admin', 'Super Admin']);
+
+        // For regular employees without employee profiles, redirect to dashboard
+        if (!$employee && !$isSystemAdmin) {
             return redirect()->route('dashboard')->with('error', 'Your user account is not linked to an employee profile.');
         }
 
+        // For system administrators, show all performance targets across all employees
+        if ($isSystemAdmin) {
+            $periods = PerformancePeriod::latest()->get();
+            $selectedPeriodId = $request->input('period_id', $periods->first()?->id);
+
+            $targets = PerformanceTarget::where('period_id', $selectedPeriodId)
+                ->with(['employee', 'rating'])
+                ->get();
+
+            return view('performance_targets.index', [
+                'isSystemAdmin' => true,
+                'targets' => $targets,
+                'periods' => $periods,
+                'selectedPeriodId' => $selectedPeriodId,
+                'user' => $user,
+            ]);
+        }
+
+        // For regular employees, show only their own targets
         $periods = PerformancePeriod::where('status', 'active')->orWhereHas('targets', fn($q) => $q->where('employee_id', $employee->id))->latest()->get();
         $selectedPeriodId = $request->input('period_id', $periods->first()?->id);
 
@@ -36,6 +61,7 @@ class PerformanceTargetController extends Controller
             ->get();
 
         return view('performance_targets.index', [
+            'isSystemAdmin' => false,
             'employee' => $employee,
             'targets' => $targets,
             'periods' => $periods,

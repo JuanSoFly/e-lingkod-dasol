@@ -11,6 +11,7 @@ class PerformanceEvaluation extends Model
 
     protected $fillable = [
         'employee_id',
+        'opcr_workflow_id',
         'evaluation_period',
         'evaluation_date',
         'period_start',

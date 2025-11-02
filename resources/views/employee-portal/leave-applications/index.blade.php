@@ -284,7 +284,7 @@ function leaveApplications() {
                     ...Object.fromEntries(Object.entries(this.filters).filter(([_, v]) => v !== ''))
                 });
 
-                const response = await fetch(`/employee-portal/leave-applications?${params}`);
+                const response = await fetch(`/employee-portal/leave-applications/data?${params}`);
                 const data = await response.json();
 
                 this.applications = data.applications;

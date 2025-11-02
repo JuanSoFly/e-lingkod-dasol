@@ -41,10 +41,10 @@ class DashboardController extends Controller
         // Get leave history for the year
         $leaveHistory = $this->leaveCardService->getLeaveHistory($employee, $year);
 
-        // Get upcoming approved leave
+        // Get upcoming approved leave (include ongoing leave)
         $upcomingLeave = LeaveApplication::where('employee_id', $employee->id)
             ->where('status', 'approved')
-            ->where('start_date', '>=', now())
+            ->where('end_date', '>=', now())
             ->with(['leaveType'])
             ->orderBy('start_date')
             ->limit(3)
@@ -76,12 +76,23 @@ class DashboardController extends Controller
                 ];
             }),
             'upcoming_leave' => $upcomingLeave->map(function ($leave) {
+                $today = now()->startOfDay();
+                $endDate = $leave->end_date->startOfDay();
+
+                // Calculate remaining days only if leave is still active/ongoing
+                if ($today->lte($endDate)) {
+                    $remainingDays = intval($today->diffInDays($endDate)) + 1;
+                } else {
+                    $remainingDays = 0;
+                }
+
                 return [
                     'id' => $leave->id,
                     'leave_type' => $leave->leaveType->name,
                     'start_date' => $leave->start_date->format('M d, Y'),
                     'end_date' => $leave->end_date->format('M d, Y'),
                     'days' => $leave->days_requested,
+                    'remaining_days' => $remainingDays,
                 ];
             }),
             'leave_history' => $leaveHistory['entries'],
