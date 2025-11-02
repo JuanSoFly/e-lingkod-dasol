@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Models\Employee;
 use App\Models\User;
 use App\Models\Office;
+use App\Models\WorkCalendar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -111,8 +112,9 @@ class EmployeeController extends Controller
         $this->authorize('employee.create');
 
         $offices = Office::where('is_active', true)->orderBy('name')->get();
+        $workCalendars = WorkCalendar::orderBy('name')->get();
 
-        return view('employees.create', compact('offices'));
+        return view('employees.create', compact('offices', 'workCalendars'));
     }
 
     /**
@@ -203,10 +205,11 @@ class EmployeeController extends Controller
     {
         $this->authorize('employee.edit');
 
-        $employee->load(['user', 'office']);
+        $employee->load(['user', 'office', 'workCalendar']);
         $offices = Office::where('is_active', true)->orderBy('name')->get();
+        $workCalendars = WorkCalendar::orderBy('name')->get();
 
-        return view('employees.edit', compact('employee', 'offices'));
+        return view('employees.edit', compact('employee', 'offices', 'workCalendars'));
     }
 
     /**

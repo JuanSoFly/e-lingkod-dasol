@@ -39,6 +39,7 @@ class UpdateEmployeeRequest extends FormRequest
             'position' => ['required', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
             'office_id' => ['nullable', 'exists:offices,id'],
+            'work_calendar_id' => ['nullable', 'exists:work_calendars,id'],
             'employment_status' => ['required', 'string', 'max:255'],
             'date_hired' => ['required', 'date'],
             'salary_grade' => ['required', 'integer'],

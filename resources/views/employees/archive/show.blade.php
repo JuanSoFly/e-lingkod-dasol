@@ -12,7 +12,7 @@
                     </svg>
                     {{ __('Back to Archives') }}
                 </a>
-                @can('employee.delete', $employee)
+                {{-- @can('employee.delete', $employee)
                 <button onclick="restoreEmployee({{ $employee->id }}, '{{ $employee->first_name }} {{ $employee->last_name }}', 'detail')"
                         data-employee-id="{{ $employee->id }}"
                         data-action="restore"
@@ -22,7 +22,7 @@
                     </svg>
                     <span class="button-text">{{ __('Restore Employee') }}</span>
                 </button>
-                @endcan
+                @endcan --}}
             </div>
         </div>
     </x-slot>
@@ -261,7 +261,7 @@
             </div>
         </div>
 
-        <!-- Action Buttons -->
+        {{-- <!-- Action Buttons -->
         <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="px-4 py-5 sm:px-6">
                 <h3 class="text-lg leading-6 font-medium text-gray-900">
@@ -306,7 +306,7 @@
                     </a>
                 </div>
             </div>
-        </div>
+        </div> --}}
     </div>
 </x-app-layout>
 

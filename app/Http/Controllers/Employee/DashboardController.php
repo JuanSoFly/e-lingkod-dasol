@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Employee;
 use App\Http\Controllers\Controller;
 use App\Services\LeaveCardService;
 use App\Services\LeaveApplicationService;
+use App\Services\HolidayService;
 use App\Models\Employee;
 use App\Models\LeaveApplication;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ class DashboardController extends Controller
 {
     public function __construct(
         private LeaveCardService $leaveCardService,
-        private LeaveApplicationService $leaveApplicationService
+        private LeaveApplicationService $leaveApplicationService,
+        private HolidayService $holidayService
     ) {
         $this->middleware('auth');
     }
@@ -151,6 +153,10 @@ class DashboardController extends Controller
         $startDate = $request->input('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->input('end_date', now()->endOfMonth()->format('Y-m-d'));
 
+        $start = Carbon::parse($startDate)->startOfDay();
+        $end = Carbon::parse($endDate)->endOfDay();
+        $workWeek = $employee->workCalendar?->work_week;
+
         $approvedLeave = LeaveApplication::where('employee_id', $employee->id)
             ->where('status', 'approved')
             ->whereDate('start_date', '<=', $endDate)
@@ -168,8 +174,14 @@ class DashboardController extends Controller
                 ];
             });
 
+        $holidaySummaries = $this->holidayService->getHolidaySummaries($start, $end, $employee);
+        $nonWorkingDates = $this->holidayService->getNonWorkingDates($start, $end, $employee, $workWeek);
+
         return response()->json([
             'approved_leave' => $approvedLeave,
+            'holidays' => $holidaySummaries,
+            'non_working_dates' => $nonWorkingDates,
+            'work_week' => $workWeek,
         ]);
     }
 

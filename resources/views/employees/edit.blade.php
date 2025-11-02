@@ -108,6 +108,21 @@
                                 <x-input-error :messages="$errors->get('office_id')" class="mt-2" />
                             </div>
 
+                            <!-- Work Calendar -->
+                            <div>
+                                <x-input-label for="work_calendar_id" :value="__('Work Calendar')" />
+                                <select id="work_calendar_id" name="work_calendar_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+                                    <option value="">Select Work Calendar</option>
+                                    @foreach($workCalendars as $calendar)
+                                        <option value="{{ $calendar->id }}" {{ old('work_calendar_id', $employee->work_calendar_id ?? null) == $calendar->id ? 'selected' : '' }}>
+                                            {{ $calendar->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Determines how working days are counted for leave computations.</p>
+                                <x-input-error :messages="$errors->get('work_calendar_id')" class="mt-2" />
+                            </div>
+
                             <!-- Employment Status -->
                             <div>
                                 <x-input-label for="employment_status" :value="__('Employment Status')" />

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
+use App\Services\HolidayService;
 use App\Services\LeaveApplicationService;
 use App\Services\LeaveCardService;
 use App\Models\LeaveApplication;
@@ -16,7 +17,8 @@ class LeaveApplicationController extends Controller
 {
     public function __construct(
         private LeaveApplicationService $leaveApplicationService,
-        private LeaveCardService $leaveCardService
+        private LeaveCardService $leaveCardService,
+        private HolidayService $holidayService
     ) {
         $this->middleware('auth');
     }
@@ -68,6 +70,7 @@ class LeaveApplicationController extends Controller
 
             // Validate against leave policy
             $daysRequested = $this->calculateDaysRequested(
+                $employee,
                 $validated['start_date'],
                 $validated['end_date']
             );
@@ -172,6 +175,46 @@ class LeaveApplicationController extends Controller
         ]);
     }
 
+    public function calculateDays(Request $request): JsonResponse
+    {
+        $employee = auth()->user()->employee;
+
+        if (!$employee) {
+            return response()->json(['message' => 'Employee profile not found.'], 404);
+        }
+
+        $validated = $request->validate([
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+        ]);
+
+        try {
+            $days = $this->calculateDaysRequested(
+                $employee,
+                $validated['start_date'],
+                $validated['end_date']
+            );
+
+            $start = \Carbon\Carbon::parse($validated['start_date'], config('app.timezone', 'Asia/Manila'))->startOfDay();
+            $end = \Carbon\Carbon::parse($validated['end_date'], config('app.timezone', 'Asia/Manila'))->startOfDay();
+
+            $workWeek = $employee->workCalendar?->work_week;
+
+            $nonWorkingDates = $this->holidayService->getNonWorkingDates($start, $end, $employee, $workWeek);
+            $holidaySummaries = $this->holidayService->getHolidaySummaries($start, $end, $employee);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'days' => $days,
+            'non_working_dates' => $nonWorkingDates,
+            'holidays' => $holidaySummaries,
+        ]);
+    }
+
     /**
      * Withdraw a pending leave application
      */
@@ -227,6 +270,7 @@ class LeaveApplicationController extends Controller
             $daysRequested = 0;
             if (!empty($validated['start_date']) && !empty($validated['end_date'])) {
                 $daysRequested = $this->calculateDaysRequested(
+                    $employee,
                     $validated['start_date'],
                     $validated['end_date']
                 );
@@ -295,13 +339,36 @@ class LeaveApplicationController extends Controller
     /**
      * Calculate days requested for leave
      */
-    private function calculateDaysRequested(string $startDate, string $endDate): float
+    private function calculateDaysRequested(\App\Models\Employee $employee, string $startDate, string $endDate): int
     {
-        $start = \Carbon\Carbon::parse($startDate);
-        $end = \Carbon\Carbon::parse($endDate);
+        $start = \Carbon\Carbon::parse($startDate, config('app.timezone', 'Asia/Manila'))->startOfDay();
+        $end = \Carbon\Carbon::parse($endDate, config('app.timezone', 'Asia/Manila'))->startOfDay();
 
-        // Simple calculation - can be enhanced to exclude weekends/holidays
-        return $start->diffInDays($end) + 1;
+        $workWeek = $employee->workCalendar?->work_week;
+
+        $this->assertWorkingDay($employee, $start, 'start_date');
+        $this->assertWorkingDay($employee, $end, 'end_date');
+
+        $days = $this->holidayService->businessDaysBetween($start, $end, $employee, $workWeek);
+
+        if ($days <= 0) {
+            throw new \Exception('Selected date range does not include any working days.');
+        }
+
+        return $days;
+    }
+
+    private function assertWorkingDay(\App\Models\Employee $employee, \Carbon\Carbon $date, string $field): void
+    {
+        $workWeek = $employee->workCalendar?->work_week;
+
+        if (!$this->holidayService->isWorkingWeekday($date, $workWeek)) {
+            throw new \Exception(ucfirst(str_replace('_', ' ', $field)) . ' falls on a non-working day.');
+        }
+
+        if ($this->holidayService->isNonWorking($date, $employee)) {
+            throw new \Exception(ucfirst(str_replace('_', ' ', $field)) . ' falls on a non-working holiday.');
+        }
     }
 
   }

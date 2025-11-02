@@ -91,6 +91,28 @@
                         </div>
                     </div>
 
+                    <div x-show="availability.nonWorking.length" class="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-xs text-yellow-800">
+                        <p class="font-medium">Non-working dates in this range:</p>
+                        <ul class="list-disc list-inside space-y-0.5 mt-1">
+                            <template x-for="date in availability.nonWorking" :key="date">
+                                <li x-text="date"></li>
+                            </template>
+                        </ul>
+                        <template x-if="availability.holidays.length">
+                            <div class="mt-2">
+                                <p class="font-medium">Holidays:</p>
+                                <ul class="list-disc list-inside space-y-0.5 mt-1">
+                                    <template x-for="holiday in availability.holidays" :key="holiday.date">
+                                        <li>
+                                            <span x-text="holiday.date"></span>
+                                            <span class="ml-1" x-text="'- ' + holiday.name"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </template>
+                    </div>
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Reason</label>
                         <textarea x-model="application.reason" rows="3" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Please provide a reason for your leave application..." required></textarea>
@@ -237,18 +259,40 @@
                     <div class="font-medium text-gray-500 py-2">Sat</div>
                     <template x-for="day in calendarDays" :key="day.date">
                         <div
-                            class="p-2 text-sm border rounded cursor-pointer transition-colors"
+                            class="p-2 text-sm border rounded transition-colors"
                             :class="{
-                                'bg-blue-500 text-white': day.hasLeave,
-                                'bg-blue-100 text-blue-800': day.isToday,
-                                'text-gray-900 hover:bg-gray-100': !day.hasLeave && !day.isToday,
-                                'text-gray-400': !day.isCurrentMonth
+                                'bg-blue-500 text-white border-blue-500 cursor-pointer': day.hasLeave,
+                                'bg-red-100 border-red-200 text-red-700 cursor-not-allowed': !day.hasLeave && day.isHoliday && day.isNonWorking,
+                                'bg-yellow-100 border-yellow-300 text-yellow-800 cursor-not-allowed': !day.hasLeave && day.isHoliday && !day.isNonWorking,
+                                'bg-gray-100 text-gray-500 cursor-not-allowed': !day.hasLeave && !day.isHoliday && day.isNonWorking,
+                                'bg-blue-100 text-blue-800 border-blue-200 cursor-pointer': !day.hasLeave && day.isToday,
+                                'text-gray-900 hover:bg-gray-100 cursor-pointer': !day.hasLeave && !day.isHoliday && !day.isNonWorking && day.isCurrentMonth,
+                                'text-gray-400 cursor-not-allowed': !day.isCurrentMonth
                             }"
                             :title="day.leaveInfo"
                         >
                             <span x-text="day.day"></span>
                         </div>
                     </template>
+                </div>
+
+                <div class="mt-3 text-xs text-gray-600 space-y-1">
+                    <div class="flex items-center space-x-2">
+                        <span class="inline-block w-3 h-3 rounded bg-blue-500 border border-blue-500"></span>
+                        <span>Approved leave schedules</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="inline-block w-3 h-3 rounded bg-red-100 border border-red-200"></span>
+                        <span>Non-working holidays</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="inline-block w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span>
+                        <span>Special working holidays</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="inline-block w-3 h-3 rounded bg-gray-100 border border-gray-100"></span>
+                        <span>Regular non-working days per your calendar</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -320,6 +364,10 @@ function employeeDashboard() {
         upcomingLeave: @json($upcoming_leave),
         statistics: @json($statistics),
         leaveTypes: [],
+        availability: {
+            nonWorking: [],
+            holidays: []
+        },
         application: {
             leave_type_id: '',
             start_date: '',
@@ -349,18 +397,56 @@ function employeeDashboard() {
             }
         },
 
-        calculateDays() {
-            if (this.application.start_date && this.application.end_date) {
-                const start = new Date(this.application.start_date);
-                const end = new Date(this.application.end_date);
+        async calculateDays() {
+            if (!this.application.start_date || !this.application.end_date) {
+                this.application.days_requested = 0;
+                return;
+            }
 
-                if (end >= start) {
-                    const diffTime = Math.abs(end - start);
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                    this.application.days_requested = diffDays;
+            const start = new Date(this.application.start_date);
+            const end = new Date(this.application.end_date);
+
+            if (end < start) {
+                this.application.days_requested = 0;
+                return;
+            }
+
+            const token = document.querySelector('meta[name="csrf-token"]').content;
+
+            try {
+                const response = await fetch('/employee-portal/leave-applications/calculate-days', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                    },
+                    body: JSON.stringify({
+                        start_date: this.application.start_date,
+                        end_date: this.application.end_date,
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    this.application.days_requested = data.days;
+                    this.availability.nonWorking = data.non_working_dates || [];
+                    this.availability.holidays = data.holidays || [];
                 } else {
                     this.application.days_requested = 0;
+                    this.availability.nonWorking = [];
+                    this.availability.holidays = [];
+                    if (data.message) {
+                        this.showNotification(data.message, 'error');
+                    }
                 }
+            } catch (error) {
+                console.error('Error calculating working days:', error);
+                this.application.days_requested = 0;
+                this.availability.nonWorking = [];
+                this.availability.holidays = [];
+                this.showNotification('Unable to calculate working days right now. Please try again later.', 'error');
             }
         },
 
@@ -635,19 +721,59 @@ function calendarComponent() {
         calendarDays: [],
         currentMonthYear: '',
         approvedLeave: [],
+        holidayMap: {},
+        nonWorkingLookup: {},
+        workWeek: null,
 
-        init() {
-            this.loadApprovedLeave();
+        async init() {
+            await this.refreshMonth();
+        },
+
+        async refreshMonth() {
+            const { startDate, endDate } = this.getCurrentRange();
+            await this.loadCalendarData(startDate, endDate);
             this.generateCalendar();
         },
 
-        async loadApprovedLeave() {
+        getCurrentRange() {
+            const year = this.currentDate.getFullYear();
+            const month = this.currentDate.getMonth();
+            const start = new Date(year, month, 1);
+            const end = new Date(year, month + 1, 0);
+
+            return {
+                startDate: start,
+                endDate: end,
+            };
+        },
+
+        async loadCalendarData(start, end) {
+            const params = new URLSearchParams({
+                start_date: this.formatDate(start),
+                end_date: this.formatDate(end),
+            });
+
             try {
-                const response = await fetch('/employee-portal/calendar-data');
+                const response = await fetch(`/employee-portal/calendar-data?${params.toString()}`);
                 const data = await response.json();
+
                 this.approvedLeave = data.approved_leave || [];
+                this.workWeek = data.work_week || null;
+
+                this.holidayMap = (data.holidays || []).reduce((acc, holiday) => {
+                    acc[holiday.date] = holiday;
+                    return acc;
+                }, {});
+
+                this.nonWorkingLookup = (data.non_working_dates || []).reduce((acc, date) => {
+                    acc[date] = true;
+                    return acc;
+                }, {});
             } catch (error) {
-                console.error('Error loading approved leave:', error);
+                console.error('Error loading calendar data:', error);
+                this.approvedLeave = [];
+                this.holidayMap = {};
+                this.nonWorkingLookup = {};
             }
         },
 
@@ -666,20 +792,17 @@ function calendarComponent() {
 
             this.calendarDays = [];
 
-            // Previous month days
             for (let i = startingDayOfWeek - 1; i >= 0; i--) {
                 const day = prevMonthLength - i;
                 const date = new Date(year, month - 1, day);
                 this.calendarDays.push(this.createCalendarDay(date, day, false));
             }
 
-            // Current month days
             for (let day = 1; day <= monthLength; day++) {
                 const date = new Date(year, month, day);
                 this.calendarDays.push(this.createCalendarDay(date, day, true));
             }
 
-            // Next month days
             const remainingDays = 42 - this.calendarDays.length;
             for (let day = 1; day <= remainingDays; day++) {
                 const date = new Date(year, month + 1, day);
@@ -688,39 +811,55 @@ function calendarComponent() {
         },
 
         createCalendarDay(date, day, isCurrentMonth) {
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = this.formatDate(date);
             const isToday = date.toDateString() === new Date().toDateString();
-
-            let hasLeave = false;
-            let leaveInfo = '';
 
             const leaveOnDate = this.approvedLeave.find(leave =>
                 dateStr >= leave.start_date && dateStr <= leave.end_date
             );
 
+            const holiday = this.holidayMap[dateStr] || null;
+            const isHoliday = !!holiday;
+            const isNonWorking = !!this.nonWorkingLookup[dateStr];
+
+            let tooltip = '';
             if (leaveOnDate) {
-                hasLeave = true;
-                leaveInfo = `${leaveOnDate.leave_type}: ${leaveOnDate.start_date} to ${leaveOnDate.end_date}`;
+                tooltip = `${leaveOnDate.leave_type}: ${leaveOnDate.start_date} to ${leaveOnDate.end_date}`;
+            }
+
+            if (holiday) {
+                const holidayLabel = `${holiday.name}${holiday.is_non_working ? ' (non-working holiday)' : ' (special working day)'}`;
+                tooltip = tooltip ? `${holidayLabel}\n${tooltip}` : holidayLabel;
             }
 
             return {
                 date: dateStr,
-                day: day,
+                day,
                 isCurrentMonth,
                 isToday,
-                hasLeave,
-                leaveInfo
+                hasLeave: !!leaveOnDate,
+                leaveInfo: tooltip,
+                isHoliday,
+                isNonWorking,
+                holiday,
             };
         },
 
-        previousMonth() {
+        async previousMonth() {
             this.currentDate.setMonth(this.currentDate.getMonth() - 1);
-            this.generateCalendar();
+            await this.refreshMonth();
         },
 
-        nextMonth() {
+        async nextMonth() {
             this.currentDate.setMonth(this.currentDate.getMonth() + 1);
-            this.generateCalendar();
+            await this.refreshMonth();
+        },
+
+        formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
         }
     }
 }

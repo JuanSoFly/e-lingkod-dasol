@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\User;
+use App\Models\WorkCalendar;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -53,6 +54,9 @@ class EmployeeFactory extends Factory
             'date_hired' => $this->faker->date(),
             'salary_grade' => $this->faker->numberBetween(1, 20),
             'step_increment' => $this->faker->numberBetween(1, 8),
+            'work_calendar_id' => function () {
+                return WorkCalendar::query()->value('id') ?? WorkCalendar::factory()->create()->id;
+            },
         ];
     }
 

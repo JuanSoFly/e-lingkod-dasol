@@ -94,6 +94,10 @@ class StoreEmployeeRequest extends FormRequest
                 'nullable',
                 'exists:offices,id'
             ],
+            'work_calendar_id' => [
+                'required',
+                'exists:work_calendars,id'
+            ],
             'employment_status' => [
                 'required',
                 'in:probationary,regular,contractual,casual,job-order'
@@ -142,6 +146,7 @@ class StoreEmployeeRequest extends FormRequest
             'basic_salary.required' => 'Basic salary is required.',
             'basic_salary.numeric' => 'Basic salary must be a valid number.',
             'basic_salary.min' => 'Basic salary cannot be negative.',
+            'work_calendar_id.required' => 'Please select a work calendar.',
         ];
     }
 }

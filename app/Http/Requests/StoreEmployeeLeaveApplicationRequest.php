@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use App\Models\LeaveType;
+use Carbon\Carbon;
+use App\Services\HolidayService;
 
 class StoreEmployeeLeaveApplicationRequest extends FormRequest
 {
@@ -66,6 +68,7 @@ class StoreEmployeeLeaveApplicationRequest extends FormRequest
         $validator->after(function ($validator) {
             $this->validateMaternityLeaveEligibility($validator);
             $this->validatePaternityLeaveEligibility($validator);
+            $this->validateWorkingPeriod($validator);
         });
     }
 
@@ -115,6 +118,43 @@ class StoreEmployeeLeaveApplicationRequest extends FormRequest
             if (strtolower($employee->gender) !== 'male') {
                 $validator->errors()->add('leave_type_id',
                     'Paternity leave is only available for male employees.');
+            }
+        }
+    }
+
+    protected function validateWorkingPeriod($validator): void
+    {
+        $startDate = $this->input('start_date');
+        $endDate = $this->input('end_date');
+        $employee = $this->user()->employee;
+
+        if (!$employee || !$startDate || !$endDate) {
+            return;
+        }
+
+        $holidayService = app(HolidayService::class);
+
+        try {
+            $start = Carbon::parse($startDate, config('app.timezone', 'Asia/Manila'))->startOfDay();
+            $end = Carbon::parse($endDate, config('app.timezone', 'Asia/Manila'))->startOfDay();
+        } catch (\Exception $e) {
+            return;
+        }
+
+        $workWeek = $employee->workCalendar?->work_week;
+
+        if (!$holidayService->isWorkingWeekday($start, $workWeek) || $holidayService->isNonWorking($start, $employee)) {
+            $validator->errors()->add('start_date', 'Start date falls on a non-working day.');
+        }
+
+        if (!$holidayService->isWorkingWeekday($end, $workWeek) || $holidayService->isNonWorking($end, $employee)) {
+            $validator->errors()->add('end_date', 'End date falls on a non-working day.');
+        }
+
+        if (!$validator->errors()->has('start_date') && !$validator->errors()->has('end_date')) {
+            $days = $holidayService->businessDaysBetween($start, $end, $employee, $workWeek);
+            if ($days <= 0) {
+                $validator->errors()->add('end_date', 'Selected date range does not include any working days.');
             }
         }
     }

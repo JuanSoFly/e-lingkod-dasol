@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\OPCRWorkflow;
 use App\Models\OfficeAssignment;
 use App\Models\User;
+use App\Models\WorkCalendar;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -102,6 +103,7 @@ class Employee extends Model
         // Office relationships
         'office_id',
         'office_code',
+        'work_calendar_id',
         'is_department_head',
         // Archive fields
         'archived_at',
@@ -155,6 +157,11 @@ class Employee extends Model
     public function office()
     {
         return $this->belongsTo(Office::class);
+    }
+
+    public function workCalendar(): BelongsTo
+    {
+        return $this->belongsTo(WorkCalendar::class);
     }
 
     /**

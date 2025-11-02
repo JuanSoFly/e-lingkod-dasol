@@ -278,6 +278,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/leave-applications/data', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'getData'])->name('leave-applications.data');
         Route::get('/leave-applications/create', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'create'])->name('leave-applications.create');
         Route::post('/leave-applications', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'store'])->name('leave-applications.store')->middleware(\App\Http\Middleware\RateLimitLeaveApplications::class);
+        Route::post('/leave-applications/calculate-days', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'calculateDays'])->name('leave-applications.calculate-days');
         Route::post('/leave-applications/draft', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'saveDraft'])->name('leave-applications.draft')->middleware(\App\Http\Middleware\RateLimitLeaveApplications::class);
         Route::delete('/leave-applications/{leave_application}/withdraw', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'withdraw'])->name('leave-applications.withdraw');
 

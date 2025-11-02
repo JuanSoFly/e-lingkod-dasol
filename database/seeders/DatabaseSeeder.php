@@ -17,6 +17,12 @@ class DatabaseSeeder extends Seeder
         // Run the role and permission seeder
         $this->call(RoleAndPermissionSeeder::class);
 
+        // Load baseline 2025 holiday data
+        $this->call(PhilippineHolidays2025Seeder::class);
+
+        // Ensure default work calendars are available
+        $this->call(WorkCalendarSeeder::class);
+
         // Create a Super Admin who is not an employee
         $superAdminUser = User::factory()->create([
             'name' => 'Super Admin',
