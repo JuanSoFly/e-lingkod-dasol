@@ -31,12 +31,11 @@ cmds = [
 cmds = [
     "npm run build",
     "php artisan storage:link",
-    "php artisan config:cache",
-    "chmod +x start.sh"
+    "php artisan config:cache"
 ]
 
 [start]
-cmd = "./start.sh"
+cmd = "php -S 0.0.0.0:$PORT -t public"
 
 [variables]
 PHP_VERSION = "8.3"

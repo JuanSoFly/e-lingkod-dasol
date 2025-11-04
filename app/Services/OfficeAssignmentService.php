@@ -9,7 +9,6 @@ use App\Models\Employee;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use Spatie\Activitylog\Facades\CauserResolver;
 
 class OfficeAssignmentService
 {
@@ -626,24 +625,24 @@ class OfficeAssignmentService
                     // Add Department Head role if they don't have it
                     if (!$user->hasRole('Department Head')) {
                         $user->assignRole('Department Head');
-                        // Role assignment: Department Head
+                        $this->logRoleSyncActivity($user, 'Department Head', 'assigned');
                     }
 
                     // Remove Employee role if they have it (to avoid conflicts)
                     if ($user->hasRole('Employee')) {
                         $user->removeRole('Employee');
-                        // Employee role removed
+                        $this->logRoleSyncActivity($user, 'Employee', 'removed');
                     }
                 } else {
                     // Remove Department Head role if assignment is deactivated
                     if ($user->hasRole('Department Head')) {
                         $user->removeRole('Department Head');
-                        // Department Head role removed
+                        $this->logRoleSyncActivity($user, 'Department Head', 'removed');
 
                         // Add Employee role back if they don't have any other special roles
                         if (!$user->hasAnyRole(['HR Admin', 'Super Admin', 'Assessor', 'Final Approver'])) {
                             $user->assignRole('Employee');
-                            // Employee role assigned back
+                            $this->logRoleSyncActivity($user, 'Employee', 'assigned');
                         }
                     }
                 }
@@ -652,36 +651,20 @@ class OfficeAssignmentService
             case 'Assessor':
                 if ($isActive && !$user->hasRole('Assessor')) {
                     $user->assignRole('Assessor');
-                    // Activity logged
-                        'user_id' => $user->id,
-                        'role' => 'Assessor',
-                        'synced_from' => 'office_assignment',
-                    ]);
+                    $this->logRoleSyncActivity($user, 'Assessor', 'assigned');
                 } elseif (!$isActive && $user->hasRole('Assessor')) {
                     $user->removeRole('Assessor');
-                    // Activity logged
-                        'user_id' => $user->id,
-                        'role' => 'Assessor',
-                        'synced_from' => 'office_assignment',
-                    ]);
+                    $this->logRoleSyncActivity($user, 'Assessor', 'removed');
                 }
                 break;
 
             case 'Final Approver':
                 if ($isActive && !$user->hasRole('Final Approver')) {
                     $user->assignRole('Final Approver');
-                    // Activity logged
-                        'user_id' => $user->id,
-                        'role' => 'Final Approver',
-                        'synced_from' => 'office_assignment',
-                    ]);
+                    $this->logRoleSyncActivity($user, 'Final Approver', 'assigned');
                 } elseif (!$isActive && $user->hasRole('Final Approver')) {
                     $user->removeRole('Final Approver');
-                    // Activity logged
-                        'user_id' => $user->id,
-                        'role' => 'Final Approver',
-                        'synced_from' => 'office_assignment',
-                    ]);
+                    $this->logRoleSyncActivity($user, 'Final Approver', 'removed');
                 }
                 break;
         }
@@ -849,5 +832,25 @@ class OfficeAssignmentService
             'is_consistent' => empty($issues),
             'issues' => $issues
         ];
+    }
+
+    private function logRoleSyncActivity(User $user, string $role, string $action): void
+    {
+        $causer = Auth::user();
+
+        activity('office_assignment_role_sync')
+            ->causedBy($causer ?? $user)
+            ->withProperties([
+                'action' => $action,
+                'role' => $role,
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'synced_from' => 'office_assignment',
+                'performed_by' => $causer?->id,
+                'performed_by_email' => $causer?->email,
+                'office_id' => $user->office_id,
+                'timestamp' => now()->toIso8601String(),
+            ])
+            ->log("Role {$action}: {$role} for {$user->email}");
     }
 }

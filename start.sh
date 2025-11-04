@@ -3,7 +3,8 @@
 # Production startup script for E-Lingkod Dasol HRIS on Railway
 # This script ensures proper server binding and error handling
 
-set -e
+# Don't exit on error - we want the app to start even if some checks fail
+set +e
 
 echo "Starting E-Lingkod Dasol HRIS on Railway..."
 echo "Environment: ${APP_ENV:-production}"
@@ -30,17 +31,8 @@ chmod -R 755 public
 php artisan cache:clear 2>/dev/null || true
 php artisan config:clear 2>/dev/null || true
 
-# Check database connectivity before starting
-echo "Checking database connectivity..."
-timeout 10 php artisan tinker --execute="
-try {
-    \DB::connection()->getPdo();
-    echo 'Database connection: OK\n';
-} catch (\Exception \$e) {
-    echo 'Database connection: FAILED - ' . \$e->getMessage() . '\n';
-    exit(1);
-}
-" || echo "Database check timed out, continuing anyway..."
+# Database connectivity check (simplified for Railway)
+echo "Database connectivity will be checked by middleware..."
 
 # Start PHP built-in server with proper binding
 echo "Starting PHP development server..."
