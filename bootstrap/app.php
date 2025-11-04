@@ -22,6 +22,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\ValidateEmployeeRelationship::class,
         ]);
 
+        // Register global middleware for Railway
+        $middleware->append([
+            \App\Http\Middleware\TrustProxies::class,
+        ]);
+
         // Register middleware aliases
         $middleware->alias([
             'opcr.state' => \App\Http\Middleware\OPCRWorkflowStateMiddleware::class,

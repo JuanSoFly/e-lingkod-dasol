@@ -1,0 +1,59 @@
+[phases.setup]
+nixPkgs = ["php83", "php83Packages.composer", "nodejs_20", "git"]
+
+[phases.install]
+cmds = [
+    "composer install --no-dev --optimize-autoloader",
+    "npm install",
+    "npm run build"
+]
+
+[phases.build]
+cmds = [
+    "php artisan config:cache",
+    "php artisan route:cache",
+    "php artisan view:cache"
+]
+
+[start]
+cmd = "php artisan serve --host=0.0.0.0 --port=$PORT"
+
+[variables]
+PHP_VERSION = "8.3"
+NODE_VERSION = "20"
+APP_ENV = "production"
+APP_DEBUG = "false"
+LOG_CHANNEL = "stderr"
+LOG_LEVEL = "info"
+
+[phases.setup.nixPkgs]
+extend = [
+    "php83Extensions.mysql",
+    "php83Extensions.gd",
+    "php83Extensions.zip",
+    "php83Extensions.curl",
+    "php83Extensions.redis",
+    "php83Extensions.mbstring",
+    "php83Extensions.xml",
+    "php83Extensions.bcmath",
+    "php83Extensions.intl",
+    "php83Extensions.exif",
+    "php83Extensions.fileinfo",
+    "php83Extensions.tokenizer",
+    "php83Extensions.ctype",
+    "php83Extensions.json",
+    "php83Extensions.iconv",
+    "php83Extensions.posix",
+    "php83Extensions.session",
+    "php83Extensions.simplexml",
+    "php83Extensions.spl",
+    "php83Extensions.pdo",
+    "php83Extensions.pdo_mysql"
+]
+
+[healthCheck]
+httpPath = "/health"
+httpPort = "$PORT"
+interval = 30
+timeout = 10
+retries = 3
