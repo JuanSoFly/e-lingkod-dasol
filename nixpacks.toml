@@ -4,7 +4,7 @@ nixPkgs = [
     "php83Packages.composer",
     "nodejs_20",
     "git",
-    "php83Extensions.mysql",
+    "php83Extensions.mysqli",
     "php83Extensions.gd",
     "php83Extensions.zip",
     "php83Extensions.curl",
