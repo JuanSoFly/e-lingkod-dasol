@@ -2,40 +2,28 @@
 nixPkgs = [
     "php83",
     "php83Packages.composer",
-    "nodejs_22",
+    "nodejs_20",
     "git",
     "php83Extensions.mysqli",
     "php83Extensions.gd",
     "php83Extensions.zip",
     "php83Extensions.curl",
-    "php83Extensions.redis",
     "php83Extensions.mbstring",
     "php83Extensions.xml",
     "php83Extensions.bcmath",
-    "php83Extensions.intl",
-    "php83Extensions.exif",
-    "php83Extensions.fileinfo",
     "php83Extensions.tokenizer",
-    "php83Extensions.ctype",
-    "php83Extensions.iconv",
-    "php83Extensions.session",
-    "php83Extensions.simplexml",
     "php83Extensions.openssl",
-    "php83Extensions.pdo",
     "php83Extensions.pdo_mysql",
     "php83Extensions.dom",
-    "php83Extensions.filter",
-    "php83Extensions.hash",
-    "php83Extensions.json",
-    "php83Extensions.posix",
-    "php83Extensions.sockets",
-    "php83Extensions.sodium",
-    "php83Extensions.zlib"
+    "php83Extensions.fileinfo"
 ]
+
+# Pin Nixpkgs to a stable version for reproducible builds
+nixpkgsUrl = "https://github.com/NixOS/nixpkgs/archive/24.05.tar.gz"
 
 [phases.install]
 cmds = [
-    "composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader --no-scripts",
+    "composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader",
     "npm ci"
 ]
 
@@ -50,7 +38,7 @@ cmds = [
 
 [variables]
 PHP_VERSION = "8.3"
-NODE_VERSION = "22"
+NODE_VERSION = "20"
 APP_ENV = "production"
 APP_DEBUG = "false"
 APP_URL = "${RAILWAY_PUBLIC_URL}"
