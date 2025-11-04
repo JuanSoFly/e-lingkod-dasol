@@ -43,9 +43,14 @@ class LeaveApplicationService
                 'applied_date' => now(),
             ]));
 
-            $this->notifyApprovers($application);
-            
-            Log::info('Leave application created', [
+            // Initialize workflow for the application
+            $workflowService = new LeaveWorkflowService();
+            $workflowService->initializeWorkflow($application);
+
+            // Update notification method to use workflow-based routing
+            $this->notifyWorkflowApprovers($application);
+
+            Log::info('Leave application created with workflow', [
                 'application_id' => $application->id,
                 'employee_id' => $user->employee->id,
                 'leave_type' => $application->leaveType->name ?? 'Unknown',
@@ -123,6 +128,29 @@ class LeaveApplicationService
         ]);
 
         return $application;
+    }
+
+    private function notifyWorkflowApprovers(LeaveApplication $application): void
+    {
+        try {
+            // Get current pending workflow step approvers
+            $currentStep = \App\Models\LeaveApplicationWorkflowStep::where('leave_application_id', $application->id)
+                ->where('status', 'pending')
+                ->orderBy('step_order')
+                ->first();
+
+            if ($currentStep) {
+                $approvers = $currentStep->leaveWorkflowStep->getCurrentApprovers($application);
+                if (!empty($approvers)) {
+                    Notification::send($approvers, new LeaveApplicationSubmitted($application));
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to notify workflow approvers', [
+                'application_id' => $application->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function notifyApprovers(LeaveApplication $application): void

@@ -56,7 +56,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div><dt class="text-sm font-medium text-gray-500">Employee Number</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->employee_number }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Position</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->position }}</dd></div>
-                        <div><dt class="text-sm font-medium text-gray-500">Department</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->department }}</dd></div>
+                        <div><dt class="text-sm font-medium text-gray-500">Department</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->office?->name ?? $employee->department }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Employment Status</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->employment_status }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Date Hired</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->date_hired?->format('F d, Y') ?? 'Not provided' }}</dd></div>
                         <div><dt class="text-sm font-medium text-gray-500">Salary Grade</dt><dd class="mt-1 text-sm text-gray-900">{{ $employee->salary_grade }}</dd></div>

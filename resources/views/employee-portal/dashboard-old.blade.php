@@ -14,7 +14,7 @@
                     <div class="text-sm text-gray-600 space-y-1">
                         <div><span class="font-medium">Employee ID:</span> {{ $employee->employee_number }}</div>
                         <div><span class="font-medium">Position:</span> {{ $employee->position }}</div>
-                        <div><span class="font-medium">Department:</span> {{ $employee->department }}</div>
+                        <div><span class="font-medium">Department:</span> {{ $employee->office?->name ?? $employee->department }}</div>
                     </div>
                 </div>
             </div>

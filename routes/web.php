@@ -27,8 +27,17 @@ use App\Http\Controllers\SuccessIndicatorController;
 use App\Http\Controllers\OPCRWorkflowController;
 use App\Http\Controllers\OfficeController;
 use App\Http\Controllers\OfficeAssignmentController;
+use App\Http\Controllers\OPCROfficeAssignmentController;
 use App\Http\Controllers\OPCRExportController;
 use App\Http\Controllers\OPCRAnalyticsController;
+use App\Http\Controllers\IPCR\EmployeeIpcrController;
+use App\Http\Controllers\IPCR\SupervisorIpcrController;
+use App\Http\Controllers\IPCR\HeadOfOfficeIpcrController;
+use App\Http\Controllers\IPCR\PMTIpcrController;
+use App\Http\Controllers\IPCR\FinalApproverIpcrController;
+use App\Http\Controllers\IPCR\ProgressController;
+use App\Http\Controllers\IPCR\CoachingController;
+use App\Http\Controllers\IPCR\AnalyticsController;
 use App\Http\Controllers\RatingScaleController;
 use App\Http\Controllers\AuditTrailController;
 use Illuminate\Support\Facades\Route;
@@ -42,8 +51,26 @@ Route::get('/', function () {
 Route::get('/dashboard', function () {
     $user = Auth::user();
 
-    // Route Employee users directly to Employee Self-Service Portal
-    if ($user->hasRole('Employee') && !$user->hasAnyRole(['HR Admin', 'Super Admin', 'Department Head'])) {
+    // Check if user has active Department Head office assignment
+    $hasDepartmentHeadAssignment = \App\Models\OfficeAssignment::where('user_id', $user->id)
+        ->where('role', \App\Models\OfficeAssignment::ROLE_DEPARTMENT_HEAD)
+        ->where('is_active', true)
+        ->where(function ($query) {
+            $query->whereNull('ended_date')
+                  ->orWhere('ended_date', '>=', now());
+        })
+        ->exists();
+
+    // Sync user roles based on office assignments
+    if ($hasDepartmentHeadAssignment && !$user->hasRole('Department Head')) {
+        $user->assignRole('Department Head');
+        if ($user->hasRole('Employee')) {
+            $user->removeRole('Employee');
+        }
+    }
+
+    // Route Employee users directly to Employee Self-Service Portal (only if no Department Head assignment)
+    if ($user->hasRole('Employee') && !$user->hasAnyRole(['HR Admin', 'Super Admin', 'Department Head']) && !$hasDepartmentHeadAssignment) {
         return app(EmployeeSelfServiceController::class)->dashboard();
     }
 
@@ -363,13 +390,13 @@ Route::middleware('auth')->group(function () {
             Route::delete('/{office}', [OfficeController::class, 'destroy'])->name('destroy')->middleware('can:opcr.delete');
 
             // Office Assignments
-            Route::prefix('{office}/assignments')->name('assignments.')->group(function () {
-                Route::get('/', [OfficeAssignmentController::class, 'opcrIndex'])->name('index');
-                Route::get('/create', [OfficeAssignmentController::class, 'opcrCreate'])->name('create')->middleware('can:opcr.create');
-                Route::post('/', [OfficeAssignmentController::class, 'opcrStore'])->name('store')->middleware('can:opcr.create');
-                Route::get('/{assignment}/edit', [OfficeAssignmentController::class, 'opcrEdit'])->name('edit')->middleware('can:opcr.edit');
-                Route::patch('/{assignment}', [OfficeAssignmentController::class, 'opcrUpdate'])->name('update')->middleware('can:opcr.edit');
-                Route::delete('/{assignment}', [OfficeAssignmentController::class, 'destroy'])->name('destroy')->middleware('can:opcr.delete');
+            Route::prefix('{office}/assignments')->name('assignments.')->middleware('office.access')->group(function () {
+                Route::get('/', [OPCROfficeAssignmentController::class, 'index'])->name('index');
+                Route::get('/create', [OPCROfficeAssignmentController::class, 'opcrCreate'])->name('create')->middleware('can:opcr.create');
+                Route::post('/', [OPCROfficeAssignmentController::class, 'opcrStore'])->name('store')->middleware('can:opcr.create');
+                Route::get('/{assignment}/edit', [OPCROfficeAssignmentController::class, 'edit'])->name('edit')->middleware('can:opcr.edit');
+                Route::patch('/{assignment}', [OPCROfficeAssignmentController::class, 'update'])->name('update')->middleware('can:opcr.edit');
+                Route::delete('/{assignment}', [OPCROfficeAssignmentController::class, 'destroy'])->name('destroy')->middleware('can:opcr.delete');
             });
         });
 
@@ -379,6 +406,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/performance', [OPCRAnalyticsController::class, 'performance'])->name('performance');
             Route::get('/workflow', [OPCRAnalyticsController::class, 'workflow'])->name('workflow');
             Route::get('/compliance', [OPCRAnalyticsController::class, 'compliance'])->name('compliance');
+            Route::post('/compliance/reminders', [OPCRAnalyticsController::class, 'sendComplianceReminders'])->name('compliance.reminders');
             Route::get('/export', [OPCRAnalyticsController::class, 'exportAnalytics'])->name('export');
         });
 
@@ -439,6 +467,51 @@ Route::middleware('auth')->group(function () {
             Route::delete('/{period}', [PerformancePeriodController::class, 'destroy'])->name('destroy');
         });
 
+    });
+
+    Route::prefix('employee/ipcr')->name('ipcr.employee.')->middleware(['auth', 'verified'])->group(function () {
+        Route::get('/', [EmployeeIpcrController::class, 'index'])->name('index');
+        Route::get('{ipcr}', [EmployeeIpcrController::class, 'show'])->name('show');
+        Route::patch('{ipcr}', [EmployeeIpcrController::class, 'update'])->name('update');
+        Route::post('{ipcr}/submit', [EmployeeIpcrController::class, 'submit'])->name('submit');
+        Route::post('{ipcr}/progress', [ProgressController::class, 'store'])->name('progress.store');
+    });
+
+    Route::prefix('supervisor/ipcr')->name('ipcr.supervisor.')->middleware(['auth', 'verified'])->group(function () {
+        Route::get('/', [SupervisorIpcrController::class, 'index'])->name('index');
+        Route::get('{ipcr}', [SupervisorIpcrController::class, 'show'])->name('show');
+        Route::post('{ipcr}/review', [SupervisorIpcrController::class, 'review'])->name('review');
+        Route::post('{ipcr}/endorse', [SupervisorIpcrController::class, 'endorse'])->name('endorse');
+        Route::post('{ipcr}/return', [SupervisorIpcrController::class, 'returnToEmployee'])->name('return');
+        Route::post('{ipcr}/coaching', [CoachingController::class, 'store'])->name('coaching.store');
+        Route::patch('{ipcr}/actions/{action}', [CoachingController::class, 'updateAction'])->name('actions.update');
+    });
+
+    Route::prefix('head/ipcr')->name('ipcr.head.')->middleware(['auth', 'verified'])->group(function () {
+        Route::get('/', [HeadOfOfficeIpcrController::class, 'index'])->name('index');
+        Route::get('{ipcr}', [HeadOfOfficeIpcrController::class, 'show'])->name('show');
+        Route::post('{ipcr}/approve', [HeadOfOfficeIpcrController::class, 'approve'])->name('approve');
+        Route::post('{ipcr}/return', [HeadOfOfficeIpcrController::class, 'returnToSupervisor'])->name('return');
+    });
+
+    Route::prefix('pmt/ipcr')->name('ipcr.pmt.')->middleware(['auth', 'verified'])->group(function () {
+        Route::get('/', [PMTIpcrController::class, 'index'])->name('index');
+        Route::get('{ipcr}', [PMTIpcrController::class, 'show'])->name('show');
+        Route::post('{ipcr}/validate', [PMTIpcrController::class, 'validateIpcr'])->name('validate');
+        Route::post('{ipcr}/endorse', [PMTIpcrController::class, 'endorse'])->name('endorse');
+        Route::post('{ipcr}/return', [PMTIpcrController::class, 'returnToHead'])->name('return');
+    });
+
+    Route::prefix('final-approver/ipcr')->name('ipcr.final.')->middleware(['auth', 'verified'])->group(function () {
+        Route::get('/', [FinalApproverIpcrController::class, 'index'])->name('index');
+        Route::get('{ipcr}', [FinalApproverIpcrController::class, 'show'])->name('show');
+        Route::post('{ipcr}/finalize', [FinalApproverIpcrController::class, 'finalize'])->name('finalize');
+    });
+
+    Route::prefix('ipcr/analytics')->name('ipcr.analytics.')->middleware(['auth', 'verified', 'permission:ipcr.analytics'])->group(function () {
+        Route::get('/individual', [AnalyticsController::class, 'individual'])->name('individual');
+        Route::get('/office', [AnalyticsController::class, 'office'])->name('office');
+        Route::get('/compliance', [AnalyticsController::class, 'compliance'])->name('compliance');
     });
 
     // Audit Trail Management (moved outside OPCR admin group)

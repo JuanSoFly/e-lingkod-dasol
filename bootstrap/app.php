@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         \App\Console\Commands\SyncPhilippineHolidays::class,
+        \App\Console\Commands\CheckIpcrHealth::class,
+        \App\Console\Commands\SyncUserNamesWithEmployeeFullNames::class,
+        \App\Console\Commands\CleanupOrphanedUsers::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
@@ -22,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register middleware aliases
         $middleware->alias([
             'opcr.state' => \App\Http\Middleware\OPCRWorkflowStateMiddleware::class,
+            'office.access' => \App\Http\Middleware\ValidateOfficeAccess::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
         ]);
@@ -29,4 +33,3 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
-

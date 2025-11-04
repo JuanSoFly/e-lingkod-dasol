@@ -17,6 +17,7 @@ use App\Services\CreateUserService;
 use App\Services\AuditService;
 use App\Services\AuditTrailService;
 use App\Services\ArchiveService;
+use App\Services\OfficeAssignmentSynchronizationService;
 use App\Exports\EmployeesExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -29,7 +30,8 @@ class EmployeeController extends Controller
 
     public function __construct(
         private ArchiveService $archiveService,
-        private AuditTrailService $auditTrailService
+        private AuditTrailService $auditTrailService,
+        private OfficeAssignmentSynchronizationService $syncService
     ) {}
     /**
      * Display a listing of the resource.
@@ -40,7 +42,7 @@ class EmployeeController extends Controller
         AuditService::logEmployeeAccess(0, 'index_accessed', [
             'filters' => $request->only(['search', 'department', 'position', 'status']),
         ]);
-        
+
         // Employees should not see all employees list
         if (auth()->user()->hasRole('Employee')) {
             AuditService::logPrivacyViolation('employee_tried_to_access_all_employees_list', [
@@ -48,12 +50,12 @@ class EmployeeController extends Controller
             ]);
             return redirect()->route('profile.edit')->with('error', 'You can only view your own profile.');
         }
-        
+
         // Only HR Admin and Super Admin can view all employees
         $this->authorize('viewAny', Employee::class);
-        
+
         $query = Employee::with(['user', 'office']);
-        
+
         // Search functionality
         if ($request->filled('search')) {
             $search = $request->get('search');
@@ -67,17 +69,17 @@ class EmployeeController extends Controller
                   ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
             });
         }
-        
+
         // Department filter
         if ($request->filled('department')) {
             $query->where('department', $request->get('department'));
         }
-        
+
         // Position filter
         if ($request->filled('position')) {
             $query->where('position', $request->get('position'));
         }
-        
+
         // Employment status filter
         if ($request->filled('employment_status')) {
             $query->where('employment_status', $request->get('employment_status'));
@@ -92,15 +94,15 @@ class EmployeeController extends Controller
         if ($request->filled('is_department_head')) {
             $query->where('is_department_head', $request->boolean('is_department_head'));
         }
-        
+
         $employees = $query->latest()->paginate(10)->appends($request->query());
-        
+
         // Get filter options for dropdowns
         $departments = Employee::distinct()->pluck('department')->filter()->sort();
         $positions = Employee::distinct()->pluck('position')->filter()->sort();
         $employmentStatuses = Employee::distinct()->pluck('employment_status')->filter()->sort();
         $offices = Office::where('is_active', true)->orderBy('name')->get();
-        
+
         return view('employees.index', compact('employees', 'departments', 'positions', 'employmentStatuses', 'offices'));
     }
 
@@ -143,7 +145,7 @@ class EmployeeController extends Controller
             ], 422);
 
         } catch (\Exception $e) {
-            \Log::error('Employee creation failed', [
+            \Illuminate\Support\Facades\Log::error('Employee creation failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -165,7 +167,7 @@ class EmployeeController extends Controller
             'employee_number' => $employee->employee_number,
             'employee_name' => $employee->first_name . ' ' . $employee->last_name,
         ]);
-        
+
         // Employees can only view their own profile
         if (auth()->user()->hasRole('Employee')) {
             if (auth()->user()->employee?->id !== $employee->id) {
@@ -176,7 +178,7 @@ class EmployeeController extends Controller
                 abort(403, 'You can only view your own profile.');
             }
         }
-        
+
         $this->authorize('view', $employee);
 
         $employee->load(['user', 'office', 'officeAssignments.office']);
@@ -229,14 +231,77 @@ class EmployeeController extends Controller
             // Get only the fields that are actually being updated
             $newEmployeeValues = array_intersect_key($validated, $oldEmployeeValues);
 
+            // Check if office_id is being changed
+            $officeChanged = false;
+            $oldOfficeId = $oldEmployeeValues['office_id'] ?? null;
+            $newOfficeId = $validated['office_id'] ?? null;
+
+            if ($oldOfficeId !== $newOfficeId) {
+                $officeChanged = true;
+            }
+
+            // Check if department head status is being changed
+            $departmentHeadChanged = false;
+            $oldDepartmentHeadStatus = $oldEmployeeValues['is_department_head'] ?? false;
+            $newDepartmentHeadStatus = $validated['is_department_head'] ?? false;
+
+            if ($oldDepartmentHeadStatus != $newDepartmentHeadStatus) {
+                $departmentHeadChanged = true;
+            }
+
             $employee->update($validated);
 
-            // Also update the user's name and email if they changed
+            // Log department head status change specifically
+            if ($departmentHeadChanged) {
+                $statusChange = $newDepartmentHeadStatus ? 'promoted to Department Head' : 'demoted from Department Head to Member';
+                $officeName = $employee->office ? $employee->office->name : 'Unknown Office';
+
+                activity()
+                    ->causedBy(auth()->user())
+                    ->performedOn($employee)
+                    ->withProperties([
+                        'action' => 'department_head_status_change',
+                        'old_status' => $oldDepartmentHeadStatus ? 'Department Head' : 'Member',
+                        'new_status' => $newDepartmentHeadStatus ? 'Department Head' : 'Member',
+                        'office' => $officeName,
+                        'ip_address' => request()->ip()
+                    ])
+                    ->log("Employee department head status changed: {$statusChange} in {$officeName}");
+            }
+
+            // Synchronize office assignments if office changed OR if department head status changed
+            if (($officeChanged && $newOfficeId) || $departmentHeadChanged) {
+                // Determine role based on form input - always set explicit role when checkbox is present or missing
+                $explicitRole = null;
+                if (array_key_exists('is_department_head', $validated)) {
+                    $explicitRole = $validated['is_department_head'] ? 'Department Head' : 'Member';
+                } else {
+                    // If checkbox is not in validated data (unchecked), treat as false
+                    $explicitRole = 'Member';
+                }
+
+                // Use current office if not changing, otherwise use new office
+                $targetOfficeId = $newOfficeId ?? $employee->office_id;
+
+                if ($targetOfficeId) {
+                    $this->syncService->synchronizeEmployee($employee, $targetOfficeId, $explicitRole);
+                }
+            }
+
+            // Also update the user's name, email, office_id, and office_role if they changed
             if ($employee->user) {
                 $newUserValues = [
                     'name' => $validated['first_name'] . ' ' . $validated['last_name'],
                     'email' => $validated['email'],
                 ];
+
+                // Update office_id and office_role if they exist in validated data
+                if (isset($validated['office_id'])) {
+                    $newUserValues['office_id'] = $validated['office_id'];
+                }
+                if (isset($validated['office_role'])) {
+                    $newUserValues['office_role'] = $validated['office_role'];
+                }
 
                 $employee->user->update($newUserValues);
 
@@ -270,10 +335,11 @@ class EmployeeController extends Controller
             DB::transaction(function () use ($request, $employee) {
                 $oldOfficeId = $employee->office_id;
                 $oldIsDepartmentHead = $employee->is_department_head;
+                $newIsDepartmentHead = $request->boolean('is_department_head', false);
 
                 $employee->update([
                     'office_id' => $request->office_id,
-                    'is_department_head' => $request->boolean('is_department_head', false),
+                    'is_department_head' => $newIsDepartmentHead,
                 ]);
 
                 // Update user's office if they have one
@@ -281,6 +347,18 @@ class EmployeeController extends Controller
                     $employee->user->update([
                         'office_id' => $request->office_id,
                     ]);
+
+                    // Handle Department Head role assignment/removal
+                    if ($oldIsDepartmentHead !== $newIsDepartmentHead) {
+                        if ($newIsDepartmentHead) {
+                            // Assign Department Head role
+                            $employee->user->assignRole('Department Head');
+                        } else {
+                            // Remove Department Head role and assign Employee role
+                            $employee->user->removeRole('Department Head');
+                            $employee->user->assignRole('Employee');
+                        }
+                    }
                 }
 
                 // Log the office assignment change
@@ -289,7 +367,7 @@ class EmployeeController extends Controller
                     'is_department_head' => $oldIsDepartmentHead,
                 ], [
                     'office_id' => $request->office_id,
-                    'is_department_head' => $request->boolean('is_department_head', false),
+                    'is_department_head' => $newIsDepartmentHead,
                 ]);
             });
 
@@ -297,7 +375,7 @@ class EmployeeController extends Controller
                 ->with('success', 'Office assignment updated successfully.');
 
         } catch (\Exception $e) {
-            \Log::error('Failed to update employee office assignment', [
+            \Illuminate\Support\Facades\Log::error('Failed to update employee office assignment', [
                 'error' => $e->getMessage(),
                 'employee_id' => $employee->id,
                 'request_data' => $request->all(),
@@ -328,7 +406,7 @@ class EmployeeController extends Controller
                 ->with('success', "Employee {$archivedEmployee->first_name} {$archivedEmployee->last_name} has been archived successfully. You can restore them from the archive if needed.");
 
         } catch (\Exception $e) {
-            \Log::error('Failed to archive employee', [
+            \Illuminate\Support\Facades\Log::error('Failed to archive employee', [
                 'employee_id' => $employee->id,
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage()

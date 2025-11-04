@@ -79,6 +79,23 @@ class PerformanceTargetController extends Controller
         if (!$periodId || !PerformancePeriod::where('id', $periodId)->where('status', 'active')->exists()) {
             return redirect()->route('performance-targets.index')->with('error', 'You must select an active performance period to add targets.');
         }
+
+        $user = Auth::user();
+        $employee = $user->employee;
+
+        // Check if user is a system administrator (HR Admin or Super Admin)
+        $isSystemAdmin = $user->hasRole(['HR Admin', 'Super Admin']);
+
+        // For regular employees without employee profiles, redirect to dashboard
+        if (!$employee && !$isSystemAdmin) {
+            return redirect()->route('dashboard')->with('error', 'Your user account is not linked to an employee profile.');
+        }
+
+        // For system administrators without employee profiles, they need to select an employee first
+        if (!$employee && $isSystemAdmin) {
+            return redirect()->route('performance-targets.index')->with('error', 'System administrators must select an employee to create performance targets for.');
+        }
+
         $period = PerformancePeriod::find($periodId);
         return view('performance_targets.create', compact('period'));
     }
@@ -91,7 +108,21 @@ class PerformanceTargetController extends Controller
         $this->authorize('performance.create');
         $validated = $request->validated();
 
-        $employee = Auth::user()->employee;
+        $user = Auth::user();
+        $employee = $user->employee;
+
+        // Check if user is a system administrator (HR Admin or Super Admin)
+        $isSystemAdmin = $user->hasRole(['HR Admin', 'Super Admin']);
+
+        // For regular employees without employee profiles, redirect to dashboard
+        if (!$employee && !$isSystemAdmin) {
+            return redirect()->route('dashboard')->with('error', 'Your user account is not linked to an employee profile.');
+        }
+
+        // For system administrators without employee profiles, they need to select an employee
+        if (!$employee && $isSystemAdmin) {
+            return redirect()->route('performance-targets.index')->with('error', 'System administrators must select an employee to create performance targets for.');
+        }
 
         PerformanceTarget::create(array_merge($validated, [
             'employee_id' => $employee->id,

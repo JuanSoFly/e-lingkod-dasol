@@ -103,6 +103,61 @@
         </div>
     </div>
 
+    <!-- Department Head Information -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Department Head</h3>
+        </div>
+        <div class="p-6">
+            @if($office->currentDepartmentHead)
+            <div class="flex items-center">
+                <div class="flex-shrink-0 h-16 w-16">
+                    <img class="h-16 w-16 rounded-full"
+                         src="{{ $office->currentDepartmentHead->photo_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($office->currentDepartmentHead->full_name) . '&color=7F9CF5&background=EBF4FF' }}"
+                         alt="{{ $office->currentDepartmentHead->full_name }}">
+                </div>
+                <div class="ml-6">
+                    <h4 class="text-lg font-medium text-gray-900">{{ $office->currentDepartmentHead->full_name }}</h4>
+                    <p class="text-sm text-gray-500">{{ $office->currentDepartmentHead->employee_number }}</p>
+                    @if($office->currentDepartmentHead->position)
+                    <p class="text-sm text-gray-600">{{ $office->currentDepartmentHead->position }}</p>
+                    @endif
+                    <div class="mt-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            Department Head
+                        </span>
+                    </div>
+                </div>
+                <div class="ml-auto">
+                    <a href="{{ route('opcr.offices.assignments.index', $office) }}"
+                       class="inline-flex items-center px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+                        Manage Assignment
+                    </a>
+                </div>
+            </div>
+            @else
+            <div class="text-center py-8">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No Department Head Assigned</h3>
+                <p class="mt-1 text-sm text-gray-500">Assign a department head to manage this office.</p>
+                @can('opcr.create')
+                <div class="mt-4">
+                    <a href="{{ route('opcr.offices.assignments.create', $office) }}?role=Department+Head"
+                       class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        Assign Department Head
+                    </a>
+                </div>
+                @endcan
+            </div>
+            @endif
+        </div>
+    </div>
+
     <!-- Current Assignments -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">

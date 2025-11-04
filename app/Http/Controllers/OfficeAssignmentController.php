@@ -7,6 +7,7 @@ use App\Models\Office;
 use App\Models\User;
 use App\Models\Employee;
 use App\Services\AuditTrailService;
+use App\Services\OfficeAssignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -18,11 +19,13 @@ use Spatie\Permission\Models\Role;
 class OfficeAssignmentController extends Controller
 {
     private AuditTrailService $auditTrailService;
+    private OfficeAssignmentService $officeAssignmentService;
 
-    public function __construct(AuditTrailService $auditTrailService)
+    public function __construct(AuditTrailService $auditTrailService, OfficeAssignmentService $officeAssignmentService)
     {
-        $this->middleware(['auth', 'role:Super Admin|HR Admin']);
+        $this->middleware(['auth']);
         $this->auditTrailService = $auditTrailService;
+        $this->officeAssignmentService = $officeAssignmentService;
     }
 
     /**
@@ -103,54 +106,58 @@ class OfficeAssignmentController extends Controller
             'role.in' => 'Invalid role selected',
         ]);
 
-        // Check if assignment already exists
-        $existingAssignment = OfficeAssignment::where('user_id', $validated['user_id'])
-            ->where('office_id', $validated['office_id'])
-            ->where('role', $validated['role'])
-            ->first();
-
-        if ($existingAssignment) {
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'This user is already assigned to this office with the same role.');
-        }
-
         try {
-            DB::transaction(function () use ($validated) {
-                $assignment = OfficeAssignment::create([
-                    'user_id' => $validated['user_id'],
-                    'office_id' => $validated['office_id'],
-                    'role' => $validated['role'],
-                    'is_active' => $validated['is_active'] ?? true,
-                    'notes' => $validated['notes'] ?? null,
-                    'assigned_by' => auth()->id(),
-                    'assigned_at' => now(),
-                ]);
+            // Get the user and office
+            $user = User::findOrFail($validated['user_id']);
+            $office = Office::findOrFail($validated['office_id']);
 
-                // Log the assignment creation
-                $this->auditTrailService->logOfficeAssignment(
-                    'office_assignment_created',
-                    $assignment,
-                    $assignment->office,
-                    $assignment->user->employee,
-                    [
-                        'user_email' => $assignment->user->email,
-                    ]
+            // Prepare assignment data
+            $assignmentData = [
+                'is_primary' => true,
+                'remarks' => $validated['notes'] ?? null,
+                'assigned_date' => now()->toDateString(),
+            ];
+
+            // Add employee_id if user has an associated employee
+            if ($user->employee) {
+                $assignmentData['employee_id'] = $user->employee->id;
+            }
+
+            // Use service layer for automatic Department Head handling
+            if ($validated['role'] === 'Department Head') {
+                $results = $this->officeAssignmentService->assignDepartmentHead($user, $office, $assignmentData);
+
+                // Create success message with details about automatic changes
+                $successMessage = 'Department Head assigned successfully!';
+
+                if (!empty($results['deactivated_assignments'])) {
+                    foreach ($results['deactivated_assignments'] as $deactivated) {
+                        $successMessage .= ' Previous Department Head (' . $deactivated['user_name'] . ') was automatically deactivated.';
+                    }
+                }
+
+                if (!empty($results['updated_employees'])) {
+                    foreach ($results['updated_employees'] as $employee) {
+                        if ($employee['action'] === 'assigned_department_head_status') {
+                            $successMessage .= ' Employee record updated for ' . $employee['name'] . '.';
+                        }
+                    }
+                }
+
+                return redirect()->route('admin.office-assignments.index')
+                    ->with('success', $successMessage);
+            } else {
+                // For non-Department Head roles, use standard assignment
+                $assignment = $this->officeAssignmentService->assignUserToOffice(
+                    $user,
+                    $office,
+                    $validated['role'],
+                    $assignmentData
                 );
 
-                // Log user activity
-                Log::info('Office assignment created', [
-                    'assignment_id' => $assignment->id,
-                    'user_id' => $assignment->user_id,
-                    'office_id' => $assignment->office_id,
-                    'role' => $assignment->role,
-                    'created_by' => auth()->id(),
-                    'timestamp' => now()->toDateTimeString(),
-                ]);
-            });
-
-            return redirect()->route('admin.office-assignments.index')
-                ->with('success', 'Office assignment created successfully.');
+                return redirect()->route('admin.office-assignments.index')
+                    ->with('success', 'Office assignment created successfully.');
+            }
 
         } catch (\Exception $e) {
             Log::error('Failed to create office assignment', [
@@ -162,7 +169,7 @@ class OfficeAssignmentController extends Controller
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to create office assignment. Please try again.');
+                ->with('error', 'Failed to create office assignment: ' . $e->getMessage());
         }
     }
 
@@ -506,6 +513,11 @@ class OfficeAssignmentController extends Controller
      */
     public function opcrIndex(Request $request, Office $office): View
     {
+        // Check permission - Department Heads can only view their assigned offices
+        if (!auth()->user()->hasAnyRole(['Super Admin', 'HR Admin']) &&
+            !$this->userHasOfficeAccess(auth()->user(), $office)) {
+            abort(403, 'You do not have permission to view assignments for this office.');
+        }
         $query = OfficeAssignment::with(['user', 'employee', 'assignedBy'])
             ->where('office_id', $office->id)
             ->orderBy('role')
@@ -547,7 +559,15 @@ class OfficeAssignmentController extends Controller
      */
     public function opcrCreate(Office $office): View
     {
-        $employees = Employee::whereNull('deleted_at')
+        // Check permission - Department Heads can only create assignments for their offices
+        if (!auth()->user()->hasAnyRole(['Super Admin', 'HR Admin']) &&
+            !$this->userHasOfficeAccess(auth()->user(), $office)) {
+            abort(403, 'You do not have permission to create assignments for this office.');
+        }
+
+        // Get only employees belonging to this office for assignment
+        $employees = $office->employees()
+            ->whereNull('deleted_at')
             ->with(['user'])
             ->orderBy('last_name')
             ->orderBy('first_name')
@@ -574,8 +594,31 @@ class OfficeAssignmentController extends Controller
      */
     public function opcrStore(Request $request, Office $office): RedirectResponse
     {
+        // Check permission - Department Heads can only create basic staff roles for their offices
+        if (!auth()->user()->hasAnyRole(['Super Admin', 'HR Admin'])) {
+            if (!$this->userHasOfficeAccess(auth()->user(), $office)) {
+                abort(403, 'You do not have permission to create assignments for this office.');
+            }
+
+            // Department Heads can only create basic staff roles, not Assessors or Final Approvers
+            $requestedRole = $request->input('role');
+            $restrictedRoles = ['Assessor', 'Final Approver'];
+            if (in_array($requestedRole, $restrictedRoles)) {
+                abort(403, 'Department Heads cannot create ' . $requestedRole . ' assignments.');
+            }
+        }
+
         $validated = $request->validate([
-            'employee_id' => 'required|exists:employees,id',
+            'employee_id' => [
+                'required',
+                'exists:employees,id',
+                function ($attribute, $value, $fail) use ($office) {
+                    $employee = Employee::find($value);
+                    if (!$employee || !$this->employeeBelongsToOffice($employee, $office)) {
+                        $fail('The selected employee must belong to this office.');
+                    }
+                },
+            ],
             'role' => 'required|in:Department Head,Assessor,Final Approver,Staff,Supervisor,Member',
             'assigned_date' => 'required|date|before_or_equal:today',
             'ended_date' => 'nullable|date|after:assigned_date',
@@ -583,6 +626,7 @@ class OfficeAssignmentController extends Controller
             'remarks' => 'nullable|string|max:1000',
         ], [
             'employee_id.required' => 'Please select an employee',
+            'employee_id.exists' => 'The selected employee is invalid',
             'role.required' => 'Please select a role',
             'role.in' => 'Invalid role selected',
             'assigned_date.required' => 'Assignment date is required',
@@ -631,6 +675,7 @@ class OfficeAssignmentController extends Controller
                     'office_assignment_deactivated',
                     $existingAssignment,
                     $existingAssignment->office,
+                    $existingAssignment->employee,
                     [
                         'new_role' => $validated['role'],
                         'deactivation_reason' => 'New ' . $validated['role'] . ' assigned to office',
@@ -648,7 +693,7 @@ class OfficeAssignmentController extends Controller
                     'office_id' => $office->id,
                     'role' => $validated['role'],
                     'assigned_date' => $validated['assigned_date'],
-                    'ended_date' => $validated['ended_date'] ?? null,
+                    'ended_date' => empty($validated['ended_date']) ? null : $validated['ended_date'],
                     'is_active' => $validated['is_active'] ?? true,
                     'remarks' => $validated['remarks'] ?? null,
                     'assigned_by' => Auth::id(),
@@ -686,10 +731,18 @@ class OfficeAssignmentController extends Controller
      */
     public function opcrEdit(Office $office, OfficeAssignment $assignment): View
     {
+        // Check permission - Department Heads can only edit their own assignments
+        if (!auth()->user()->hasAnyRole(['Super Admin', 'HR Admin']) &&
+            !$this->userCanEditAssignment(auth()->user(), $assignment)) {
+            abort(403, 'You do not have permission to edit this assignment.');
+        }
+
         $assignment->load(['user', 'office', 'user.employee']);
 
-        $employees = Employee::with(['user'])
-            ->where('deleted_at', null)
+        // Get only employees belonging to this office for assignment
+        $employees = $office->employees()
+            ->whereNull('deleted_at')
+            ->with(['user'])
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get();
@@ -716,8 +769,23 @@ class OfficeAssignmentController extends Controller
      */
     public function opcrUpdate(Request $request, Office $office, OfficeAssignment $assignment): RedirectResponse
     {
+        // Check permission - Department Heads can only edit their own assignments
+        if (!auth()->user()->hasAnyRole(['Super Admin', 'HR Admin']) &&
+            !$this->userCanEditAssignment(auth()->user(), $assignment)) {
+            abort(403, 'You do not have permission to edit this assignment.');
+        }
+
         $validated = $request->validate([
-            'employee_id' => 'required|exists:employees,id',
+            'employee_id' => [
+                'required',
+                'exists:employees,id',
+                function ($attribute, $value, $fail) use ($office) {
+                    $employee = Employee::find($value);
+                    if (!$employee || !$this->employeeBelongsToOffice($employee, $office)) {
+                        $fail('The selected employee must belong to this office.');
+                    }
+                },
+            ],
             'role' => 'required|in:Department Head,Assessor,Final Approver,Staff,Supervisor,Member',
             'assigned_date' => 'required|date',
             'ended_date' => 'nullable|date|after_or_equal:assigned_date',
@@ -725,6 +793,7 @@ class OfficeAssignmentController extends Controller
             'remarks' => 'nullable|string|max:1000',
         ], [
             'employee_id.required' => 'Please select an employee',
+            'employee_id.exists' => 'The selected employee is invalid',
             'role.required' => 'Please select a role',
             'role.in' => 'Invalid role selected',
             'assigned_date.required' => 'Please select an assignment date',
@@ -773,6 +842,7 @@ class OfficeAssignmentController extends Controller
                     'office_assignment_deactivated',
                     $existingAssignment,
                     $existingAssignment->office,
+                    $existingAssignment->employee,
                     [
                         'new_role' => $validated['role'],
                         'deactivation_reason' => 'Updated assignment to ' . $validated['role'],
@@ -828,5 +898,56 @@ class OfficeAssignmentController extends Controller
                 ->withInput()
                 ->with('error', 'Failed to update office assignment. Please try again.');
         }
+    }
+
+    /**
+     * Check if user has access to office through active assignments
+     */
+    private function userHasOfficeAccess($user, $office): bool
+    {
+        return OfficeAssignment::where('user_id', $user->id)
+            ->where('office_id', $office->id)
+            ->where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('ended_date')
+                      ->orWhere('ended_date', '>=', now());
+            })
+            ->exists();
+    }
+
+    /**
+     * Check if user can edit assignment based on role and ownership
+     */
+    private function userCanEditAssignment($user, $assignment): bool
+    {
+        // Super Admin and HR Admin can edit all
+        if ($user->hasAnyRole(['Super Admin', 'HR Admin'])) {
+            return true;
+        }
+
+        // Department Head can only edit their own assignment
+        if ($user->hasRole('Department Head') &&
+            $assignment->user_id === $user->id &&
+            $assignment->role === 'Department Head') {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if an employee belongs to an office based on active office assignments
+     */
+    private function employeeBelongsToOffice($employee, $office): bool
+    {
+        // Primary validation: Check if employee is assigned to this office via office_id
+        if ($employee->office_id === $office->id) {
+            return true;
+        }
+
+        // Secondary validation: Check if employee has active office assignments for this office
+        return $employee->activeOfficeAssignments()
+            ->where('office_id', $office->id)
+            ->exists();
     }
 }

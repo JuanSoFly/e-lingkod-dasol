@@ -279,6 +279,47 @@
                         </x-dropdown>
                     </div>
                     @endif
+
+                    @canany(['ipcr.view-own','ipcr.review','ipcr.approve','ipcr.validate','ipcr.finalize','ipcr.analytics'])
+                        <div class="hidden xlg:flex xlg:items-center">
+                            <x-dropdown align="left" width="56">
+                                <x-slot name="trigger">
+                                    <button class="inline-flex items-center px-3 py-2 border-b-2 {{ request()->routeIs('ipcr.*') ? 'border-indigo-400 text-indigo-600' : 'border-transparent text-gray-600' }} text-sm font-medium leading-5 hover:text-gray-800 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:border-gray-300 transition-all duration-200 ease-in-out rounded-t-md group">
+                                        <div class="flex items-center space-x-1">
+                                            <svg class="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 014-4h6m2 2l-2-2m0 0l-2 2m2-2v6" />
+                                            </svg>
+                                            <span>IPCR</span>
+                                            <svg class="fill-current h-4 w-4 transition-transform duration-200 group-hover:rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                        </div>
+                                    </button>
+                                </x-slot>
+                                <x-slot name="content">
+                                    @can('ipcr.view-own')
+                                        <x-dropdown-link :href="route('ipcr.employee.index')">My IPCR</x-dropdown-link>
+                                    @endcan
+                                    @can('ipcr.review')
+                                        <x-dropdown-link :href="route('ipcr.supervisor.index')">Team IPCR Reviews</x-dropdown-link>
+                                    @endcan
+                                    @can('ipcr.approve')
+                                        <x-dropdown-link :href="route('ipcr.head.index')">Head of Office Queue</x-dropdown-link>
+                                    @endcan
+                                    @can('ipcr.validate')
+                                        <x-dropdown-link :href="route('ipcr.pmt.index')">PMT Validation</x-dropdown-link>
+                                    @endcan
+                                    @can('ipcr.finalize')
+                                        <x-dropdown-link :href="route('ipcr.final.index')">Final Approval</x-dropdown-link>
+                                    @endcan
+                                    @can('ipcr.analytics')
+                                        <div class="border-t border-gray-100 my-1"></div>
+                                        <x-dropdown-link :href="route('ipcr.analytics.individual')">Analytics: Individual</x-dropdown-link>
+                                        <x-dropdown-link :href="route('ipcr.analytics.office')">Analytics: Office</x-dropdown-link>
+                                        <x-dropdown-link :href="route('ipcr.analytics.compliance')">Analytics: Compliance</x-dropdown-link>
+                                    @endcan
+                                </x-slot>
+                            </x-dropdown>
+                        </div>
+                    @endcanany
                 </div>
             </div>
 
@@ -293,9 +334,9 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 </svg>
                                 <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                                    {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                                    {{ Auth::user()->avatar_initials }}
                                 </div>
-                                <span class="hidden md:block font-medium">{{ Auth::user()->name }}</span>
+                                <span class="hidden md:block font-medium">{{ Auth::user()->full_name }}</span>
                                 <svg class="fill-current h-4 w-4 transition-transform duration-200 group-hover:rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                 </svg>
@@ -379,6 +420,45 @@
             @can('user.manage')
                 <x-responsive-nav-link :href="route('performance-periods.index')">
                     {{ __('Manage Perf. Periods') }}
+                </x-responsive-nav-link>
+            @endcan
+
+            @can('ipcr.view-own')
+                <x-responsive-nav-link :href="route('ipcr.employee.index')" :active="request()->routeIs('ipcr.employee.*')">
+                    {{ __('My IPCR') }}
+                </x-responsive-nav-link>
+            @endcan
+            @can('ipcr.review')
+                <x-responsive-nav-link :href="route('ipcr.supervisor.index')" :active="request()->routeIs('ipcr.supervisor.*')">
+                    {{ __('Team IPCR Reviews') }}
+                </x-responsive-nav-link>
+            @endcan
+            @can('ipcr.approve')
+                <x-responsive-nav-link :href="route('ipcr.head.index')" :active="request()->routeIs('ipcr.head.*')">
+                    {{ __('Head IPCR Queue') }}
+                </x-responsive-nav-link>
+            @endcan
+            @can('ipcr.validate')
+                <x-responsive-nav-link :href="route('ipcr.pmt.index')" :active="request()->routeIs('ipcr.pmt.*')">
+                    {{ __('PMT Validation') }}
+                </x-responsive-nav-link>
+            @endcan
+            @can('ipcr.finalize')
+                <x-responsive-nav-link :href="route('ipcr.final.index')" :active="request()->routeIs('ipcr.final.*')">
+                    {{ __('Final Approval') }}
+                </x-responsive-nav-link>
+            @endcan
+            @can('ipcr.analytics')
+                <div class="border-t border-gray-200 my-2"></div>
+                <div class="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">IPCR Analytics</div>
+                <x-responsive-nav-link :href="route('ipcr.analytics.individual')" :active="request()->routeIs('ipcr.analytics.individual')">
+                    {{ __('Analytics: Individual') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('ipcr.analytics.office')" :active="request()->routeIs('ipcr.analytics.office')">
+                    {{ __('Analytics: Office') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('ipcr.analytics.compliance')" :active="request()->routeIs('ipcr.analytics.compliance')">
+                    {{ __('Analytics: Compliance') }}
                 </x-responsive-nav-link>
             @endcan
 
@@ -467,10 +547,10 @@
             <div class="px-4 mb-4">
                 <div class="flex items-center space-x-3">
                     <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                        {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                        {{ Auth::user()->avatar_initials }}
                     </div>
                     <div>
-                        <div class="font-medium text-base text-gray-900">{{ Auth::user()->name }}</div>
+                        <div class="font-medium text-base text-gray-900">{{ Auth::user()->full_name }}</div>
                         <div class="font-medium text-sm text-gray-600">{{ Auth::user()->email }}</div>
                     </div>
                 </div>

@@ -29,6 +29,9 @@ class ValidateEmployeeRelationship
             return $next($request);
         }
 
+        // Auto-sync User roles based on office assignments (CRITICAL FIX)
+        $this->syncUserRolesFromOfficeAssignments($user);
+
         // For Employee role, ensure user has linked employee profile
         if ($user->hasRole('Employee')) {
             if (!$user->employee) {
@@ -71,5 +74,73 @@ class ValidateEmployeeRelationship
         }
 
         return $user->hasAnyRole($this->roles);
+    }
+
+    /**
+     * Sync User roles from office assignments (AUTOMATIC ROLE SYNCHRONIZATION)
+     * This runs on EVERY web request to ensure User roles stay in sync with office assignments
+     */
+    private function syncUserRolesFromOfficeAssignments($user): void
+    {
+        // Get active office assignments for this user
+        $assignments = \App\Models\OfficeAssignment::where('user_id', $user->id)
+            ->where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('ended_date')
+                      ->orWhere('ended_date', '>', now()); // Fixed: > instead of >= to include today
+            })
+            ->get();
+
+        // Check for Department Head assignment
+        $hasDepartmentHeadAssignment = $assignments->contains('role', \App\Models\OfficeAssignment::ROLE_DEPARTMENT_HEAD);
+
+        // Sync Department Head role (CRITICAL: This runs every request)
+        if ($hasDepartmentHeadAssignment && !$user->hasRole('Department Head')) {
+            $user->assignRole('Department Head');
+
+            // Remove Employee role to avoid conflicts
+            if ($user->hasRole('Employee')) {
+                $user->removeRole('Employee');
+            }
+
+            Log::info('AUTO-SYNCED Department Head role from office assignment', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'synced_at' => now()->toDateTimeString(),
+                'sync_location' => 'ValidateEmployeeRelationship middleware',
+            ]);
+        } elseif (!$hasDepartmentHeadAssignment && $user->hasRole('Department Head')) {
+            // Check if user should keep Department Head role due to other reasons
+            if (!$user->hasAnyRole(['HR Admin', 'Super Admin'])) {
+                $user->removeRole('Department Head');
+
+                // Add Employee role back if no other special roles
+                if (!$user->hasAnyRole(['Assessor', 'Final Approver'])) {
+                    $user->assignRole('Employee');
+                }
+
+                Log::info('AUTO-REMOVED Department Head role (no active assignment)', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'synced_at' => now()->toDateTimeString(),
+                    'sync_location' => 'ValidateEmployeeRelationship middleware',
+                ]);
+            }
+        }
+
+        // Sync other roles as needed
+        $hasAssessorAssignment = $assignments->contains('role', \App\Models\OfficeAssignment::ROLE_ASSESSOR);
+        if ($hasAssessorAssignment && !$user->hasRole('Assessor')) {
+            $user->assignRole('Assessor');
+        } elseif (!$hasAssessorAssignment && $user->hasRole('Assessor')) {
+            $user->removeRole('Assessor');
+        }
+
+        $hasFinalApproverAssignment = $assignments->contains('role', \App\Models\OfficeAssignment::ROLE_FINAL_APPROVER);
+        if ($hasFinalApproverAssignment && !$user->hasRole('Final Approver')) {
+            $user->assignRole('Final Approver');
+        } elseif (!$hasFinalApproverAssignment && $user->hasRole('Final Approver')) {
+            $user->removeRole('Final Approver');
+        }
     }
 }

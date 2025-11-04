@@ -54,15 +54,8 @@ class HolidayService
 
     public function isWorkingWeekday(Carbon $date, ?array $workWeek = null): bool
     {
-        $workWeek ??= [
-            'mon' => 1,
-            'tue' => 1,
-            'wed' => 1,
-            'thu' => 1,
-            'fri' => 1,
-            'sat' => 0,
-            'sun' => 0,
-        ];
+        // Use the same validation logic
+        $workWeek = $this->validateAndSanitizeWorkWeek($workWeek);
 
         $map = [
             'Mon' => 'mon',
@@ -77,11 +70,50 @@ class HolidayService
         return (bool) ($workWeek[$map[$date->format('D')] ?? ''] ?? 0);
     }
 
+    /**
+     * Validate and sanitize workWeek input with proper fallbacks
+     */
+    private function validateAndSanitizeWorkWeek(?array $workWeek, ?Employee $employee = null): array
+    {
+        // Default Mon-Fri schedule
+        $defaultWorkWeek = [
+            'mon' => 1, 'tue' => 1, 'wed' => 1, 'thu' => 1, 'fri' => 1, 'sat' => 0, 'sun' => 0
+        ];
+
+        // If workWeek is provided, validate and sanitize it
+        if ($workWeek !== null) {
+            return array_merge($defaultWorkWeek, array_intersect_key($workWeek, $defaultWorkWeek));
+        }
+
+        // Try to get from employee's work calendar
+        if ($employee && $employee->workCalendar) {
+            $employeeWorkWeek = $employee->workCalendar->work_week;
+            if (is_array($employeeWorkWeek) || is_object($employeeWorkWeek)) {
+                $employeeWorkWeek = (array) $employeeWorkWeek;
+                return array_merge($defaultWorkWeek, array_intersect_key($employeeWorkWeek, $defaultWorkWeek));
+            }
+        }
+
+        // Log warning if we couldn't get proper work week data
+        if ($employee) {
+            \Log::warning('No valid work calendar found for employee', [
+                'employee_id' => $employee->id,
+                'work_calendar_id' => $employee->work_calendar_id,
+                'fallback_used' => 'Mon-Fri default'
+            ]);
+        }
+
+        return $defaultWorkWeek;
+    }
+
     public function businessDaysBetween(Carbon $start, Carbon $end, ?Employee $employee = null, ?array $workWeek = null): int
     {
         if ($end->lt($start)) {
             [$start, $end] = [$end, $start];
         }
+
+        // Validate and sanitize workWeek input
+        $workWeek = $this->validateAndSanitizeWorkWeek($workWeek, $employee);
 
         $count = 0;
         foreach (CarbonPeriod::create($start, $end) as $day) {

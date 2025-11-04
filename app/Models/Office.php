@@ -108,6 +108,14 @@ class Office extends Model
     }
 
     /**
+     * Get IPCR records associated with this office
+     */
+    public function ipcrs(): HasMany
+    {
+        return $this->hasMany(Ipcr::class);
+    }
+
+    /**
      * Get employees assigned to this office through assignments
      */
     public function employeesThroughAssignments(): HasManyThrough
@@ -123,42 +131,27 @@ class Office extends Model
     }
 
     /**
-     * Get employees belonging to this office based on department matching
+     * Get employees assigned to this office through active assignments
      */
     public function employees()
     {
-        return $this->hasMany(Employee::class, 'office_id');
+        return Employee::whereHas('officeAssignments', function ($query) {
+            $query->where('office_assignments.office_id', $this->id)
+                  ->where('office_assignments.is_active', true)
+                  ->where(function ($q) {
+                      $q->whereNull('office_assignments.ended_date')
+                        ->orWhere('office_assignments.ended_date', '>=', now());
+                  });
+        })->distinct();
     }
 
     /**
-     * Get employee count for this office based on department matching
+     * Get employee count for this office based on active assignments
      */
     public function getEmployeesCountAttribute()
     {
-        $query = Employee::where(function ($q) {
-            // Direct department name match
-            $q->where('department', $this->name);
-
-            // Handle specific department mappings for variations
-            $departmentMappings = [
-                'Business Permit and Licensing Office' => ['Business Permits and Licensing Office'],
-                'Municipal Civil Registrar\'s Office' => ['Local Civil Registry Office'],
-                'Municipal Agriculture Office' => ['Municipal Agriculturist\'s Office'],
-                'Assessor\'s Office' => ['Municipal Assessor\'s Office'],
-                'Accounting Office' => ['Office of the Municipal Accountant'],
-                'Budget and Treasury Office' => ['Office of the Municipal Budget Office', 'Municipal Treasurer\'s Office'],
-                'Cooperatives and Tourist Office' => ['Municipal Tourism and Cultural Affairs Office'],
-                'Municipal Health Office' => ['Rural Health Unit'],
-            ];
-
-            foreach ($departmentMappings as $officeName => $departments) {
-                if ($this->name === $officeName) {
-                    $q->orWhereIn('department', $departments);
-                }
-            }
-        });
-
-        return $query->count();
+        // Count employees through active office assignments (consistent with OPCR system)
+        return $this->employees()->count();
     }
 
     /**
@@ -334,8 +327,12 @@ class Office extends Model
      */
     public function getStatisticsAttribute(): array
     {
+        $currentDepartmentHead = $this->getCurrentDepartmentHead();
+
         return [
             'total_employees' => $this->employees()->count(),
+            'active_assignments' => $this->activeAssignments()->count(),
+            'unique_employees' => $this->activeAssignments()->distinct('employee_id')->count('employee_id'),
             'active_mfos' => $this->majorFinalOutputs()->where('is_active', true)->count(),
             'total_success_indicators' => $this->activeMajorFinalOutputs()
                 ->withCount('activeSuccessIndicators')
@@ -347,10 +344,10 @@ class Office extends Model
             'completed_workflows' => $this->opcrWorkflows()
                 ->where('workflow_state', 'final_approval')
                 ->count(),
-            'department_head' => $this->departmentHead ? [
-                'id' => $this->departmentHead->id,
-                'name' => $this->departmentHead->full_name,
-                'employee_number' => $this->departmentHead->employee_number,
+            'department_head' => $currentDepartmentHead ? [
+                'id' => $currentDepartmentHead->id,
+                'name' => $currentDepartmentHead->full_name,
+                'employee_number' => $currentDepartmentHead->employee_number,
             ] : null,
         ];
     }
@@ -373,6 +370,67 @@ class Office extends Model
     public function getDepartmentHeadsAttribute(): Collection
     {
         return $this->getUsersByRole('Department Head');
+    }
+
+    /**
+     * Get the current department head with fallback to assignments table
+     */
+    public function getCurrentDepartmentHead()
+    {
+        // First try to get from assignments table (preferred approach)
+        $currentAssignment = $this->activeAssignments()
+            ->where('role', 'Department Head')
+            ->with('employee')
+            ->first();
+
+        if ($currentAssignment && $currentAssignment->employee_id) {
+            return $currentAssignment->employee;
+        }
+
+        // Fallback to legacy department_head_id field
+        return $this->departmentHead;
+    }
+
+    /**
+     * Get the department head name attribute with fallback
+     */
+    public function getDepartmentHeadNameAttribute(): string
+    {
+        $deptHead = $this->getCurrentDepartmentHead();
+
+        if ($deptHead) {
+            return $deptHead->full_name;
+        }
+
+        return 'Not Assigned';
+    }
+
+    /**
+     * Get the current department head (alias for getCurrentDepartmentHead)
+     */
+    public function getCurrentDepartmentHeadAttribute()
+    {
+        return $this->getCurrentDepartmentHead();
+    }
+
+    /**
+     * Get department head information for display
+     */
+    public function getDepartmentHeadInfoAttribute(): ?array
+    {
+        $deptHead = $this->getCurrentDepartmentHead();
+
+        if ($deptHead) {
+            return [
+                'id' => $deptHead->id,
+                'name' => $deptHead->full_name,
+                'employee_number' => $deptHead->employee_number,
+                'position' => $deptHead->position ?? 'Department Head',
+                'photo' => $deptHead->photo_url ?? null,
+            ];
+        }
+
+        return null;
     }
 
     /**
@@ -530,8 +588,8 @@ class Office extends Model
      */
     public function canBeDeleted(): bool
     {
-        // Check if office has active employees
-        if ($this->employees()->exists()) {
+        // Check if office has active employee assignments
+        if ($this->activeAssignments()->exists()) {
             return false;
         }
 

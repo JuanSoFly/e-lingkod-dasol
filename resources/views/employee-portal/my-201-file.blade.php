@@ -54,7 +54,7 @@
                     </div>
                     <div>
                         <h3 class="text-sm font-medium text-gray-500">Department</h3>
-                        <p class="text-lg font-medium text-gray-900">{{ $employee->department }}</p>
+                        <p class="text-lg font-medium text-gray-900">{{ $employee->office?->name ?? $employee->department }}</p>
                     </div>
                     <div>
                         <h3 class="text-sm font-medium text-gray-500">Date Hired</h3>

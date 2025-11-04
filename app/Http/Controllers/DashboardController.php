@@ -46,10 +46,39 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
-        // Redirect Employee role users to their dedicated portal
-        if ($user->hasRole('Employee') && !$user->hasAnyRole(['HR Admin', 'Super Admin', 'Department Head'])) {
-            return redirect()->route('employee-portal.dashboard');
+
+        // Check office assignments for Department Head status BEFORE role-based redirect
+        $this->syncUserRoleFromOfficeAssignments($user);
+
+        // Reload user to get updated roles after sync
+        $user->refresh();
+        $user->load('roles');
+
+        // IMPORTANT: Check office assignments directly instead of just roles
+        $hasDepartmentHeadAssignment = \App\Models\OfficeAssignment::where('user_id', $user->id)
+            ->where('role', \App\Models\OfficeAssignment::ROLE_DEPARTMENT_HEAD)
+            ->where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('ended_date')
+                      ->orWhere('ended_date', '>=', now());
+            })
+            ->exists();
+
+        // If user has Department Head assignment, show main dashboard, NOT employee portal
+        if ($hasDepartmentHeadAssignment) {
+            // Ensure user has Department Head role
+            if (!$user->hasRole('Department Head')) {
+                $user->assignRole('Department Head');
+                if ($user->hasRole('Employee')) {
+                    $user->removeRole('Employee');
+                }
+            }
+            // Continue to main dashboard (Department Head view)
+        } else {
+            // Redirect Employee role users to their dedicated portal
+            if ($user->hasRole('Employee') && !$user->hasAnyRole(['HR Admin', 'Super Admin'])) {
+                return redirect()->route('employee-portal.dashboard');
+            }
         }
         
         try {
@@ -72,11 +101,21 @@ class DashboardController extends Controller
             $upcomingBirthdays = $dashboardData['upcoming_birthdays'] ?? collect([]);
             
                       // Get OPCR-specific data if user has OPCR permissions
-            // Temporarily disabled to fix redirect loop
             $opcrData = [];
-            // if ($user->can('opcr.view') || $user->hasAnyRole(['Department Head', 'Assessor', 'Final Approver'])) {
-            //     $opcrData = $this->getOPCRDashboardData($user);
-            // }
+            if ($user->can('opcr.view') || $user->hasAnyRole(['Department Head', 'Assessor', 'Final Approver'])) {
+                try {
+                    $opcrData = $this->getOPCRDashboardData($user);
+                } catch (\Exception $e) {
+                    \Log::error('OPCR dashboard data retrieval failed', [
+                        'user_id' => $user->id,
+                        'user_email' => $user->email,
+                        'user_roles' => $user->getRoleNames()->toArray(),
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    $opcrData = [];
+                }
+            }
 
             return view('dashboard', [
                 // Legacy data for existing blade templates
@@ -344,6 +383,75 @@ class DashboardController extends Controller
         }
 
         return $context;
+    }
+
+    /**
+     * Sync User roles from their office assignments (for role synchronization fix)
+     */
+    private function syncUserRoleFromOfficeAssignments($user): void
+    {
+        // Get active office assignments for this user
+        $assignments = \App\Models\OfficeAssignment::where('user_id', $user->id)
+            ->where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('ended_date')
+                      ->orWhere('ended_date', '>=', now());
+            })
+            ->get();
+
+        // Check for Department Head assignment
+        $hasDepartmentHeadAssignment = $assignments->contains('role', \App\Models\OfficeAssignment::ROLE_DEPARTMENT_HEAD);
+
+        // Sync Department Head role
+        if ($hasDepartmentHeadAssignment && !$user->hasRole('Department Head')) {
+            $user->assignRole('Department Head');
+
+            // Remove Employee role to avoid conflicts
+            if ($user->hasRole('Employee')) {
+                $user->removeRole('Employee');
+            }
+
+            Log::info('Auto-synced Department Head role from office assignment', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'synced_at' => now()->toDateTimeString(),
+            ]);
+        } elseif (!$hasDepartmentHeadAssignment && $user->hasRole('Department Head')) {
+            // Check if user should keep Department Head role due to other assignments
+            $shouldKeepRole = false;
+
+            // Only remove if no other reason to have the role
+            if (!$user->hasAnyRole(['HR Admin', 'Super Admin'])) {
+                $user->removeRole('Department Head');
+
+                // Add Employee role back if no other special roles
+                if (!$user->hasAnyRole(['Assessor', 'Final Approver'])) {
+                    $user->assignRole('Employee');
+                }
+
+                Log::info('Auto-removed Department Head role (no active assignment)', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'synced_at' => now()->toDateTimeString(),
+                ]);
+            }
+        }
+
+        // Sync Assessor role
+        $hasAssessorAssignment = $assignments->contains('role', \App\Models\OfficeAssignment::ROLE_ASSESSOR);
+        if ($hasAssessorAssignment && !$user->hasRole('Assessor')) {
+            $user->assignRole('Assessor');
+        } elseif (!$hasAssessorAssignment && $user->hasRole('Assessor')) {
+            $user->removeRole('Assessor');
+        }
+
+        // Sync Final Approver role
+        $hasFinalApproverAssignment = $assignments->contains('role', \App\Models\OfficeAssignment::ROLE_FINAL_APPROVER);
+        if ($hasFinalApproverAssignment && !$user->hasRole('Final Approver')) {
+            $user->assignRole('Final Approver');
+        } elseif (!$hasFinalApproverAssignment && $user->hasRole('Final Approver')) {
+            $user->removeRole('Final Approver');
+        }
     }
 
     /**

@@ -73,7 +73,7 @@
                 @error('employee_id')
                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                 @enderror
-                <p class="mt-1 text-sm text-gray-500">Search for an employee to assign to this office.</p>
+                <p class="mt-1 text-sm text-gray-500">Only employees from this office are available for assignment.</p>
             </div>
 
             <!-- Role Selection -->
@@ -84,16 +84,30 @@
                 <select id="role" name="role" required
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="">Select a role...</option>
+                    @if(auth()->user()->hasAnyRole(['Super Admin', 'HR Admin']))
                     <option value="Department Head">Department Head</option>
                     <option value="Assessor">Assessor (PMT)</option>
                     <option value="Final Approver">Final Approver (Mayor)</option>
                     <option value="Staff">Staff</option>
                     <option value="Supervisor">Supervisor</option>
                     <option value="Member">Member</option>
+                    @else
+                    <!-- Department Heads can only create basic staff roles -->
+                    <option value="Staff">Staff</option>
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Member">Member</option>
+                    @endif
                 </select>
                 @error('role')
                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                 @enderror
+
+                @if(auth()->user()->hasRole('Department Head') && !auth()->user()->hasAnyRole(['HR Admin', 'Super Admin']))
+                <p class="mt-1 text-sm text-blue-600">
+                    <strong>Note:</strong> As a Department Head, you can only create staff-level assignments.
+                    Contact HR Admin to create Department Head, Assessor, or Final Approver assignments.
+                </p>
+                @endif
             </div>
 
             <!-- Role Descriptions -->
@@ -301,15 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize preview on page load
     updatePreview();
 
-    // Employee search enhancement
-    $(document).ready(function() {
-        $('#employee_id').select2({
-            placeholder: 'Search for an employee...',
-            allowClear: true,
-            width: '100%'
-        });
     });
-});
 </script>
 @endpush
 @endsection

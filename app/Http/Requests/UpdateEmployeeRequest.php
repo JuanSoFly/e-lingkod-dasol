@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Rules\GovernmentIdFormat;
 
 class UpdateEmployeeRequest extends FormRequest
 {
@@ -39,12 +40,45 @@ class UpdateEmployeeRequest extends FormRequest
             'position' => ['required', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
             'office_id' => ['nullable', 'exists:offices,id'],
+            'office_role' => ['nullable', 'string', 'max:255'],
+            'is_department_head' => ['nullable', 'boolean'],
             'work_calendar_id' => ['nullable', 'exists:work_calendars,id'],
             'employment_status' => ['required', 'string', 'max:255'],
             'date_hired' => ['required', 'date'],
             'salary_grade' => ['required', 'integer'],
             'step_increment' => ['required', 'integer'],
             'basic_salary' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            // Government ID validation
+            'tin_number' => [
+                'nullable',
+                'string',
+                'max:20',
+                new GovernmentIdFormat('tin')
+            ],
+            'sss_number' => [
+                'nullable',
+                'string',
+                'max:20',
+                new GovernmentIdFormat('sss')
+            ],
+            'pagibig_number' => [
+                'nullable',
+                'string',
+                'max:20',
+                new GovernmentIdFormat('pagibig')
+            ],
+            'philhealth_number' => [
+                'nullable',
+                'string',
+                'max:20',
+                new GovernmentIdFormat('philhealth')
+            ],
+            'gsis_number' => [
+                'nullable',
+                'string',
+                'max:20',
+                new GovernmentIdFormat('gsis')
+            ],
         ];
     }
 }

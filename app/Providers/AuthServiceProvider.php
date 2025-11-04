@@ -11,6 +11,8 @@ use App\Policies\PerformanceTargetPolicy;
 use App\Models\Employee;
 use App\Policies\EmployeePolicy;
 use App\Policies\PDSPolicy;
+use App\Models\Ipcr;
+use App\Policies\IpcrPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -26,6 +28,7 @@ class AuthServiceProvider extends ServiceProvider
         PerformanceTarget::class => PerformanceTargetPolicy::class,
         EmployeeDocument::class => EmployeeDocumentPolicy::class,
         Employee::class => EmployeePolicy::class,
+        Ipcr::class => IpcrPolicy::class,
         // Register PDS policy - but we'll use gates for more granular control
         // Employee::class => PDSPolicy::class,
     ];

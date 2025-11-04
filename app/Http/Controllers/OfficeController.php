@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Office;
 use App\Models\Employee;
+use App\Models\OfficeAssignment;
 use App\Models\MajorFinalOutput;
 use App\Services\MFOHierarchyService;
 use App\Http\Requests\StoreOfficeRequest;
@@ -223,12 +224,14 @@ class OfficeController extends Controller
             ->orderBy('full_path')
             ->get();
 
-        $employees = Employee::whereNull('deleted_at')
+        // Get only employees belonging to this office for department head selection
+        $departmentHeadCandidates = $office->employees()
+            ->whereNull('deleted_at')
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get();
 
-        return view('admin.offices.edit', compact('office', 'parentOffices', 'employees'));
+        return view('admin.offices.edit', compact('office', 'parentOffices', 'departmentHeadCandidates'));
     }
 
     /**
@@ -237,7 +240,15 @@ class OfficeController extends Controller
     public function update(UpdateOfficeRequest $request, Office $office): RedirectResponse
     {
         try {
-            $office->update($request->validated());
+            $validated = $request->validated();
+            $oldDepartmentHeadId = $office->department_head_id;
+
+            $office->update($validated);
+
+            // If department head changed, sync the assignments
+            if (isset($validated['department_head_id']) && $validated['department_head_id'] !== $oldDepartmentHeadId) {
+                $this->syncDepartmentHeadAssignment($office);
+            }
 
             Activity::log('Office updated', [
                 'office_id' => $office->id,
@@ -245,14 +256,146 @@ class OfficeController extends Controller
                 'updated_by' => Auth::id(),
             ]);
 
-            return redirect()
-                ->route('offices.show', $office)
+            // Determine the correct redirect route based on referrer
+            $redirectRoute = request()->header('referer') && str_contains(request()->header('referer'), '/opcr/')
+                ? route('opcr.offices.show', $office)
+                : route('offices.show', $office);
+
+            return redirect($redirectRoute)
                 ->with('success', 'Office updated successfully.');
         } catch (\Exception $e) {
             return back()
                 ->withInput()
                 ->withErrors(['error' => 'Failed to update office: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Sync department head assignments when office department_head_id changes
+     */
+    private function syncDepartmentHeadAssignment(Office $office): void
+    {
+        $departmentHeadId = $office->department_head_id;
+
+        if (!$departmentHeadId) {
+            // No department head assigned, deactivate all department head assignments
+            OfficeAssignment::where('office_id', $office->id)
+                ->where('role', OfficeAssignment::ROLE_DEPARTMENT_HEAD)
+                ->where('is_active', true)
+                ->update([
+                    'is_active' => false,
+                    'ended_date' => now(),
+                ]);
+
+            // Clear employee department head fields for this office
+            $this->updateEmployeeDepartmentHeadFields($office, null);
+
+            // Remove Department Head role from previous department head user
+            $previousDepartmentHead = Employee::where('is_department_head', true)
+                ->where('office_code', $office->code)
+                ->first();
+            if ($previousDepartmentHead && $previousDepartmentHead->user) {
+                $this->syncDepartmentHeadUserRoles($previousDepartmentHead->user, false);
+            }
+
+            return;
+        }
+
+        // Get the employee and user for the department head
+        $departmentHead = Employee::find($departmentHeadId);
+        if (!$departmentHead || !$departmentHead->user) {
+            // Clear employee department head fields if invalid assignment
+            $this->updateEmployeeDepartmentHeadFields($office, null);
+            return;
+        }
+
+        // Deactivate existing department head assignments
+        OfficeAssignment::where('office_id', $office->id)
+            ->where('role', OfficeAssignment::ROLE_DEPARTMENT_HEAD)
+            ->where('is_active', true)
+            ->where('user_id', '!=', $departmentHead->user_id)
+            ->update([
+                'is_active' => false,
+                'ended_date' => now(),
+            ]);
+
+        // Check if there's already an active assignment for this user
+        $existingAssignment = OfficeAssignment::where('office_id', $office->id)
+            ->where('role', OfficeAssignment::ROLE_DEPARTMENT_HEAD)
+            ->where('user_id', $departmentHead->user_id)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$existingAssignment) {
+            // Create new assignment if none exists
+            OfficeAssignment::updateOrCreate(
+                [
+                    'office_id' => $office->id,
+                    'user_id' => $departmentHead->user_id,
+                    'role' => OfficeAssignment::ROLE_DEPARTMENT_HEAD,
+                ],
+                [
+                    'employee_id' => $departmentHeadId,
+                    'assigned_date' => now(),
+                    'is_active' => true,
+                    'ended_date' => null,
+                    'assigned_by' => Auth::id(),
+                ]
+            );
+        } else {
+            // Update existing assignment to ensure it has correct employee_id
+            $existingAssignment->update([
+                'employee_id' => $departmentHeadId,
+                'is_active' => true,
+                'ended_date' => null,
+            ]);
+        }
+
+        // Update employee department head fields
+        $this->updateEmployeeDepartmentHeadFields($office, $departmentHead);
+
+        // Sync User roles for the department head
+        if ($departmentHead && $departmentHead->user) {
+            $this->syncDepartmentHeadUserRoles($departmentHead->user);
+        }
+    }
+
+    /**
+     * Update employee fields when department head assignment changes
+     */
+    private function updateEmployeeDepartmentHeadFields(Office $office, ?Employee $newDepartmentHead): void
+    {
+        DB::transaction(function () use ($office, $newDepartmentHead) {
+            // Find and demote previous department head for this office
+            $previousDepartmentHead = Employee::where('is_department_head', true)
+                ->where('office_code', $office->code)
+                ->first();
+
+            if ($previousDepartmentHead && $previousDepartmentHead->id !== $newDepartmentHead?->id) {
+                $previousDepartmentHead->update([
+                    'is_department_head' => false,
+                    'position' => null,
+                    'department' => null,
+                    'office_code' => null,
+                ]);
+
+                // Log the demotion
+                Activity::log("Demoted previous department head: {$previousDepartmentHead->full_name} from office {$office->name}");
+            }
+
+            // Update new department head employee fields if provided
+            if ($newDepartmentHead) {
+                $newDepartmentHead->update([
+                    'is_department_head' => true,
+                    'office_code' => $office->code,
+                    'position' => $office->head_title,
+                    'department' => $office->name,
+                ]);
+
+                // Log the promotion
+                Activity::log("Appointed new department head: {$newDepartmentHead->full_name} for office {$office->name}");
+            }
+        });
     }
 
     /**
@@ -452,6 +595,79 @@ class OfficeController extends Controller
     }
 
     /**
+     * Sync User roles for Department Head assignments
+     */
+    private function syncDepartmentHeadUserRoles(\App\Models\User $user, bool $isDepartmentHead = true): void
+    {
+        // Get employee data for user table updates
+        $employee = $user->employee;
+
+        // Update user table fields based on assignment
+        if ($employee) {
+            $updateData = [
+                'position' => $employee->position,
+                'department' => $employee->department,
+                'is_department_head' => $isDepartmentHead,
+                'office_role' => $isDepartmentHead ? 'Department Head' : 'Member',
+            ];
+
+            $user->update($updateData);
+
+            Activity::log('Updated user table fields', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'position' => $updateData['position'],
+                'department' => $updateData['department'],
+                'office_role' => $updateData['office_role'],
+                'is_department_head' => $updateData['is_department_head'],
+                'updated_by' => Auth::id(),
+            ]);
+        }
+
+        if ($isDepartmentHead) {
+            // Add Department Head role if they don't have it
+            if (!$user->hasRole('Department Head')) {
+                $user->assignRole('Department Head');
+                Activity::log("Assigned Department Head role to user: {$user->name}", [
+                    'user_id' => $user->id,
+                    'role' => 'Department Head',
+                    'assigned_by' => Auth::id(),
+                ]);
+            }
+
+            // Remove Employee role if they have it (to avoid conflicts)
+            if ($user->hasRole('Employee')) {
+                $user->removeRole('Employee');
+                Activity::log("Removed Employee role from Department Head: {$user->name}", [
+                    'user_id' => $user->id,
+                    'role' => 'Employee',
+                    'removed_by' => Auth::id(),
+                ]);
+            }
+        } else {
+            // Remove Department Head role if no longer department head
+            if ($user->hasRole('Department Head')) {
+                $user->removeRole('Department Head');
+                Activity::log("Removed Department Head role from user: {$user->name}", [
+                    'user_id' => $user->id,
+                    'role' => 'Department Head',
+                    'removed_by' => Auth::id(),
+                ]);
+
+                // Add Employee role back if they don't have any other special roles
+                if (!$user->hasAnyRole(['HR Admin', 'Super Admin', 'Assessor', 'Final Approver'])) {
+                    $user->assignRole('Employee');
+                    Activity::log("Assigned Employee role back to user: {$user->name}", [
+                        'user_id' => $user->id,
+                        'role' => 'Employee',
+                        'assigned_by' => Auth::id(),
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
      * Bulk update offices
      */
     public function bulkUpdate(Request $request): RedirectResponse
@@ -513,6 +729,20 @@ class OfficeController extends Controller
     {
         $query = Office::where('is_active', true);
 
+        // Department Head access control: Show only offices where they have active assignments
+        if (auth()->user()->hasRole('Department Head') && !auth()->user()->hasAnyRole(['HR Admin', 'Super Admin'])) {
+            $userOfficeIds = OfficeAssignment::where('user_id', auth()->id())
+                ->where('is_active', true)
+                ->where(function ($query) {
+                    $query->whereNull('ended_date')
+                          ->orWhere('ended_date', '>=', now());
+                })
+                ->pluck('office_id')
+                ->toArray();
+
+            $query->whereIn('offices.id', $userOfficeIds);
+        }
+
         // Apply filters
         if ($request->filled('search')) {
             $search = $request->search;
@@ -527,7 +757,14 @@ class OfficeController extends Controller
             $query->where('level', $request->level);
         }
 
-        $offices = $query->orderBy('level')
+        $offices = $query->with([
+                'departmentHead',
+                'activeAssignments' => function ($query) {
+                    $query->where('role', 'Department Head')
+                          ->with('employee');
+                }
+            ])
+            ->orderBy('level')
             ->orderBy('code')
             ->paginate(12)
             ->withQueryString();
@@ -559,18 +796,20 @@ class OfficeController extends Controller
                 $query->where('is_active', true);
             },
             'departmentHead',
-            'employees' => function ($query) {
-                $query->where('employees.employment_status', 'active')
-                    ->orderBy('last_name')
-                    ->orderBy('first_name')
-                    ->limit(10);
-            },
             'assignments' => function ($query) {
                 $query->with(['user', 'employee'])
                     ->where('is_active', true)
                     ->orderBy('role');
             }
         ]);
+
+        // Get employees separately since employees() is not a proper relationship
+        $employees = $office->employees()
+            ->where('employment_status', 'active')
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->limit(10)
+            ->get();
 
         // Get office statistics
         $stats = [
@@ -580,7 +819,7 @@ class OfficeController extends Controller
             'opcr_workflows' => $office->opcrWorkflows->count(),
         ];
 
-        return view('opcr.offices.show', compact('office', 'stats'));
+        return view('opcr.offices.show', compact('office', 'employees', 'stats'));
     }
 
     /**

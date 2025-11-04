@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LeaveApplication;
 use App\Models\LeaveType;
 use App\Models\Employee;
+use App\Models\User;
 use App\Services\LeaveApplicationService;
 use App\Services\LeaveCardService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -99,7 +100,7 @@ class LeaveApplicationController extends Controller
     }
 
     /**
-     * Approve leave application and update leave card
+     * Approve leave application through workflow
      */
     public function approve(Request $request, LeaveApplication $leaveApplication)
     {
@@ -125,66 +126,37 @@ class LeaveApplicationController extends Controller
         }
 
         try {
-            DB::beginTransaction();
+            // Find the current pending workflow step for this approver
+            $currentStep = $this->findApprovableWorkflowStep($leaveApplication, auth()->user());
 
-            // Lock employee's leave records to prevent race conditions
-            $employeeId = $leaveApplication->employee_id;
-            $year = $leaveApplication->start_date->year;
-
-            // Lock LeaveCard records for this employee/year
-            $lockedLeaveCard = \App\Models\LeaveCard::where('employee_id', $employeeId)
-                ->where('year', $year)
-                ->lockForUpdate()
-                ->first();
-
-            // Lock LeaveCredit records for this employee/year
-            $lockedLeaveCredits = \App\Models\LeaveCredit::where('employee_id', $employeeId)
-                ->where('year', $year)
-                ->lockForUpdate()
-                ->get();
-
-            // Re-validate balance with locked records
-            $lockedBalances = $this->leaveCardService->getCurrentBalances($leaveApplication->employee);
-            $availableBalance = 0;
-            if ($leaveTypeCode === 'VL') {
-                $availableBalance = $lockedBalances['vl_balance'] ?? 0;
-            } elseif ($leaveTypeCode === 'SL') {
-                $availableBalance = $lockedBalances['sl_balance'] ?? 0;
-            } else {
-                $availableBalance = $lockedBalances[$leaveTypeCode] ?? 0;
+            if (!$currentStep) {
+                return back()->with('error', 'No pending approval step found for your action. You may not have permission to approve this application at its current stage.');
             }
 
-            if ($availableBalance < $leaveApplication->days_requested) {
-                DB::rollBack();
-                return back()->with('error', "Insufficient leave balance. Available: {$availableBalance} days, Requested: {$leaveApplication->days_requested} days. Balance was updated by another transaction.");
+            // Process approval through workflow service
+            $workflowService = new \App\Services\LeaveWorkflowService();
+            $success = $workflowService->processApproval(
+                $leaveApplication,
+                $currentStep,
+                auth()->user(),
+                'approved',
+                $request->input('remarks')
+            );
+
+            if (!$success) {
+                return back()->with('error', 'Failed to process approval through workflow.');
             }
-
-            // Update application status
-            $leaveApplication->update([
-                'status' => 'approved',
-                'approved_by' => auth()->id(),
-                'approved_date' => now(),
-                'remarks' => $request->input('remarks', $leaveApplication->remarks),
-            ]);
-
-            // Create approval record
-            $leaveApplication->approvals()->create([
-                'approver_id' => auth()->id(),
-                'action' => 'approved',
-                'remarks' => $request->input('remarks'),
-                'action_date' => now(),
-            ]);
-
-            // Update leave card
-            $leaveCard = $this->leaveCardService->processApprovedLeave($leaveApplication);
-
-            DB::commit();
 
             return redirect()->route('leave-applications.index', ['status' => 'pending'])
                 ->with('success', 'Leave application approved successfully.');
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            \Log::error('Leave approval error', [
+                'application_id' => $leaveApplication->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return back()->with('error', 'Failed to approve leave application: ' . $e->getMessage());
         }
     }
@@ -195,17 +167,126 @@ class LeaveApplicationController extends Controller
         $request->validate(['remarks' => 'required|string|max:255']);
 
         try {
-            $this->leaveApplicationService->rejectApplication(
+            // Find the current pending workflow step for this approver
+            $currentStep = $this->findApprovableWorkflowStep($leaveApplication, auth()->user());
+
+            if (!$currentStep) {
+                return back()->with('error', 'No pending approval step found for your action. You may not have permission to approve this application at its current stage.');
+            }
+
+            // Process rejection through workflow service
+            $workflowService = new \App\Services\LeaveWorkflowService();
+            $success = $workflowService->processApproval(
                 $leaveApplication,
-                Auth::user(),
+                $currentStep,
+                auth()->user(),
+                'rejected',
                 $request->remarks
             );
+
+            if (!$success) {
+                return back()->with('error', 'Failed to process rejection through workflow.');
+            }
 
             return redirect()->route('leave-applications.index', ['status' => 'pending'])
                 ->with('success', 'Leave application rejected.');
         } catch (\Exception $e) {
-            return back()->with('error', 'An error occurred while rejecting the application.');
+            \Log::error('Leave rejection error', [
+                'application_id' => $leaveApplication->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->with('error', 'Failed to reject leave application: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Find approvable workflow step for the given user and application
+     */
+    private function findApprovableWorkflowStep(LeaveApplication $application, User $user): ?\App\Models\LeaveApplicationWorkflowStep
+    {
+        \Log::info('Finding approvable workflow step', [
+            'application_id' => $application->id,
+            'user_id' => $user->id,
+            'user_name' => $user->name,
+            'user_roles' => $user->roles->pluck('name')->toArray()
+        ]);
+
+        // Get all pending workflow steps for this application
+        $pendingSteps = \App\Models\LeaveApplicationWorkflowStep::where('leave_application_id', $application->id)
+            ->where('status', 'pending')
+            ->with('leaveWorkflowStep')
+            ->orderBy('step_order')
+            ->get();
+
+        \Log::info('Found pending steps', [
+            'count' => $pendingSteps->count(),
+            'steps' => $pendingSteps->map(fn($step) => [
+                'step_id' => $step->id,
+                'step_order' => $step->step_order,
+                'step_name' => $step->leaveWorkflowStep->step_name,
+                'approvers' => $step->leaveWorkflowStep->approvers
+            ])->toArray()
+        ]);
+
+        foreach ($pendingSteps as $step) {
+            // Check if user can approve this step
+            if ($this->canUserApproveStep($user, $application, $step->leaveWorkflowStep)) {
+                \Log::info('User can approve workflow step', [
+                    'step_id' => $step->id,
+                    'step_name' => $step->leaveWorkflowStep->step_name,
+                    'user_id' => $user->id
+                ]);
+                return $step;
+            }
+        }
+
+        \Log::warning('User cannot approve any pending steps', [
+            'application_id' => $application->id,
+            'user_id' => $user->id
+        ]);
+
+        return null;
+    }
+
+    /**
+     * Check if user can approve a specific workflow step
+     */
+    private function canUserApproveStep(User $user, LeaveApplication $application, \App\Models\LeaveWorkflowStep $workflowStep): bool
+    {
+        // Super Admin and users with leave.approve permission can approve any step
+        if ($user->can('leave.approve') && ($user->hasRole('Super Admin') || $user->hasRole('hr_admin'))) {
+            \Log::info('Super Admin/HR user can approve any step', [
+                'user_id' => $user->id,
+                'step_name' => $workflowStep->step_name
+            ]);
+            return true;
+        }
+
+        // Department Heads with leave.approve permission can also approve any step
+        if ($user->can('leave.approve') && $user->hasRole('Department Head')) {
+            \Log::info('Department Head with leave.approve permission can approve any step', [
+                'user_id' => $user->id,
+                'step_name' => $workflowStep->step_name
+            ]);
+            return true;
+        }
+
+        // For regular workflow-based approval, check if user is in the approvers list
+        $currentApprovers = $workflowStep->getCurrentApprovers($application);
+
+        foreach ($currentApprovers as $approver) {
+            if ($approver->id === $user->id) {
+                \Log::info('User found in current approvers', [
+                    'user_id' => $user->id,
+                    'step_name' => $workflowStep->step_name
+                ]);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

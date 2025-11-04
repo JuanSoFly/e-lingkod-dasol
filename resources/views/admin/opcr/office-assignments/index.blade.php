@@ -95,7 +95,7 @@
                                 <div class="space-y-2">
                                     @foreach($office->department_heads as $user)
                                         <div class="flex items-center justify-between text-sm">
-                                            <span class="text-gray-700">{{ $user->employee->full_name ?? $user->name }}</span>
+                                            <span class="text-gray-700">{{ $user->full_name }}</span>
                                             <span class="text-xs text-gray-500">{{ $user->email }}</span>
                                         </div>
                                     @endforeach
@@ -107,7 +107,7 @@
                                 <div class="space-y-2">
                                     @foreach($office->assessors as $user)
                                         <div class="flex items-center justify-between text-sm">
-                                            <span class="text-gray-700">{{ $user->employee->full_name ?? $user->name }}</span>
+                                            <span class="text-gray-700">{{ $user->full_name }}</span>
                                             <span class="text-xs text-gray-500">{{ $user->email }}</span>
                                         </div>
                                     @endforeach
@@ -119,7 +119,7 @@
                                 <div class="space-y-2">
                                     @foreach($office->final_approvers as $user)
                                         <div class="flex items-center justify-between text-sm">
-                                            <span class="text-gray-700">{{ $user->employee->full_name ?? $user->name }}</span>
+                                            <span class="text-gray-700">{{ $user->full_name }}</span>
                                             <span class="text-xs text-gray-500">{{ $user->email }}</span>
                                         </div>
                                     @endforeach

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\GovernmentIdFormat;
 
 class StoreEmployeeRequest extends FormRequest
 {
@@ -125,6 +126,37 @@ class StoreEmployeeRequest extends FormRequest
                 'numeric',
                 'min:0',
                 'max:999999.99'
+            ],
+            // Government ID validation
+            'tin_number' => [
+                'nullable',
+                'string',
+                'max:20',
+                new GovernmentIdFormat('tin')
+            ],
+            'sss_number' => [
+                'nullable',
+                'string',
+                'max:20',
+                new GovernmentIdFormat('sss')
+            ],
+            'pagibig_number' => [
+                'nullable',
+                'string',
+                'max:20',
+                new GovernmentIdFormat('pagibig')
+            ],
+            'philhealth_number' => [
+                'nullable',
+                'string',
+                'max:20',
+                new GovernmentIdFormat('philhealth')
+            ],
+            'gsis_number' => [
+                'nullable',
+                'string',
+                'max:20',
+                new GovernmentIdFormat('gsis')
             ],
         ];
     }

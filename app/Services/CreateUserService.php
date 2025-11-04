@@ -53,12 +53,14 @@ class CreateUserService
                 // Generate secure random password
                 $temporaryPassword = Str::random(12);
 
-                // Create user account
+                // Create user account with office fields
                 $user = User::create([
-                    'name' => trim($data['first_name'] . ' ' . $data['last_name']),
+                    'name' => trim($data['first_name'] . ' ' . ($data['middle_name'] ?? '') . ' ' . $data['last_name'] . ' ' . ($data['name_extension'] ?? '')),
                     'email' => $data['email'],
                     'password' => Hash::make($temporaryPassword),
                     'employee_id' => $employee->id,
+                    'office_id' => $employee->office_id,
+                    'office_role' => $employee->office_role ?? null,
                     'email_verified_at' => null, // Force email verification
                 ]);
 
@@ -197,12 +199,14 @@ class CreateUserService
                 // Generate secure random password
                 $temporaryPassword = Str::random(12);
 
-                // Create user account
+                // Create user account with office fields
                 $user = User::create([
                     'name' => trim($employee->first_name . ' ' . $employee->last_name),
                     'email' => $userEmail,
                     'password' => Hash::make($temporaryPassword),
                     'employee_id' => $employee->id,
+                    'office_id' => $employee->office_id,
+                    'office_role' => $employee->office_role ?? null,
                     'email_verified_at' => now(),
                     'remember_token' => Str::random(10),
                 ]);

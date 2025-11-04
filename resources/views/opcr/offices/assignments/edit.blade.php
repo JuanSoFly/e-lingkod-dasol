@@ -334,15 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize preview on page load
     updatePreview();
 
-    // Employee search enhancement
-    $(document).ready(function() {
-        $('#employee_id').select2({
-            placeholder: 'Search for an employee...',
-            allowClear: true,
-            width: '100%'
-        });
-    });
-});
+  });
 </script>
 @endpush
 @endsection

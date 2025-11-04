@@ -201,6 +201,22 @@ class OPCRWorkflow extends Model
     }
 
     /**
+     * Get the IPCR records generated from this OPCR workflow
+     */
+    public function ipcrs(): HasMany
+    {
+        return $this->hasMany(Ipcr::class, 'opcr_workflow_id');
+    }
+
+    /**
+     * Mappings to individual IPCR items during cascading
+     */
+    public function ipcrMappings(): HasMany
+    {
+        return $this->hasMany(OpcrIpcrMapping::class, 'opcr_workflow_id');
+    }
+
+    /**
      * Scope to get workflows by state
      */
     public function scopeByState($query, string $state)

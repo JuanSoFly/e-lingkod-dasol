@@ -116,9 +116,13 @@ class OPCROfficeController extends Controller
             'address' => 'nullable|string|max:255',
             'contact_number' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
+            'department_head_id' => 'nullable|exists:employees,id',
         ]);
 
         $validated['is_active'] = $validated['is_active'] ?? true;
+        $validated['department_head_id'] = $request->filled('department_head_id')
+            ? (int) $request->input('department_head_id')
+            : null;
 
         try {
             $office = Office::create($validated);
@@ -163,9 +167,13 @@ class OPCROfficeController extends Controller
             'address' => 'nullable|string|max:255',
             'contact_number' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
+            'department_head_id' => 'nullable|exists:employees,id',
         ]);
 
         $validated['is_active'] = $validated['is_active'] ?? false;
+        $validated['department_head_id'] = $request->filled('department_head_id')
+            ? (int) $request->input('department_head_id')
+            : null;
 
         try {
             $office->update($validated);

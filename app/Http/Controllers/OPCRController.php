@@ -2165,4 +2165,530 @@ class OPCRController extends Controller
 
         return $period ? $period->end_date : '2024-12-31';
     }
+
+    // ========== Office Assignment Management ==========
+
+    /**
+     * Display a listing of office assignments for a specific office.
+     */
+    public function officeAssignments(Request $request, Office $office): View
+    {
+        // Base query for all assignments with search and role filters
+        $query = OfficeAssignment::with(['user.employee', 'assignedBy'])
+            ->where('office_id', $office->id);
+
+        // Filter by search term
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('employee', function ($subQuery) use ($search) {
+                    $subQuery->where('first_name', 'LIKE', "%{$search}%")
+                        ->orWhere('last_name', 'LIKE', "%{$search}%")
+                        ->orWhere('employee_number', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('user', function ($subQuery) use ($search) {
+                    $subQuery->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('email', 'LIKE', "%{$search}%");
+                });
+            });
+        }
+
+        // Filter by role
+        if ($request->filled('role')) {
+            $query->where('role', $request->role);
+        }
+
+        // Get filtered assignments and separate by status
+        $allAssignments = $query->orderBy('is_active', 'desc')
+            ->orderBy('role')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Separate active and inactive assignments
+        $activeAssignments = $allAssignments->where('is_active', true);
+        $inactiveAssignments = $allAssignments->where('is_active', false);
+
+        // Get counts for display
+        $activeCount = $activeAssignments->count();
+        $inactiveCount = $inactiveAssignments->count();
+
+        return view('opcr.offices.assignments.index', compact(
+            'office',
+            'activeAssignments',
+            'inactiveAssignments',
+            'activeCount',
+            'inactiveCount'
+        ));
+    }
+
+    /**
+     * Show the form for creating a new office assignment.
+     */
+    public function officeAssignmentCreate(Office $office): View
+    {
+        // Debug: Log what office we're working with
+        \Log::info('OPCR Assignment Create - Office: ' . $office->name . ' (ID: ' . $office->id . ')');
+
+        // Get employees by department matching for assignment creation
+        $employees = Employee::where(function ($query) use ($office) {
+            // Direct department name match
+            $query->where('department', $office->name)
+                  // Also check if employee's department contains the office code
+                  ->orWhere('department', 'like', '%' . $office->code . '%');
+        })
+        ->whereNull('archived_at')
+        ->orderBy('last_name')
+        ->orderBy('first_name')
+        ->get();
+
+        \Log::info('Found ' . $employees->count() . ' employees for office: ' . $office->name);
+
+        // Check for sync errors
+        $syncErrors = [];
+        foreach ($employees as $employee) {
+            if ($employee->user && $employee->department !== $employee->user->department) {
+                $syncErrors[] = [
+                    'employee' => $employee->full_name,
+                    'employee_dept' => $employee->department,
+                    'user_dept' => $employee->user->department
+                ];
+            }
+        }
+
+        if (!empty($syncErrors)) {
+            \Log::warning('Department sync errors found', [
+                'office' => $office->name,
+                'errors' => $syncErrors
+            ]);
+        }
+
+        $availableRoles = [
+            'Member' => 'Regular member of the office',
+            'Department Head' => 'Head of the office/department',
+            'Assessor' => 'Performance Management Team (PMT) member',
+            'Final Approver' => 'Has authority for final approval (e.g., Mayor)'
+        ];
+
+        return view('opcr.offices.assignments.create', compact(
+            'office',
+            'employees',
+            'availableRoles',
+            'syncErrors'
+        ));
+    }
+
+    /**
+     * Store a newly created office assignment.
+     */
+    public function officeAssignmentStore(Request $request, Office $office): RedirectResponse
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'employee_id' => 'required|exists:employees,id',
+            'role' => 'required|in:Member,Department Head,Assessor,Final Approver',
+            'assigned_date' => 'nullable|date',
+            'ended_date' => 'nullable|date|after_or_equal:assigned_date',
+            'metadata' => 'nullable|array',
+        ], [
+            'user_id.required' => 'Please select a user',
+            'user_id.exists' => 'Selected user is invalid',
+            'employee_id.required' => 'Please select an employee',
+            'employee_id.exists' => 'Selected employee is invalid',
+            'role.required' => 'Please select a role',
+            'role.in' => 'Invalid role selected',
+            'assigned_date.after_or_equal' => 'End date must be after or same as assigned date',
+        ]);
+
+        try {
+            // Check if user already has an active assignment for this office
+            $existingAssignment = OfficeAssignment::where('office_id', $office->id)
+                ->where('user_id', $validated['user_id'])
+                ->where('is_active', true)
+                ->where(function ($query) {
+                    $query->whereNull('ended_date')
+                          ->orWhere('ended_date', '>=', now());
+                })
+                ->first();
+
+            if ($existingAssignment) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['user_id' => 'This user already has an active assignment for this office. Please end the existing assignment first.']);
+            }
+
+            DB::beginTransaction();
+
+            // Create the assignment
+            $assignment = OfficeAssignment::create([
+                'office_id' => $office->id,
+                'user_id' => $validated['user_id'],
+                'employee_id' => $validated['employee_id'],
+                'role' => $validated['role'],
+                'assigned_date' => $validated['assigned_date'] ?? now(),
+                'ended_date' => $validated['ended_date'] ?? null,
+                'is_active' => true,
+                'assigned_by' => auth()->id(),
+                'assigned_at' => now(),
+                'metadata' => $validated['metadata'] ?? [],
+            ]);
+
+            // Sync the employee's department with the office
+            $this->syncEmployeeDepartment($assignment->employee_id);
+
+            // Sync user roles if employee has user account
+            $this->syncUserRoles($validated['user_id'], $office);
+
+            DB::commit();
+
+            \Log::info('Office assignment created successfully', [
+                'assignment_id' => $assignment->id,
+                'office_id' => $office->id,
+                'user_id' => $validated['user_id'],
+                'employee_id' => $validated['employee_id'],
+                'role' => $validated['role'],
+                'created_by' => auth()->id(),
+            ]);
+
+            return redirect()
+                ->route('opcr.offices.assignments.index', $office)
+                ->with('success', 'Office assignment created successfully!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            \Log::error('Failed to create office assignment', [
+                'error' => $e->getMessage(),
+                'office_id' => $office->id,
+                'validated' => $validated,
+                'user_id' => auth()->id(),
+            ]);
+
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Failed to create office assignment: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Show the form for editing the specified office assignment.
+     */
+    public function officeAssignmentEdit(Office $office, OfficeAssignment $assignment): View
+    {
+        // Load assignment with relationships
+        $assignment->load(['user.employee', 'assignedBy', 'office']);
+
+        // Get employees (filtered by department)
+        $employees = Employee::where(function ($query) use ($office) {
+            // Direct department name match
+            $query->where('department', $office->name)
+                  // Also check if employee's department contains the office code
+                  ->orWhere('department', 'like', '%' . $office->code . '%');
+        })
+        ->whereNull('archived_at')
+        ->orderBy('last_name')
+        ->orderBy('first_name')
+        ->get();
+
+        // Check if editing own assignment (Department Head editing themselves)
+        $isOwnAssignment = auth()->id() === $assignment->user_id &&
+                          auth()->user()->hasRole('Department Head');
+
+        // Define available roles based on permissions
+        $availableRoles = [
+            'Member' => 'Regular member of the office',
+        ];
+
+        // Add higher-level roles only if user has sufficient permissions
+        if (auth()->user()->hasAnyRole(['Super Admin', 'HR Admin'])) {
+            $availableRoles['Department Head'] = 'Head of the office/department';
+            $availableRoles['Assessor'] = 'Performance Management Team (PMT) member';
+            $availableRoles['Final Approver'] = 'Has authority for final approval (e.g., Mayor)';
+        }
+
+        return view('opcr.offices.assignments.edit', compact(
+            'office',
+            'assignment',
+            'employees',
+            'availableRoles',
+            'isOwnAssignment'
+        ));
+    }
+
+    /**
+     * Update the specified office assignment.
+     */
+    public function officeAssignmentUpdate(Request $request, Office $office, OfficeAssignment $assignment): RedirectResponse
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'employee_id' => 'required|exists:employees,id',
+            'role' => 'required|in:Member,Department Head,Assessor,Final Approver',
+            'assigned_date' => 'nullable|date',
+            'ended_date' => 'nullable|date|after_or_equal:assigned_date',
+            'metadata' => 'nullable|array',
+        ], [
+            'user_id.required' => 'Please select a user',
+            'user_id.exists' => 'Selected user is invalid',
+            'employee_id.required' => 'Please select an employee',
+            'employee_id.exists' => 'Selected employee is invalid',
+            'role.required' => 'Please select a role',
+            'role.in' => 'Invalid role selected',
+            'assigned_date.after_or_equal' => 'End date must be after or same as assigned date',
+        ]);
+
+        try {
+            // Check for conflicts with other assignments (excluding current assignment)
+            $conflictingAssignment = OfficeAssignment::where('office_id', $office->id)
+                ->where('user_id', $validated['user_id'])
+                ->where('id', '!=', $assignment->id)
+                ->where('is_active', true)
+                ->where(function ($query) {
+                    $query->whereNull('ended_date')
+                          ->orWhere('ended_date', '>=', now());
+                })
+                ->first();
+
+            if ($conflictingAssignment) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['user_id' => 'This user already has an active assignment for this office. Please end the existing assignment first.']);
+            }
+
+            DB::beginTransaction();
+
+            // Update the assignment
+            $updateData = [
+                'user_id' => $validated['user_id'],
+                'employee_id' => $validated['employee_id'],
+                'role' => $validated['role'],
+                'assigned_date' => $validated['assigned_date'] ?? $assignment->assigned_date,
+                'ended_date' => $validated['ended_date'] ?? null,
+                'metadata' => $validated['metadata'] ?? $assignment->metadata ?? [],
+                'updated_at' => now(),
+            ];
+
+            // Automatically set is_active to false if ended_date is in the past
+            if (!empty($validated['ended_date']) && $validated['ended_date'] < now()) {
+                $updateData['is_active'] = false;
+            } elseif ($assignment->is_active === false && empty($validated['ended_date'])) {
+                // Re-activate if was inactive and no end date is provided
+                $updateData['is_active'] = true;
+            }
+
+            $assignment->update($updateData);
+
+            // Sync the employee's department with the office
+            $this->syncEmployeeDepartment($validated['employee_id']);
+
+            // Sync user roles if employee has user account
+            $this->syncUserRoles($validated['user_id'], $office);
+
+            DB::commit();
+
+            \Log::info('Office assignment updated successfully', [
+                'assignment_id' => $assignment->id,
+                'office_id' => $office->id,
+                'user_id' => $validated['user_id'],
+                'employee_id' => $validated['employee_id'],
+                'role' => $validated['role'],
+                'updated_by' => auth()->id(),
+            ]);
+
+            return redirect()
+                ->route('opcr.offices.assignments.index', $office)
+                ->with('success', 'Office assignment updated successfully!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            \Log::error('Failed to update office assignment', [
+                'error' => $e->getMessage(),
+                'assignment_id' => $assignment->id,
+                'office_id' => $office->id,
+                'validated' => $validated,
+                'user_id' => auth()->id(),
+            ]);
+
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Failed to update office assignment: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Remove the specified office assignment.
+     */
+    public function officeAssignmentDestroy(Office $office, OfficeAssignment $assignment): RedirectResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            // Store assignment details for logging
+            $assignmentDetails = [
+                'id' => $assignment->id,
+                'office_id' => $assignment->office_id,
+                'user_id' => $assignment->user_id,
+                'employee_id' => $assignment->employee_id,
+                'role' => $assignment->role,
+            ];
+
+            // Delete the assignment (this will trigger cascading deletes for related records if properly set up)
+            $assignment->delete();
+
+            // Sync user roles after assignment deletion
+            if ($assignment->user_id) {
+                $this->syncUserRoles($assignment->user_id, $office);
+            }
+
+            DB::commit();
+
+            \Log::info('Office assignment deleted successfully', [
+                'assignment_details' => $assignmentDetails,
+                'deleted_by' => auth()->id(),
+                'deleted_at' => now()->toDateTimeString(),
+            ]);
+
+            return redirect()
+                ->route('opcr.offices.assignments.index', $office)
+                ->with('success', 'Office assignment deleted successfully!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            \Log::error('Failed to delete office assignment', [
+                'error' => $e->getMessage(),
+                'assignment_id' => $assignment->id,
+                'office_id' => $office->id,
+                'user_id' => auth()->id(),
+            ]);
+
+            return redirect()
+                ->route('opcr.offices.assignments.index', $office)
+                ->with('error', 'Failed to delete office assignment: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Sync employee's department information based on their office assignment
+     */
+    private function syncEmployeeDepartment(int $employeeId): void
+    {
+        try {
+            $employee = Employee::findOrFail($employeeId);
+
+            // Get the most recent active office assignment
+            $activeAssignment = OfficeAssignment::where('employee_id', $employee->id)
+                ->where('is_active', true)
+                ->with('office')
+                ->latest('assigned_date')
+                ->first();
+
+            if ($activeAssignment && $activeAssignment->office) {
+                $departmentName = $activeAssignment->office->name;
+
+                // Update employee department
+                $employee->department = $departmentName;
+                $employee->saveQuietly(); // Save without triggering events
+
+                // Update associated user department if exists
+                if ($employee->user) {
+                    $employee->user->department = $departmentName;
+                    $employee->user->saveQuietly();
+                }
+
+                \Log::info('Department synchronized for employee', [
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employee->full_name,
+                    'department' => $departmentName,
+                    'office_id' => $activeAssignment->office_id
+                ]);
+
+            } else {
+                // No active assignment found, clear department
+                $employee->department = null;
+                $employee->saveQuietly();
+
+                if ($employee->user) {
+                    $employee->user->department = null;
+                    $employee->user->saveQuietly();
+                }
+
+                \Log::warning('No active assignment found for employee, department cleared', [
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employee->full_name
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to sync employee department', [
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Sync user roles based on their office assignments
+     */
+    private function syncUserRoles(int $userId, Office $office): void
+    {
+        try {
+            $user = User::findOrFail($userId);
+
+            // Get all active assignments for this user
+            $activeAssignments = OfficeAssignment::where('user_id', $userId)
+                ->where('is_active', true)
+                ->where(function ($query) {
+                    $query->whereNull('ended_date')
+                          ->orWhere('ended_date', '>=', now());
+                })
+                ->with('office')
+                ->get();
+
+            // Define role mapping
+            $roleMapping = [
+                'Department Head' => 'Department Head',
+                'Assessor' => 'Assessor',
+                'Final Approver' => 'Final Approver',
+            ];
+
+            $rolesToAssign = [];
+            foreach ($activeAssignments as $assignment) {
+                if (isset($roleMapping[$assignment->role])) {
+                    $rolesToAssign[] = $roleMapping[$assignment->role];
+                }
+            }
+
+            // Remove existing department-related roles
+            $existingRoles = $user->roles()->whereIn('name', array_values($roleMapping))->get();
+            foreach ($existingRoles as $role) {
+                if (!in_array($role->name, $rolesToAssign)) {
+                    $user->removeRole($role);
+                    \Log::info('Removed role from user', [
+                        'user_id' => $userId,
+                        'role' => $role->name,
+                        'office_id' => $office->id
+                    ]);
+                }
+            }
+
+            // Assign new roles
+            foreach ($rolesToAssign as $roleName) {
+                if (!$user->hasRole($roleName)) {
+                    $user->assignRole($roleName);
+                    \Log::info('Assigned role to user', [
+                        'user_id' => $userId,
+                        'role' => $roleName,
+                        'office_id' => $office->id
+                    ]);
+                }
+            }
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to sync user roles', [
+                'user_id' => $userId,
+                'office_id' => $office->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
 }

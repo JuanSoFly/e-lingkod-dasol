@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\LeaveApplication;
+use App\Models\User;
+use App\Models\Employee;
+use App\Models\LeaveApprovalDelegate;
 
 class LeaveWorkflowStep extends Model
 {
@@ -30,7 +34,7 @@ class LeaveWorkflowStep extends Model
 
     public function workflow(): BelongsTo
     {
-        return $this->belongsTo(LeaveWorkflow::class);
+        return $this->belongsTo(LeaveWorkflow::class, 'leave_workflow_id');
     }
 
     public function applicationSteps(): HasMany
@@ -118,17 +122,34 @@ class LeaveWorkflowStep extends Model
      */
     private function getDepartmentHead(Employee $employee): array
     {
-        // First try to find department head using the is_department_head flag
+        // First try: Use OfficeAssignment to find department head
+        $headAssignment = \App\Models\OfficeAssignment::with('employee.user')
+            ->where('office_id', $employee->office_id)
+            ->where('role', 'Department Head')
+            ->first();
+
+        if ($headAssignment && $headAssignment->employee && $headAssignment->employee->user) {
+            return [$headAssignment->employee->user];
+        }
+
+        // Second try: Find department head using the is_department_head flag and office matching
         $head = User::whereHas('employee', function ($query) use ($employee) {
-            $query->where('department', $employee->department)
+            $query->where('office_id', $employee->office_id)
                 ->where('is_department_head', true);
         })->first();
 
-        // Fallback: try position-based matching if no head found
-        if (!$head) {
+        // Third fallback: try department-based matching if no head found
+        if (!$head && $employee->department) {
             $head = User::whereHas('employee', function ($query) use ($employee) {
                 $query->where('department', $employee->department)
-                    ->where(function ($q) {
+                    ->where('is_department_head', true);
+            })->first();
+        }
+
+        // Last fallback: try position-based matching
+        if (!$head) {
+            $head = User::whereHas('employee', function ($query) use ($employee) {
+                $query->where(function ($q) {
                         $q->where('position', 'like', '%head%')
                             ->orWhere('position', 'like', '%chief%')
                             ->orWhere('position', 'like', '%manager%')
@@ -145,7 +166,7 @@ class LeaveWorkflowStep extends Model
      */
     private function getHRAdmins(): array
     {
-        return User::role('hr_admin')->get()->toArray();
+        return User::role('hr_admin')->get()->all();
     }
 
     /**

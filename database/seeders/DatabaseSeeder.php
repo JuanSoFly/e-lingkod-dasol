@@ -131,5 +131,8 @@ class DatabaseSeeder extends Seeder
 
         // Seed OPCR Workflows for demonstration
         $this->call(OPCRWorkflowSeeder::class);
+
+        // Seed sample IPCR data for testing the new module
+        $this->call(SampleIPCRSeeder::class);
     }
 }

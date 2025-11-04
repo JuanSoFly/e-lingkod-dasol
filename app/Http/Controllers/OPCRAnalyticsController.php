@@ -8,6 +8,7 @@ use App\Models\Office;
 use App\Services\DashboardAnalyticsService;
 use App\Services\QETRatingCalculationService;
 use App\Services\OPCRManagementService;
+use App\Services\OPCRNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -17,15 +18,18 @@ class OPCRAnalyticsController extends Controller
     protected $dashboardAnalyticsService;
     protected $qetRatingService;
     protected $opcrManagementService;
+    protected $notificationService;
 
     public function __construct(
         DashboardAnalyticsService $dashboardAnalyticsService,
         QETRatingCalculationService $qetRatingService,
-        OPCRManagementService $opcrManagementService
+        OPCRManagementService $opcrManagementService,
+        OPCRNotificationService $opcrNotificationService
     ) {
         $this->dashboardAnalyticsService = $dashboardAnalyticsService;
         $this->qetRatingService = $qetRatingService;
         $this->opcrManagementService = $opcrManagementService;
+        $this->notificationService = $opcrNotificationService;
 
         // OPCR analytics permissions
         $this->middleware('permission:opcr.analytics.view')->only([
@@ -641,17 +645,24 @@ class OPCRAnalyticsController extends Controller
         // Use available service methods for compliance data
         $metrics = $this->dashboardAnalyticsService->getOPCRMetrics($periodId, $officeId);
         $officeComparison = $this->dashboardAnalyticsService->getOfficePerformanceComparison($periodId);
+        $complianceInsights = $this->dashboardAnalyticsService->getComplianceInsights($periodId, $officeId);
 
-        // Create compliance-specific data from available metrics
+        // Create compliance-specific data aligned with view expectations
+        $criticalIssues = $this->formatCriticalIssues($complianceInsights['critical_issues'] ?? []);
+        $upcomingDeadlines = $this->formatUpcomingDeadlines($complianceInsights['upcoming_deadlines'] ?? []);
+
         $complianceData = [
-            'overall_compliance_rate' => $metrics['workflow_completion_rate'] ?? 0,
-            'on_time_submission_rate' => $metrics['target_completion_rate'] ?? 0,
-            'document_completeness' => $metrics['average_rating'] ? ($metrics['average_rating'] * 20) : 0, // Convert to percentage
-            'overdue_count' => $metrics['draft_workflows'] ?? 0,
+            'overall_compliance_rate' => $complianceInsights['compliance_rate'] ?? 0,
+            'compliance_rate' => $complianceInsights['compliance_rate'] ?? 0,
+            'on_time_submission_rate' => $complianceInsights['on_time_rate'] ?? ($metrics['target_completion_rate'] ?? 0),
+            'document_completeness' => $complianceInsights['document_completeness_rate'] ?? ($metrics['average_rating'] ? ($metrics['average_rating'] * 20) : 0),
+            'overdue_count' => $complianceInsights['overdue_count'] ?? ($metrics['draft_workflows'] ?? 0),
             'office_compliance' => $this->formatOfficeComplianceData($officeComparison),
-            'critical_issues_count' => 0,
-            'upcoming_deadlines_count' => 0,
-            'recommendations' => []
+            'critical_issues_count' => count($criticalIssues),
+            'critical_issues' => $criticalIssues,
+            'upcoming_deadlines_count' => count($upcomingDeadlines),
+            'upcoming_deadlines' => $upcomingDeadlines,
+            'recommendations' => $complianceInsights['recommendations'] ?? []
         ];
 
         return view('admin.opcr.analytics.compliance', [
@@ -665,6 +676,53 @@ class OPCRAnalyticsController extends Controller
     }
 
     /**
+     * Trigger compliance reminder notifications for overdue workflows
+     */
+    public function sendComplianceReminders(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'period_id' => 'nullable|exists:performance_periods,id',
+            'office_id' => 'nullable|exists:offices,id',
+        ]);
+
+        $periodId = $filters['period_id'] ?? null;
+        $officeId = $filters['office_id'] ?? null;
+
+        $insights = $this->dashboardAnalyticsService->getComplianceInsights($periodId, $officeId);
+        $overdueCount = $insights['overdue_count'] ?? 0;
+
+        if ($overdueCount === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No overdue workflows found for the selected filters.',
+            ], 422);
+        }
+
+        try {
+            $this->notificationService->sendOverdueNotifications();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Compliance reminders queued successfully.',
+                'meta' => [
+                    'overdue_workflows' => $overdueCount,
+                    'target_offices' => count($insights['critical_issues'] ?? []),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send compliance reminders', [
+                'error' => $e->getMessage(),
+                'filters' => $filters,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to queue reminders. Please try again later.',
+            ], 500);
+        }
+    }
+
+    /**
      * Format office compliance data from performance comparison
      */
     private function formatOfficeComplianceData(array $officeComparison): array
@@ -673,7 +731,7 @@ class OPCRAnalyticsController extends Controller
 
         foreach ($officeComparison as $office) {
             $complianceRate = isset($office['completion_rate']) ? $office['completion_rate'] : 0;
-            $avgRating = isset($office['average_rating']) ? $office['average_rating'] : 0;
+            $avgRating = $office['avg_rating'] ?? ($office['average_rating'] ?? 0);
 
             // Determine compliance status based on rate and rating
             if ($complianceRate >= 90 && $avgRating >= 4.0) {
@@ -686,17 +744,64 @@ class OPCRAnalyticsController extends Controller
                 $status = 'Critical';
             }
 
+            $pendingWorkflows = max(0, ($office['total_workflows'] ?? 0) - ($office['completed_workflows'] ?? 0));
+
             $formattedData[] = [
                 'name' => $office['name'] ?? 'Unknown Office',
                 'compliance_rate' => round($complianceRate, 1),
+                'completion_rate' => round($complianceRate, 1),
                 'on_time_rate' => round($avgRating * 25, 1), // Convert rating to percentage
                 'completeness_rate' => round($avgRating * 20, 1), // Convert rating to percentage
-                'overdue_count' => $office['pending_count'] ?? 0,
+                'overdue_count' => $pendingWorkflows,
                 'compliance_status' => $status
             ];
         }
 
         return $formattedData;
+    }
+
+    /**
+     * Normalize critical compliance issues for the view layer
+     */
+    private function formatCriticalIssues(array $issues): array
+    {
+        return collect($issues)
+            ->map(function ($issue) {
+                $title = $issue['title'] ?? 'Compliance Alert';
+                $description = $issue['description'] ?? 'Issue requires review';
+
+                if (!empty($issue['office'])) {
+                    $description = ($issue['office'] . ': ' . $description);
+                }
+
+                return [
+                    'title' => $title,
+                    'description' => $description,
+                ];
+            })
+            ->values()
+            ->toArray();
+    }
+
+    /**
+     * Normalize upcoming deadline data for UI consumption
+     */
+    private function formatUpcomingDeadlines(array $deadlines): array
+    {
+        return collect($deadlines)
+            ->map(function ($deadline) {
+                $daysRemaining = isset($deadline['days_remaining'])
+                    ? (int) round($deadline['days_remaining'])
+                    : 0;
+
+                return [
+                    'title' => $deadline['title'] ?? 'Upcoming deadline',
+                    'due_date' => $deadline['due_date'] ?? now()->format('M d, Y'),
+                    'days_remaining' => max(0, $daysRemaining),
+                ];
+            })
+            ->values()
+            ->toArray();
     }
 
     /**

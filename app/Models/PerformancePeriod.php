@@ -40,4 +40,12 @@ class PerformancePeriod extends Model
     {
         return $this->hasMany(OPCRWorkflow::class, 'period_id');
     }
+
+    /**
+     * Get IPCR records associated with this performance period
+     */
+    public function ipcrs(): HasMany
+    {
+        return $this->hasMany(Ipcr::class, 'period_id');
+    }
 }

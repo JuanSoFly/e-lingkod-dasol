@@ -202,13 +202,27 @@ class OfficeAssignmentSeeder extends Seeder
             }
         }
 
-        // Insert all assignments
+        // Insert all assignments with duplicate prevention
+        $createdCount = 0;
         foreach ($assignments as $assignment) {
-            OfficeAssignment::create($assignment);
+            $created = OfficeAssignment::updateOrCreate(
+                [
+                    'user_id' => $assignment['user_id'],
+                    'office_id' => $assignment['office_id'],
+                    'role' => $assignment['role'],
+                    'is_active' => $assignment['is_active'],
+                    'ended_date' => null, // Active assignments have no end date
+                ],
+                $assignment
+            );
+            if ($created->wasRecentlyCreated) {
+                $createdCount++;
+            }
         }
 
         $this->command->info('Office assignments created successfully.');
-        $this->command->info('Total assignments created: ' . count($assignments));
+        $this->command->info('Total assignments processed: ' . count($assignments));
+        $this->command->info('New assignments created: ' . $createdCount);
 
         // Log summary
         $this->command->info('Assignment Summary:');

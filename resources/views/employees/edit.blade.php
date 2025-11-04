@@ -108,6 +108,17 @@
                                 <x-input-error :messages="$errors->get('office_id')" class="mt-2" />
                             </div>
 
+                            <!-- Department Head Status -->
+                            <div class="md:col-span-2">
+                                <label class="flex items-center">
+                                    <input type="hidden" name="is_department_head" value="0">
+                                    <input type="checkbox" name="is_department_head" value="1" {{ old('is_department_head', $employee->is_department_head) ? 'checked' : '' }} class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 focus:ring-offset-0">
+                                    <span class="ml-2 text-sm text-gray-700">Assign as Department Head of selected office</span>
+                                </label>
+                                <p class="text-xs text-gray-500 mt-1">Note: Only one department head per office is recommended. Uncheck to assign as regular member.</p>
+                                <x-input-error :messages="$errors->get('is_department_head')" class="mt-2" />
+                            </div>
+
                             <!-- Work Calendar -->
                             <div>
                                 <x-input-label for="work_calendar_id" :value="__('Work Calendar')" />

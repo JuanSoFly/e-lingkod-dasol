@@ -49,7 +49,7 @@ class StoreEmployeeLeaveApplicationRequest extends FormRequest
             // Department head confirmation is not required for drafts but must be accepted for submissions
             'dept_head_informed' => $isDraft
                 ? ['nullable', 'string', 'in:0,1']
-                : ['required', 'string', 'in:1'],
+                : ['required', 'accepted'],
 
             // Document uploads (optional for both submission and drafts)
             'documents' => ['nullable', 'array'],
@@ -69,6 +69,8 @@ class StoreEmployeeLeaveApplicationRequest extends FormRequest
             $this->validateMaternityLeaveEligibility($validator);
             $this->validatePaternityLeaveEligibility($validator);
             $this->validateWorkingPeriod($validator);
+            $this->validateExistingPendingApplications($validator);
+            $this->validateLeaveCredits($validator);
         });
     }
 
@@ -156,6 +158,55 @@ class StoreEmployeeLeaveApplicationRequest extends FormRequest
             if ($days <= 0) {
                 $validator->errors()->add('end_date', 'Selected date range does not include any working days.');
             }
+        }
+    }
+
+    /**
+     * Validate that employee has no existing pending applications.
+     */
+    protected function validateExistingPendingApplications($validator): void
+    {
+        $employee = $this->user()->employee;
+        if (!$employee) {
+            return;
+        }
+
+        // Check for existing pending applications
+        $hasPendingApplication = \App\Models\LeaveApplication::where('employee_id', $employee->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($hasPendingApplication) {
+            $validator->errors()->add('leave_type_id',
+                'You already have a pending leave application. Please wait for it to be approved or rejected before submitting a new one.');
+        }
+    }
+
+    /**
+     * Validate that employee has sufficient leave credits.
+     */
+    protected function validateLeaveCredits($validator): void
+    {
+        $employee = $this->user()->employee;
+        $leaveTypeId = $this->input('leave_type_id');
+
+        if (!$employee || !$leaveTypeId) {
+            return;
+        }
+
+        $leaveType = LeaveType::find($leaveTypeId);
+        if (!$leaveType) {
+            return;
+        }
+
+        // Get current leave balances
+        $leaveCardService = new \App\Services\LeaveCardService();
+        $currentBalances = $leaveCardService->getCurrentBalances($employee);
+        $availableCredits = $currentBalances[$leaveType->code] ?? 0;
+
+        if ($availableCredits <= 0) {
+            $validator->errors()->add('leave_type_id',
+                "You have no available {$leaveType->name} credits. Your current balance is {$availableCredits} days. Please contact HR for assistance.");
         }
     }
 

@@ -26,6 +26,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'employee_id',
+        'office_id',
+        'office_role',
+        'position',
+        'department',
+        'is_department_head',
     ];
 
     /**
@@ -95,5 +100,58 @@ class User extends Authenticatable implements MustVerifyEmail
     public function archivedEmployees(): HasMany
     {
         return $this->hasMany(Employee::class, 'archived_by');
+    }
+
+    /**
+     * Get the full name with extension from the associated employee.
+     * Falls back to the user's name field if no employee relationship exists.
+     */
+    public function getFullNameAttribute(): string
+    {
+        if ($this->employee && $this->employee->exists) {
+            return $this->employee->full_name;
+        }
+
+        return $this->name;
+    }
+
+    /**
+     * Get avatar initials including name extensions.
+     * Returns first and last name initials, prioritizing first and last letters.
+     */
+    public function getAvatarInitialsAttribute(): string
+    {
+        $fullName = $this->full_name;
+
+        // Split full name into words
+        $words = array_filter(explode(' ', $fullName));
+
+        if (count($words) === 0) {
+            return 'U';
+        }
+
+        if (count($words) === 1) {
+            return strtoupper(substr($words[0], 0, 2));
+        }
+
+        // Get first letter of first word and first letter of last significant word
+        $firstWord = $words[0];
+        $lastWord = end($words);
+
+        // Skip common name extensions for initials (Jr, Sr, II, III, IV)
+        $extensions = ['Jr', 'Sr', 'II', 'III', 'IV', 'V', 'VI'];
+        if (in_array($lastWord, $extensions)) {
+            // Find the last word that's not an extension
+            $tempWords = array_filter($words, function($word) use ($extensions) {
+                return !in_array($word, $extensions);
+            });
+            if (count($tempWords) > 1) {
+                $lastWord = end($tempWords);
+            } else {
+                $lastWord = $firstWord;
+            }
+        }
+
+        return strtoupper(substr($firstWord, 0, 1) . substr($lastWord, 0, 1));
     }
 }

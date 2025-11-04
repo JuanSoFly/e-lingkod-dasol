@@ -19,20 +19,33 @@
                                 Monitoring of submission rates, deadline adherence, and compliance metrics
                             </p>
                         </div>
-                        <div class="flex space-x-3">
-                            <select class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                                <option>{{ $filters['period_id'] ?? null ? 'Selected Period' : 'All Periods' }}</option>
+                        <form method="GET"
+                              action="{{ route('opcr.analytics.compliance') }}"
+                              class="flex space-x-3">
+                            @foreach($filters as $key => $value)
+                                @if(!in_array($key, ['period_id', 'compliance_type']) && !is_null($value))
+                                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                                @endif
+                            @endforeach
+                            <select name="period_id"
+                                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    onchange="this.form.submit()">
+                                <option value="">All Periods</option>
                                 @foreach($periods as $period)
-                                    <option value="{{ $period->id }}">{{ $period->name }}</option>
+                                    <option value="{{ $period->id }}" {{ ($filters['period_id'] ?? null) == $period->id ? 'selected' : '' }}>
+                                        {{ $period->name }}
+                                    </option>
                                 @endforeach
                             </select>
-                            <select class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                                <option>{{ $filters['compliance_type'] ?? null ? 'Selected Type' : 'All Types' }}</option>
-                                <option value="submission_rate">Submission Rate</option>
-                                <option value="deadline_adherence">Deadline Adherence</option>
-                                <option value="document_completeness">Document Completeness</option>
+                            <select name="compliance_type"
+                                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    onchange="this.form.submit()">
+                                <option value="">All Types</option>
+                                <option value="submission_rate" {{ ($filters['compliance_type'] ?? null) === 'submission_rate' ? 'selected' : '' }}>Submission Rate</option>
+                                <option value="deadline_adherence" {{ ($filters['compliance_type'] ?? null) === 'deadline_adherence' ? 'selected' : '' }}>Deadline Adherence</option>
+                                <option value="document_completeness" {{ ($filters['compliance_type'] ?? null) === 'document_completeness' ? 'selected' : '' }}>Document Completeness</option>
                             </select>
-                        </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -124,18 +137,26 @@
                 </div>
             </div>
 
+            @if(($complianceData['compliance_rate'] ?? 0) === 0)
+                <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg">
+                    <p class="text-sm font-medium">No compliance submissions were recorded for the selected filters.</p>
+                    <p class="text-sm mt-1">Invite departments to update their OPCR workflows or adjust filters to view historical metrics.</p>
+                </div>
+            @endif
+
             <!-- Compliance Trends Chart -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Compliance Rate Over Time -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
                         <h3 class="text-lg font-medium text-gray-900 mb-4">Compliance Rate Trends</h3>
-                        <div class="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-                            <div class="text-center">
+                        <div class="relative h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+                            <canvas id="complianceTrendChart" class="w-full h-64 hidden"></canvas>
+                            <div id="complianceTrendEmptyState" class="absolute inset-0 flex flex-col items-center justify-center text-center text-gray-600">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                 </svg>
-                                <p class="mt-2 text-sm text-gray-600">Compliance trends chart will be displayed here</p>
+                                <p class="mt-2 text-sm">Compliance trends chart will appear once department data is available.</p>
                             </div>
                         </div>
                     </div>
@@ -145,12 +166,13 @@
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
                         <h3 class="text-lg font-medium text-gray-900 mb-4">Deadline Adherence Analysis</h3>
-                        <div class="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-                            <div class="text-center">
+                        <div class="relative h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+                            <canvas id="deadlineAdherenceChart" class="w-full h-64 hidden"></canvas>
+                            <div id="deadlineAdherenceEmptyState" class="absolute inset-0 flex flex-col items-center justify-center text-center text-gray-600">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <p class="mt-2 text-sm text-gray-600">Deadline adherence chart will be displayed here</p>
+                                <p class="mt-2 text-sm">Deadline adherence trends will display once submission activity is detected.</p>
                             </div>
                         </div>
                     </div>
@@ -163,10 +185,14 @@
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-medium text-gray-900">Office Compliance Breakdown</h3>
                         <div class="flex space-x-2">
-                            <button class="px-3 py-1 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">
+                            <button id="complianceExportButton"
+                                    class="px-3 py-1 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700"
+                                    data-export-url="{{ route('opcr.analytics.export') }}">
                                 Export Report
                             </button>
-                            <button class="px-3 py-1 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">
+                            <button id="complianceReminderButton"
+                                    class="px-3 py-1 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
+                                    data-reminder-url="{{ route('opcr.analytics.compliance.reminders') }}">
                                 Send Reminders
                             </button>
                         </div>
@@ -287,7 +313,8 @@
                 </div>
             </div>
 
-            <!-- Compliance Improvement Recommendations -->
+            {{-- Compliance Improvement Recommendations --}}
+            {{--
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Compliance Improvement Recommendations</h3>
@@ -323,6 +350,15 @@
                     </div>
                 </div>
             </div>
+            --}}
         </div>
     </div>
+
+    @push('scripts')
+        <script>
+            window.OPCR_COMPLIANCE_DATA = @json($complianceData);
+            window.OPCR_COMPLIANCE_FILTERS = @json($filters);
+        </script>
+        @vite('resources/js/pages/opcr-analytics.js')
+    @endpush
 </x-app-layout>

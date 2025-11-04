@@ -65,13 +65,29 @@ class EmployeeFactory extends Factory
      */
     public function withUser(): static
     {
-        return $this->has(User::factory()->state(function (array $attributes, \App\Models\Employee $employee) {
-            return [
+        return $this->afterCreating(function (\App\Models\Employee $employee) {
+            $this->validateUserCreation($employee);
+
+            $user = User::factory()->create([
                 'name' => trim($employee->first_name . ' ' . $employee->last_name),
                 'email' => $employee->email,
                 'employee_id' => $employee->id,
-            ];
-        }));
+            ]);
+
+            // Force refresh and set relationship
+            $employee->refresh();
+            $employee->setRelation('user', $user);
+        });
+    }
+
+    /**
+     * Validate employee has required data for user creation
+     */
+    private function validateUserCreation(\App\Models\Employee $employee): void
+    {
+        if (empty($employee->email)) {
+            throw new \InvalidArgumentException("Employee must have an email address to create a user account");
+        }
     }
 
     /**

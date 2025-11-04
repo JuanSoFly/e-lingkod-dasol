@@ -132,7 +132,7 @@ class ApprovalWorkflowController extends Controller
      */
     public function workflowStatus(LeaveApplication $application): JsonResponse
     {
-        $this->authorize('leave.view');
+        $this->authorize('leave.approve');
 
         $workflowSteps = LeaveApplicationWorkflowStep::where('leave_application_id', $application->id)
             ->with(['leaveWorkflowStep', 'approvedBy'])

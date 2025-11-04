@@ -91,7 +91,7 @@ class OfficeAssignment extends Model
      */
     public function scopeForOffice($query, $officeId)
     {
-        return $query->where('office_id', $officeId);
+        return $query->where('office_assignments.office_id', $officeId);
     }
 
     /**
@@ -100,6 +100,115 @@ class OfficeAssignment extends Model
     public function scopeForUser($query, $userId)
     {
         return $query->where('user_id', $userId);
+    }
+
+    /**
+     * Scope to get assignments with valid employee data
+     */
+    public function scopeWithValidEmployee($query)
+    {
+        return $query->whereNotNull('employee_id')
+                    ->whereHas('employee');
+    }
+
+    /**
+     * Scope to get system accounts (no employee data)
+     */
+    public function scopeSystemAccounts($query)
+    {
+        return $query->whereNull('employee_id')
+                    ->whereHas('user', function($q) {
+                        $q->where('email', 'admin@example.com');
+                    });
+    }
+
+    /**
+     * Scope to get assignments with missing employee data
+     */
+    public function scopeWithMissingEmployee($query)
+    {
+        return $query->whereNull('employee_id')
+                    ->whereHas('user', function($q) {
+                        $q->where('email', '!=', 'admin@example.com');
+                    });
+    }
+
+    /**
+     * Check if this assignment has complete data
+     */
+    public function hasCompleteData(): bool
+    {
+        return $this->user_id &&
+               $this->employee_id &&
+               $this->office_id &&
+               $this->role &&
+               $this->assigned_date;
+    }
+
+    /**
+     * Check if this is a system account
+     */
+    public function isSystemAccount(): bool
+    {
+        return !$this->employee_id &&
+               $this->user &&
+               $this->user->email === 'admin@example.com';
+    }
+
+    /**
+     * Check if this assignment has data quality issues
+     */
+    public function hasDataQualityIssues(): bool
+    {
+        return !$this->employee_id &&
+               $this->user &&
+               $this->user->email !== 'admin@example.com';
+    }
+
+    /**
+     * Get data quality status
+     */
+    public function getDataQualityStatus(): string
+    {
+        if ($this->isSystemAccount()) {
+            return 'system';
+        }
+
+        if ($this->hasDataQualityIssues()) {
+            return 'missing_employee';
+        }
+
+        if ($this->hasCompleteData()) {
+            return 'complete';
+        }
+
+        return 'incomplete';
+    }
+
+    /**
+     * Find duplicate active assignments for the same user in the same office
+     */
+    public function findDuplicateActiveAssignments()
+    {
+        return static::where('user_id', $this->user_id)
+                    ->where('office_id', $this->office_id)
+                    ->where('is_active', true)
+                    ->where('id', '!=', $this->id)
+                    ->get();
+    }
+
+    /**
+     * Check if this would create a duplicate active assignment
+     */
+    public function wouldCreateDuplicate(): bool
+    {
+        return static::where('user_id', $this->user_id)
+                    ->where('office_id', $this->office_id)
+                    ->where('is_active', true)
+                    ->when($this->exists, function($query) {
+                        $query->where('id', '!=', $this->id);
+                    })
+                    ->exists();
     }
 
     /**

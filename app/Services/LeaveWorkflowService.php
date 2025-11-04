@@ -31,6 +31,11 @@ class LeaveWorkflowService
                 $workflow = $this->createDefaultWorkflow($application);
             }
 
+            // Check if applicant is a Department Head and handle auto-approval
+            if ($this->isApplicantDepartmentHead($application)) {
+                return $this->handleDepartmentHeadSelfApproval($application, $workflow);
+            }
+
             // Create workflow steps for application
             $workflowSteps = [];
             foreach ($workflow->steps as $step) {
@@ -428,5 +433,99 @@ class LeaveWorkflowService
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Check if the applicant is a Department Head
+     */
+    private function isApplicantDepartmentHead(LeaveApplication $application): bool
+    {
+        $employee = $application->employee;
+
+        // Check using is_department_head flag
+        if ($employee->is_department_head) {
+            return true;
+        }
+
+        // Check using OfficeAssignment
+        $headAssignment = \App\Models\OfficeAssignment::where('employee_id', $employee->id)
+            ->where('role', 'Department Head')
+            ->first();
+
+        return $headAssignment !== null;
+    }
+
+    /**
+     * Handle Department Head self-approval
+     */
+    private function handleDepartmentHeadSelfApproval(LeaveApplication $application, LeaveWorkflow $workflow): array
+    {
+        $workflowSteps = [];
+        $hasDepartmentHeadStep = false;
+        $applicantUser = $application->employee->user;
+        $applicantUserId = $applicantUser ? $applicantUser->id : null;
+
+        // Create all workflow steps but auto-approve Department Head step
+        foreach ($workflow->steps as $step) {
+            $appStep = LeaveApplicationWorkflowStep::create([
+                'leave_application_id' => $application->id,
+                'leave_workflow_step_id' => $step->id,
+                'step_order' => $step->step_order,
+                'status' => 'pending',
+            ]);
+
+            // Check if this step is for Department Head approval
+            $stepApprovers = $step->getCurrentApprovers($application);
+            $isDepartmentHeadStep = false;
+
+            foreach ($stepApprovers as $approver) {
+                if ($applicantUserId && $approver->id === $applicantUserId) {
+                    $isDepartmentHeadStep = true;
+                    $hasDepartmentHeadStep = true;
+                    break;
+                }
+            }
+
+            if ($isDepartmentHeadStep) {
+                // Auto-approve this step for Department Head
+                $appStep->update([
+                    'status' => 'approved',
+                    'approved_by' => $applicantUserId,
+                    'approved_at' => now(),
+                    'remarks' => 'Auto-approved: Applicant is Department Head',
+                ]);
+
+                Log::info('Department Head auto-approval step processed', [
+                    'application_id' => $application->id,
+                    'step_id' => $appStep->id,
+                    'employee_id' => $application->employee_id,
+                    'applicant_user_id' => $applicantUserId,
+                ]);
+            } else {
+                $workflowSteps[] = $appStep;
+            }
+        }
+
+        // Route to the next pending step (if any)
+        if (!empty($workflowSteps)) {
+            // Find the next pending step
+            $nextStep = collect($workflowSteps)->where('status', 'pending')->sortBy('step_order')->first();
+            if ($nextStep) {
+                $this->routeToApprovers($application, $nextStep);
+            }
+        } else {
+            // No more steps, complete the workflow
+            $this->completeWorkflow($application, true);
+        }
+
+        Log::info('Department Head self-approval handled', [
+            'application_id' => $application->id,
+            'employee_id' => $application->employee_id,
+            'applicant_user_id' => $applicantUserId,
+            'had_department_head_step' => $hasDepartmentHeadStep,
+            'remaining_steps' => count($workflowSteps),
+        ]);
+
+        return $workflowSteps;
     }
 }

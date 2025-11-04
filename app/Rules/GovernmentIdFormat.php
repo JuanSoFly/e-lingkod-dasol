@@ -23,29 +23,29 @@ class GovernmentIdFormat implements ValidationRule
             return; // Allow null/empty values, let 'required' rule handle it
         }
 
-        $cleanValue = preg_replace('/[\s\-\.\#]+/', '', strtoupper(trim($value)));
+        $value = trim($value);
 
         switch ($this->idType) {
             case 'sss':
-                $this->validateSSS($cleanValue, $fail);
+                $this->validateSSS($value, $fail);
                 break;
             case 'gsis':
-                $this->validateGSIS($cleanValue, $fail);
+                $this->validateGSIS($value, $fail);
                 break;
             case 'philhealth':
-                $this->validatePhilhealth($cleanValue, $fail);
+                $this->validatePhilhealth($value, $fail);
                 break;
             case 'pagibig':
-                $this->validatePagibig($cleanValue, $fail);
+                $this->validatePagibig($value, $fail);
                 break;
             case 'tin':
-                $this->validateTIN($cleanValue, $fail);
+                $this->validateTIN($value, $fail);
                 break;
             case 'psa':
-                $this->validatePSA($cleanValue, $fail);
+                $this->validatePSA($value, $fail);
                 break;
             default:
-                $this->validateGeneral($cleanValue, $fail);
+                $this->validateGeneral($value, $fail);
                 break;
         }
     }
@@ -55,9 +55,9 @@ class GovernmentIdFormat implements ValidationRule
      */
     private function validateSSS(string $value, Closure $fail): void
     {
-        // SSS format: XX-XXXXXXX-X (10 digits total)
-        if (!preg_match('/^\d{2}\d{7}\d{1}$/', $value)) {
-            $fail('The :attribute must be a valid SSS number format (10 digits).');
+        // SSS format: XX-XXXXXXX-X (10 digits total) - supports both formatted and unformatted
+        if (!preg_match('/^(?:\d{10}|\d{2}-\d{7}-\d{1})$/', $value)) {
+            $fail('The :attribute must be a valid SSS number format (10 digits, e.g., 12-3456789-0 or 1234567890).');
         }
     }
 
@@ -66,9 +66,12 @@ class GovernmentIdFormat implements ValidationRule
      */
     private function validateGSIS(string $value, Closure $fail): void
     {
-        // GSIS format: XXXXXXXXXX-X (11 digits + 1 check digit)
-        if (!preg_match('/^\d{11}\d{1}$/', $value)) {
-            $fail('The :attribute must be a valid GSIS number format (12 digits).');
+        // GSIS formats:
+        // - BP No: 10 digits
+        // - GSIS ID No: 11 digits
+        // - UMID CRN: 12 digits with optional dashes (XXXX-XXX-XXX-X or XXXXXXXXXXXX)
+        if (!preg_match('/^(?:\d{10}|\d{11}|\d{12}|\d{4}-\d{3}-\d{3}-\d{1})$/', $value)) {
+            $fail('The :attribute must be a valid GSIS number format (BP No: 10 digits, GSIS ID: 11 digits, or UMID CRN: 12 digits).');
         }
     }
 
@@ -77,9 +80,9 @@ class GovernmentIdFormat implements ValidationRule
      */
     private function validatePhilhealth(string $value, Closure $fail): void
     {
-        // PhilHealth format: XX-XXXXXXXXX-X (12 digits total)
-        if (!preg_match('/^\d{2}\d{9}\d{1}$/', $value)) {
-            $fail('The :attribute must be a valid PhilHealth number format (12 digits).');
+        // PhilHealth format: XX-XXXXXXXXX-X (12 digits total) - supports both formatted and unformatted
+        if (!preg_match('/^(?:\d{12}|\d{2}-\d{9}-\d{1})$/', $value)) {
+            $fail('The :attribute must be a valid PhilHealth number format (12 digits, e.g., 12-345678912-3 or 123456789123).');
         }
     }
 
@@ -88,9 +91,9 @@ class GovernmentIdFormat implements ValidationRule
      */
     private function validatePagibig(string $value, Closure $fail): void
     {
-        // Pag-IBIG format: XXXX-XXXX-XXXX (12 digits)
-        if (!preg_match('/^\d{4}\d{4}\d{4}$/', $value)) {
-            $fail('The :attribute must be a valid Pag-IBIG number format (12 digits).');
+        // Pag-IBIG format: XXXX-XXXX-XXXX (12 digits) - supports both formatted and unformatted
+        if (!preg_match('/^(?:\d{12}|\d{4}-\d{4}-\d{4})$/', $value)) {
+            $fail('The :attribute must be a valid Pag-IBIG number format (12 digits, e.g., 1234-5678-9012 or 123456789012).');
         }
     }
 
@@ -99,9 +102,12 @@ class GovernmentIdFormat implements ValidationRule
      */
     private function validateTIN(string $value, Closure $fail): void
     {
-        // TIN format: XXX-XXX-XXX-XXX (12 digits) or XXX-XXX-XXX (9 digits)
-        if (!preg_match('/^\d{9}$|^\d{12}$/', $value)) {
-            $fail('The :attribute must be a valid TIN number format (9 or 12 digits).');
+        // TIN format:
+        // - Individuals: XXX-XXX-XXX (9 digits)
+        // - Entities with branch codes: XXX-XXX-XXX-XXX (12-14 digits total)
+        // Supports both formatted and unformatted
+        if (!preg_match('/^(?:\d{9}|\d{12}|\d{13}|\d{14}|\d{3}-\d{3}-\d{3}|\d{3}-\d{3}-\d{3}-\d{3}|\d{3}-\d{3}-\d{3}-\d{4}|\d{3}-\d{3}-\d{3}-\d{5})$/', $value)) {
+            $fail('The :attribute must be a valid TIN number format (9 digits for individuals, 12-14 digits for entities with branch codes).');
         }
     }
 
@@ -137,11 +143,11 @@ class GovernmentIdFormat implements ValidationRule
     public function message(): string
     {
         $messages = [
-            'sss' => 'The :attribute must be a valid SSS number format (10 digits).',
-            'gsis' => 'The :attribute must be a valid GSIS number format (12 digits).',
-            'philhealth' => 'The :attribute must be a valid PhilHealth number format (12 digits).',
-            'pagibig' => 'The :attribute must be a valid Pag-IBIG number format (12 digits).',
-            'tin' => 'The :attribute must be a valid TIN number format (9 or 12 digits).',
+            'sss' => 'The :attribute must be a valid SSS number format (10 digits, e.g., 12-3456789-0 or 1234567890).',
+            'gsis' => 'The :attribute must be a valid GSIS number format (BP No: 10 digits, GSIS ID: 11 digits, or UMID CRN: 12 digits).',
+            'philhealth' => 'The :attribute must be a valid PhilHealth number format (12 digits, e.g., 12-345678912-3 or 123456789123).',
+            'pagibig' => 'The :attribute must be a valid Pag-IBIG number format (12 digits, e.g., 1234-5678-9012 or 123456789012).',
+            'tin' => 'The :attribute must be a valid TIN number format (9 digits for individuals, 12-14 digits for entities with branch codes).',
             'psa' => 'The :attribute must be a valid PSA/PhilID number format (12 digits).',
         ];
 

@@ -44,14 +44,16 @@ class OPCRPolicy
             return $this->isUserDepartmentHeadForWorkflow($user, $workflow);
         }
 
-        // Assessor can view all workflows for evaluation (cross-office access)
+        // Assessor can view workflows assigned to them for evaluation
         if ($user->hasPermission('opcr.view_assigned') && $this->hasActiveRole($user, OfficeAssignment::ROLE_ASSESSOR)) {
-            return true; // Assessors can access all workflows for cross-office evaluation
+            // Assessors can only access workflows they are specifically assigned to evaluate
+            return $this->isUserAssessorForWorkflow($user, $workflow);
         }
 
-        // Final Approver can view all workflows for final approval
+        // Final Approver can view workflows assigned to them for approval
         if ($user->hasPermission('opcr.view_assigned') && $this->hasActiveRole($user, OfficeAssignment::ROLE_FINAL_APPROVER)) {
-            return true; // Final Approvers can access all workflows for cross-office approval
+            // Final Approvers can only access workflows they are specifically assigned to approve
+            return $this->isUserFinalApproverForWorkflow($user, $workflow);
         }
 
         // Employee can view their own workflows
@@ -230,7 +232,7 @@ class OPCRPolicy
      */
     private function isUserAssessorForWorkflow(User $user, OPCRWorkflow $workflow): bool
     {
-        return $this->hasActiveRole($user, OfficeAssignment::ROLE_ASSESSOR);
+        return $this->hasActiveRole($user, OfficeAssignment::ROLE_ASSESSOR, $workflow->office_id);
     }
 
     /**
@@ -238,7 +240,7 @@ class OPCRPolicy
      */
     private function isUserFinalApproverForWorkflow(User $user, OPCRWorkflow $workflow): bool
     {
-        return $this->hasActiveRole($user, OfficeAssignment::ROLE_FINAL_APPROVER);
+        return $this->hasActiveRole($user, OfficeAssignment::ROLE_FINAL_APPROVER, $workflow->office_id);
     }
 
     /**
@@ -250,13 +252,16 @@ class OPCRPolicy
             return false;
         }
 
-        // Assessor can return workflows in committed, in_progress, and evaluation states (cross-office access)
-        if ($this->hasActiveRole($user, OfficeAssignment::ROLE_ASSESSOR)) {
-            return true;
+        // Assessor can return workflows they are assigned to evaluate
+        if ($this->hasActiveRole($user, OfficeAssignment::ROLE_ASSESSOR) &&
+            $this->isUserAssessorForWorkflow($user, $workflow)) {
+            return in_array($workflow->workflow_state, ['committed', 'in_progress']);
         }
 
-        // Final Approver can return workflows in evaluation state for cross-office approval
-        if ($this->hasActiveRole($user, OfficeAssignment::ROLE_FINAL_APPROVER) && $workflow->workflow_state === 'evaluation') {
+        // Final Approver can return workflows they are assigned to approve
+        if ($this->hasActiveRole($user, OfficeAssignment::ROLE_FINAL_APPROVER) &&
+            $this->isUserFinalApproverForWorkflow($user, $workflow) &&
+            $workflow->workflow_state === 'evaluation') {
             return true;
         }
 

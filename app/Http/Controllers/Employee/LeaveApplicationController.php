@@ -64,9 +64,23 @@ class LeaveApplicationController extends Controller
 
         $validated = $request->validated();
 
+        // Debug logging for validation attempts
+        \Log::info('Leave application submission attempt', [
+            'employee_id' => $employee->id,
+            'validated_data' => $validated,
+            'dept_head_informed_value' => $validated['dept_head_informed'] ?? 'missing',
+            'dept_head_informed_type' => gettype($validated['dept_head_informed'] ?? null)
+        ]);
+
         try {
             // Check for overlapping applications
             $this->validateNoOverlap($employee, $validated['start_date'], $validated['end_date']);
+
+            // Check for existing pending applications (NEW VALIDATION)
+            $this->validateNoPendingApplications($employee);
+
+            // Validate leave credits before submission (NEW VALIDATION)
+            $this->validateLeaveCredits($employee, $validated['leave_type_id']);
 
             // Validate against leave policy
             $daysRequested = $this->calculateDaysRequested(
@@ -180,7 +194,10 @@ class LeaveApplicationController extends Controller
         $employee = auth()->user()->employee;
 
         if (!$employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 404);
+            return response()->json([
+                'message' => 'Employee profile not found.',
+                'error_code' => 'EMPLOYEE_NOT_FOUND'
+            ], 404);
         }
 
         $validated = $request->validate([
@@ -189,6 +206,24 @@ class LeaveApplicationController extends Controller
         ]);
 
         try {
+            // Validate employee has work calendar assigned
+            if (!$employee->workCalendar) {
+                \Log::warning('Leave application attempt without work calendar', [
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employee->full_name,
+                    'work_calendar_id' => $employee->work_calendar_id,
+                    'action' => 'leave_calculation_request'
+                ]);
+
+                return response()->json([
+                    'message' => 'No work calendar assigned to employee. Please contact HR to ensure your work schedule is properly configured.',
+                    'error_code' => 'NO_WORK_CALENDAR',
+                    'employee_id' => $employee->id,
+                    'work_calendar_id' => $employee->work_calendar_id,
+                    'hr_action_required' => 'Assign work calendar to employee profile'
+                ], 422);
+            }
+
             $days = $this->calculateDaysRequested(
                 $employee,
                 $validated['start_date'],
@@ -198,21 +233,48 @@ class LeaveApplicationController extends Controller
             $start = \Carbon\Carbon::parse($validated['start_date'], config('app.timezone', 'Asia/Manila'))->startOfDay();
             $end = \Carbon\Carbon::parse($validated['end_date'], config('app.timezone', 'Asia/Manila'))->startOfDay();
 
-            $workWeek = $employee->workCalendar?->work_week;
+            $workWeek = $employee->workCalendar->work_week;
 
             $nonWorkingDates = $this->holidayService->getNonWorkingDates($start, $end, $employee, $workWeek);
             $holidaySummaries = $this->holidayService->getHolidaySummaries($start, $end, $employee);
+
+            // Enhanced response with work calendar info for debugging
+            return response()->json([
+                'days' => $days,
+                'non_working_dates' => $nonWorkingDates,
+                'holidays' => $holidaySummaries,
+                'work_calendar' => [
+                    'id' => $employee->workCalendar->id,
+                    'name' => $employee->workCalendar->name,
+                    'work_week' => $workWeek,
+                ],
+                'calculation_breakdown' => [
+                    'total_days' => $start->diffInDays($end) + 1,
+                    'working_days' => $days,
+                    'excluded_days_count' => count($nonWorkingDates),
+                    'date_range' => [
+                        'start' => $start->format('Y-m-d'),
+                        'end' => $end->format('Y-m-d')
+                    ]
+                ]
+            ]);
+
         } catch (\Exception $e) {
+            \Log::error('Leave calculation error', [
+                'employee_id' => $employee->id,
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'message' => $e->getMessage(),
+                'error_code' => 'CALCULATION_ERROR',
+                'employee_id' => $employee->id,
+                'work_calendar_id' => $employee->work_calendar_id
             ], 422);
         }
-
-        return response()->json([
-            'days' => $days,
-            'non_working_dates' => $nonWorkingDates,
-            'holidays' => $holidaySummaries,
-        ]);
     }
 
     /**
@@ -334,6 +396,45 @@ class LeaveApplicationController extends Controller
         if ($overlappingApplications) {
             throw new \Exception('You already have a leave application for this period.');
         }
+    }
+
+    /**
+     * Validate that employee has no pending applications
+     */
+    private function validateNoPendingApplications(Employee $employee): void
+    {
+        $hasPendingApplication = LeaveApplication::where('employee_id', $employee->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($hasPendingApplication) {
+            throw new \Exception('You already have a pending leave application. Please wait for it to be approved or rejected before submitting a new one.');
+        }
+    }
+
+    /**
+     * Validate that employee has sufficient leave credits
+     */
+    private function validateLeaveCredits(Employee $employee, int $leaveTypeId): void
+    {
+        $leaveType = \App\Models\LeaveType::find($leaveTypeId);
+        if (!$leaveType) {
+            throw new \Exception('Invalid leave type selected.');
+        }
+
+        $currentBalances = $this->leaveCardService->getCurrentBalances($employee);
+        $availableCredits = $currentBalances[$leaveType->code] ?? 0;
+
+        if ($availableCredits <= 0) {
+            throw new \Exception("You have no available {$leaveType->name} credits. Please contact HR for assistance.");
+        }
+
+        // Log the validation for audit purposes
+        \Log::info('Leave credit validation', [
+            'employee_id' => $employee->id,
+            'leave_type' => $leaveType->code,
+            'available_credits' => $availableCredits
+        ]);
     }
 
     /**

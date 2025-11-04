@@ -30,8 +30,16 @@ class RoleAndPermissionSeeder extends Seeder
             'document-approval.view', 'document-approval.create', 'document-approval.edit', 'document-approval.delete', 'document-approval.approve',
             'opcr.view', 'opcr.create', 'opcr.edit', 'opcr.commit', 'opcr.submit', 'opcr.assess', 'opcr.approve', 'opcr.manage', 'opcr.return',
             'opcr.export', 'opcr.analytics', 'opcr.settings', 'opcr.admin',
+            // Office Assignment permissions
+            'opcr.assignments.view', 'opcr.assignments.create', 'opcr.assignments.edit', 'opcr.assignments.delete',
+            'opcr.assignments.manage', 'opcr.assignments.view-own', 'opcr.assignments.edit-own',
             'mfo.view', 'mfo.create', 'mfo.edit', 'mfo.delete',
             'si.view', 'si.create', 'si.edit', 'si.delete',
+            // IPCR permissions
+            'ipcr.view', 'ipcr.view-own', 'ipcr.create', 'ipcr.edit', 'ipcr.submit',
+            'ipcr.review', 'ipcr.approve', 'ipcr.validate', 'ipcr.finalize',
+            'ipcr.manage', 'ipcr.cascade', 'ipcr.analytics',
+            'ipcr.attachments.manage', 'ipcr.adjustments.manage',
             // Granular permissions for employees
             'employee.view-own',
             'leave.view-own',
@@ -62,12 +70,19 @@ class RoleAndPermissionSeeder extends Seeder
             'profile.edit-own',
             'documents.upload-own',
             'notifications.manage-own',
+            'ipcr.view-own',
+            'ipcr.create',
+            'ipcr.edit',
+            'ipcr.submit',
+            'ipcr.attachments.manage',
         ]);
 
         $deptHeadRole = Role::firstOrCreate(['name' => 'Department Head']);
         $deptHeadRole->syncPermissions([
             'employee.view',
             'leave.view',
+            'leave.create',
+            'leave.view-own',
             'leave.approve',
             'leave.reject',
             'performance.view',
@@ -88,6 +103,14 @@ class RoleAndPermissionSeeder extends Seeder
             'si.view',
             'si.create',
             'si.edit',
+            'ipcr.view',
+            'ipcr.approve',
+            'ipcr.review',
+            'ipcr.attachments.manage',
+            'ipcr.adjustments.manage',
+            // Office Assignment permissions for Department Heads
+            'opcr.assignments.view-own',
+            'opcr.assignments.edit-own',
         ]);
 
         $hrAdminRole = Role::firstOrCreate(['name' => 'HR Admin']);
@@ -104,6 +127,12 @@ class RoleAndPermissionSeeder extends Seeder
             'opcr.view', 'opcr.create', 'opcr.edit', 'opcr.submit', 'opcr.assess', 'opcr.approve', 'opcr.manage',
             'opcr.export', 'opcr.analytics', 'opcr.settings', 'opcr.admin',
             'si.view', 'si.create', 'si.edit', 'si.delete',
+            'ipcr.view', 'ipcr.create', 'ipcr.edit', 'ipcr.submit', 'ipcr.review', 'ipcr.approve', 'ipcr.validate',
+            'ipcr.finalize', 'ipcr.manage', 'ipcr.cascade', 'ipcr.analytics',
+            'ipcr.attachments.manage', 'ipcr.adjustments.manage',
+            // Full Office Assignment permissions for HR Admin
+            'opcr.assignments.view', 'opcr.assignments.create', 'opcr.assignments.edit', 'opcr.assignments.delete',
+            'opcr.assignments.manage',
         ]);
 
         $assessorRole = Role::firstOrCreate(['name' => 'Assessor']);
@@ -111,6 +140,9 @@ class RoleAndPermissionSeeder extends Seeder
             'opcr.view',
             'opcr.assess',
             'opcr.return',
+            'ipcr.view',
+            'ipcr.validate',
+            'ipcr.analytics',
         ]);
 
         $finalApproverRole = Role::firstOrCreate(['name' => 'Final Approver']);
@@ -118,6 +150,42 @@ class RoleAndPermissionSeeder extends Seeder
             'opcr.view',
             'opcr.approve',
             'opcr.return',
+            'ipcr.view',
+            'ipcr.finalize',
+            'ipcr.manage',
+        ]);
+
+        $ipcrEmployeeRole = Role::firstOrCreate(['name' => 'IPCR Employee']);
+        $ipcrEmployeeRole->syncPermissions([
+            'ipcr.view-own',
+            'ipcr.create',
+            'ipcr.edit',
+            'ipcr.submit',
+            'ipcr.attachments.manage',
+        ]);
+
+        $ipcrSupervisorRole = Role::firstOrCreate(['name' => 'IPCR Supervisor']);
+        $ipcrSupervisorRole->syncPermissions([
+            'ipcr.view',
+            'ipcr.review',
+            'ipcr.attachments.manage',
+            'ipcr.adjustments.manage',
+        ]);
+
+        $headOfOfficeRole = Role::firstOrCreate(['name' => 'Head of Office']);
+        $headOfOfficeRole->syncPermissions([
+            'ipcr.view',
+            'ipcr.review',
+            'ipcr.approve',
+            'ipcr.attachments.manage',
+            'ipcr.adjustments.manage',
+        ]);
+
+        $pmtMemberRole = Role::firstOrCreate(['name' => 'PMT Member']);
+        $pmtMemberRole->syncPermissions([
+            'ipcr.view',
+            'ipcr.validate',
+            'ipcr.analytics',
         ]);
 
         $superAdminRole = Role::firstOrCreate(['name' => 'Super Admin']);

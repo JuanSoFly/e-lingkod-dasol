@@ -43,7 +43,7 @@
                                 </div>
                                 <div class="flex items-center">
                                     <i class="fas fa-building text-gray-400 mr-2"></i>
-                                    <span><span class="font-medium">Department:</span> {{ $employee->department }}</span>
+                                    <span><span class="font-medium">Department:</span> {{ $employee->office?->name ?? $employee->department }}</span>
                                 </div>
                             </div>
                         </div>

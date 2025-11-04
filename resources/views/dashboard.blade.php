@@ -137,7 +137,8 @@
                 </div>
                 @endif
 
-                <!-- OPCR Completed Card -->
+                <!-- OPCR Completed Card - Hidden for Department Head -->
+                @if(!$isDepartmentHead)
                 <div class="bg-gradient-to-br from-green-50 to-emerald-50 overflow-hidden shadow-sm rounded-lg p-6 border border-green-200 hover:shadow-md transition-all duration-200 hover:from-green-100 hover:to-emerald-100">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center">
@@ -159,6 +160,7 @@
                         </a>
                     </div>
                 </div>
+                @endif
 
                 <!-- OPCR Average Rating Card -->
                 @if($isAssessor || $isFinalApprover || $canManageOPCR)
@@ -187,8 +189,8 @@
             @endif
         </div>
 
-        <!-- OPCR Quick Actions Section - Only show if user has OPCR permissions -->
-        @if($canViewOPCR || $isDepartmentHead || $isAssessor || $isFinalApprover)
+        <!-- OPCR Quick Actions Section - Hidden for Department Head -->
+        @if(($canViewOPCR || $isAssessor || $isFinalApprover) && !$isDepartmentHead)
         <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200 p-6">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center space-x-2">
@@ -367,10 +369,10 @@
                                 @forelse($upcomingBirthdays as $employee)
                                     <div class="flex items-center space-x-2 sm:space-x-3 p-2 bg-gray-50 rounded-lg">
                                         <div class="w-8 h-8 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                                            {{ strtoupper(substr($employee->first_name, 0, 1) . substr($employee->last_name, 0, 1)) }}
+                                            {{ $employee->avatar_initials }}
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            <div class="text-sm font-medium text-gray-900 truncate">{{ $employee->first_name }} {{ $employee->last_name }}</div>
+                                            <div class="text-sm font-medium text-gray-900 truncate">{{ $employee->full_name }}</div>
                                             <div class="text-xs text-gray-500">{{ $employee->birth_date?->format('F j') ?? 'Date unknown' }}</div>
                                         </div>
                                         <div class="text-xs text-pink-600 font-medium">

@@ -100,8 +100,8 @@
             <div class="p-6 border-t border-gray-200">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-sm text-gray-600">Department Head:</span>
-                    @if($office->departmentHead)
-                    <span class="text-sm font-medium text-gray-900">{{ $office->departmentHead->full_name }}</span>
+                    @if($office->currentDepartmentHead)
+                    <span class="text-sm font-medium text-gray-900">{{ $office->currentDepartmentHead->full_name }}</span>
                     @else
                     <span class="text-sm text-gray-400">Not Assigned</span>
                     @endif

@@ -82,4 +82,9 @@ class PerformanceTarget extends Model
     {
         return $this->belongsTo(OPCRWorkflow::class, 'opcr_workflow_id');
     }
+
+    public function ipcrMappings(): HasMany
+    {
+        return $this->hasMany(OpcrIpcrMapping::class, 'performance_target_id');
+    }
 }

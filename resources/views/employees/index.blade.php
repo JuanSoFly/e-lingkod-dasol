@@ -148,7 +148,7 @@
                     <div class="flex items-start space-x-4">
                         <!-- Avatar -->
                         <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
-                            {{ strtoupper(substr($employee->first_name, 0, 1) . substr($employee->last_name, 0, 1)) }}
+                            {{ $employee->avatar_initials }}
                         </div>
 
                         <!-- Employee Info -->
@@ -156,7 +156,7 @@
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
                                     <h3 class="text-sm font-medium text-gray-900 truncate employee-name">
-                                        {{ $employee->first_name }} {{ $employee->last_name }}
+                                        {{ $employee->full_name }}
                                     </h3>
                                     <p class="text-sm text-gray-500 truncate employee-email">{{ $employee->email }}</p>
                                 </div>
@@ -192,7 +192,7 @@
                                     <svg class="w-3 h-3 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                     </svg>
-                                    <span class="truncate employee-department">{{ $employee->department }}</span>
+                                    <span class="truncate employee-department">{{ $employee->office?->name ?? $employee->department }}</span>
                                 </div>
 
                                 <div class="flex items-center text-xs text-gray-500">
@@ -282,16 +282,16 @@
                                 <td class="px-3 lg:px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center min-w-0">
                                         <div class="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-xs lg:text-sm flex-shrink-0">
-                                            {{ strtoupper(substr($employee->first_name, 0, 1) . substr($employee->last_name, 0, 1)) }}
+                                            {{ $employee->avatar_initials }}
                                         </div>
                                         <div class="ml-2 lg:ml-4 min-w-0 flex-1">
-                                            <div class="text-xs lg:text-sm font-medium text-gray-900 employee-name truncate">{{ $employee->first_name }} {{ $employee->last_name }}</div>
+                                            <div class="text-xs lg:text-sm font-medium text-gray-900 employee-name truncate">{{ $employee->full_name }}</div>
                                             <div class="text-xs lg:text-sm text-gray-500 employee-email truncate">{{ $employee->email }}</div>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-900 employee-position truncate">{{ $employee->position }}</td>
-                                <td class="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-500 employee-department truncate">{{ $employee->department }}</td>
+                                <td class="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-500 employee-department truncate">{{ $employee->office?->name ?? $employee->department }}</td>
                                 <td class="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-500 hidden md:table-cell">{{ $employee->date_hired?->format('M d, Y') ?? 'Not provided' }}</td>
                                 <td class="px-3 lg:px-6 py-4 whitespace-nowrap text-right text-xs lg:text-sm font-medium">
                                     <div class="flex justify-end space-x-1 lg:space-x-2">

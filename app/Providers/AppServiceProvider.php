@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Contracts\DashboardServiceInterface;
 use App\Services\DashboardService;
+use App\Models\Employee;
+use App\Observers\EmployeeObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -21,6 +23,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Employee::observe(EmployeeObserver::class);
     }
 }

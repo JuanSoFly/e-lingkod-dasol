@@ -11,6 +11,7 @@ use App\Models\MajorFinalOutput;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Carbon\Carbon;
 
 class DashboardAnalyticsService
 {
@@ -626,9 +627,13 @@ class DashboardAnalyticsService
     private function calculateTargetCompletionRate(?int $periodId, ?int $officeId): float
     {
         try {
-            $query = PerformanceTarget::where('period_id', $periodId);
+            $query = PerformanceTarget::query();
 
-            if ($officeId) {
+            if ($periodId !== null) {
+                $query->where('period_id', $periodId);
+            }
+
+            if ($officeId !== null) {
                 $query->whereHas('mfo', function ($q) use ($officeId) {
                     $q->where('office_id', $officeId);
                 });
@@ -1098,130 +1103,289 @@ class DashboardAnalyticsService
      */
     private function calculateComplianceRate(?int $periodId, ?int $officeId): float
     {
+        return $this->evaluateComplianceInsights($periodId, $officeId)['compliance_rate'];
+    }
+
+    /**
+     * Get compliance analytics insights with supporting details.
+     */
+    public function getComplianceInsights(?int $periodId = null, ?int $officeId = null): array
+    {
+        return $this->evaluateComplianceInsights($periodId, $officeId);
+    }
+
+    /**
+     * Evaluate workflow compliance against government standards and derive insights.
+     */
+    private function evaluateComplianceInsights(?int $periodId, ?int $officeId): array
+    {
         try {
             $periodId = $periodId ?? $this->getCurrentPeriodId();
 
-            // Get workflows and check their compliance
-            $query = OPCRWorkflow::where('period_id', $periodId);
-
-            if ($officeId) {
-                $query->where('office_id', $officeId);
-            }
-
-            $workflows = $query->get();
+            $workflows = OPCRWorkflow::with(['office:id,name', 'period:id,name,end_date'])
+                ->when($periodId, fn ($builder) => $builder->where('period_id', $periodId))
+                ->when($officeId, fn ($builder) => $builder->where('office_id', $officeId))
+                ->get();
 
             if ($workflows->isEmpty()) {
-                return 0.0;
+                return [
+                    'compliance_rate' => 0.0,
+                    'on_time_rate' => 0.0,
+                    'document_completeness_rate' => 0.0,
+                    'overdue_count' => 0,
+                    'critical_issues' => [],
+                    'upcoming_deadlines' => $this->buildUpcomingPeriodDeadlines($periodId),
+                    'recommendations' => [],
+                    'total_workflows' => 0,
+                    'compliant_count' => 0,
+                ];
             }
 
             $compliantCount = 0;
             $totalCount = $workflows->count();
-            $complianceDetails = [];
+            $onTimeCount = 0;
+            $completeDocsCount = 0;
+            $overdueCount = 0;
+            $criticalIssues = [];
 
             foreach ($workflows as $workflow) {
                 $complianceIssues = [];
+                $hasTimeIssue = false;
 
-                // State-specific time limits (government compliance standards)
-                $daysSinceCreation = $workflow->created_at->diffInDays(now());
-                $daysSinceUpdate = $workflow->updated_at->diffInDays(now());
+                $daysSinceCreation = $workflow->created_at ? (int) $workflow->created_at->diffInDays(now()) : 0;
+                $daysSinceUpdate = $workflow->updated_at ? (int) $workflow->updated_at->diffInDays(now()) : 0;
 
                 switch ($workflow->workflow_state) {
-                    case 'draft':
-                        // Draft should be completed within 7 days
+                    case OPCRWorkflow::STATE_DRAFT:
                         if ($daysSinceCreation > 7) {
                             $complianceIssues[] = "Draft stage exceeds 7-day limit ({$daysSinceCreation} days)";
+                            $hasTimeIssue = true;
                         }
                         break;
 
-                    case 'committed':
-                        // Should move to assessment within 14 days of commitment
+                    case OPCRWorkflow::STATE_COMMITTED:
                         if ($daysSinceUpdate > 14) {
                             $complianceIssues[] = "Committed stage exceeds 14-day limit ({$daysSinceUpdate} days)";
+                            $hasTimeIssue = true;
                         }
                         break;
 
-                    case 'in_progress':
-                        // Assessment should be completed within 14 days
+                    case OPCRWorkflow::STATE_IN_PROGRESS:
                         if ($daysSinceUpdate > 14) {
                             $complianceIssues[] = "Assessment exceeds 14-day limit ({$daysSinceUpdate} days)";
+                            $hasTimeIssue = true;
                         }
                         break;
 
-                    case 'evaluation':
-                        // Final approval should be completed within 7 days
+                    case OPCRWorkflow::STATE_EVALUATION:
                         if ($daysSinceUpdate > 7) {
                             $complianceIssues[] = "Evaluation exceeds 7-day limit ({$daysSinceUpdate} days)";
+                            $hasTimeIssue = true;
                         }
                         break;
 
-                    case 'final_approval':
-                        // Check if completed workflows have required data
+                    case OPCRWorkflow::STATE_FINAL_APPROVAL:
                         if (empty($workflow->overall_rating)) {
-                            $complianceIssues[] = "Completed workflow missing overall rating";
+                            $complianceIssues[] = 'Completed workflow missing overall rating';
                         }
                         if (empty($workflow->summary)) {
-                            $complianceIssues[] = "Completed workflow missing summary";
+                            $complianceIssues[] = 'Completed workflow missing summary';
                         }
                         break;
 
-                    case 'returned':
-                        // Returned workflows should be addressed within 7 days
+                    case OPCRWorkflow::STATE_RETURNED:
                         if ($daysSinceUpdate > 7) {
                             $complianceIssues[] = "Returned workflow exceeds 7-day rework limit ({$daysSinceUpdate} days)";
+                            $hasTimeIssue = true;
                         }
                         break;
                 }
 
-                // Check overall workflow age (government compliance: should complete within 60 days)
-                if ($daysSinceCreation > 60 && $workflow->workflow_state !== 'final_approval') {
+                if ($daysSinceCreation > 60 && $workflow->workflow_state !== OPCRWorkflow::STATE_FINAL_APPROVAL) {
                     $complianceIssues[] = "Workflow exceeds 60-day maximum processing time ({$daysSinceCreation} days)";
+                    $hasTimeIssue = true;
                 }
 
-                // Check for missing required data in non-draft states
-                if (in_array($workflow->workflow_state, ['committed', 'in_progress', 'evaluation', 'final_approval'])) {
+                if (in_array($workflow->workflow_state, [
+                    OPCRWorkflow::STATE_COMMITTED,
+                    OPCRWorkflow::STATE_IN_PROGRESS,
+                    OPCRWorkflow::STATE_EVALUATION,
+                    OPCRWorkflow::STATE_FINAL_APPROVAL,
+                ])) {
                     if (empty($workflow->title)) {
-                        $complianceIssues[] = "Missing workflow title";
+                        $complianceIssues[] = 'Missing workflow title';
                     }
                 }
 
-                // Check if workflow has been inactive too long (any state > 21 days without updates)
                 if ($daysSinceUpdate > 21) {
                     $complianceIssues[] = "Workflow inactive for {$daysSinceUpdate} days (limit: 21 days)";
+                    $hasTimeIssue = true;
                 }
 
-                // Workflow is compliant if no issues found
+                $documentsComplete = !empty($workflow->overall_rating) && !empty($workflow->summary);
+                if ($documentsComplete) {
+                    $completeDocsCount++;
+                }
+
                 $isCompliant = empty($complianceIssues);
 
                 if ($isCompliant) {
                     $compliantCount++;
+                    $onTimeCount++;
                 } else {
-                    $complianceDetails[] = [
-                        'workflow_id' => $workflow->id,
-                        'state' => $workflow->workflow_state,
-                        'days_since_creation' => $daysSinceCreation,
-                        'days_since_update' => $daysSinceUpdate,
-                        'issues' => $complianceIssues
+                    if (!$hasTimeIssue) {
+                        $onTimeCount++;
+                    } else {
+                        $overdueCount++;
+                    }
+
+                    $title = $workflow->title ?: 'Workflow #' . $workflow->id;
+                    $primaryIssue = $complianceIssues[0] ?? 'Compliance exception detected';
+
+                    $criticalIssues[] = [
+                        'title' => $title,
+                        'description' => $primaryIssue,
+                        'workflow_state' => $workflow->workflow_state,
+                        'office' => $workflow->office->name ?? null,
                     ];
                 }
             }
 
-            $complianceRate = ($compliantCount / $totalCount) * 100;
+            $complianceRate = ($totalCount > 0) ? round(($compliantCount / $totalCount) * 100, 1) : 0.0;
+            $onTimeRate = ($totalCount > 0) ? round(($onTimeCount / $totalCount) * 100, 1) : 0.0;
+            $documentCompleteness = ($totalCount > 0) ? round(($completeDocsCount / $totalCount) * 100, 1) : 0.0;
 
-            // Log compliance details for monitoring
+            $upcomingDeadlines = $this->buildUpcomingPeriodDeadlines($periodId);
+
+            $recommendations = $this->buildComplianceRecommendations(
+                $complianceRate,
+                $onTimeRate,
+                $documentCompleteness,
+                $overdueCount,
+                $criticalIssues,
+                $upcomingDeadlines
+            );
+
             \Log::info('Compliance calculation completed', [
                 'period_id' => $periodId,
                 'office_id' => $officeId,
                 'total_workflows' => $totalCount,
                 'compliant_workflows' => $compliantCount,
-                'compliance_rate' => round($complianceRate, 1),
-                'non_compliant_count' => count($complianceDetails)
+                'compliance_rate' => $complianceRate,
+                'non_compliant_count' => count($criticalIssues)
             ]);
 
-            return round(min(100, max(0, $complianceRate)), 1);
+            return [
+                'compliance_rate' => $complianceRate,
+                'on_time_rate' => $onTimeRate,
+                'document_completeness_rate' => $documentCompleteness,
+                'overdue_count' => $overdueCount,
+                'critical_issues' => array_slice($criticalIssues, 0, 6),
+                'upcoming_deadlines' => $upcomingDeadlines,
+                'recommendations' => $recommendations,
+                'total_workflows' => $totalCount,
+                'compliant_count' => $compliantCount,
+            ];
         } catch (\Exception $e) {
-            \Log::warning('Compliance rate calculation failed', ['error' => $e->getMessage()]);
-            return 0.0;
+            \Log::warning('Compliance insight evaluation failed', ['error' => $e->getMessage()]);
+
+            return [
+                'compliance_rate' => 0.0,
+                'on_time_rate' => 0.0,
+                'document_completeness_rate' => 0.0,
+                'overdue_count' => 0,
+                'critical_issues' => [],
+                'upcoming_deadlines' => [],
+                'recommendations' => [],
+                'total_workflows' => 0,
+                'compliant_count' => 0,
+            ];
         }
+    }
+
+    /**
+     * Build upcoming deadline summaries based on the active performance period.
+     */
+    private function buildUpcomingPeriodDeadlines(?int $periodId): array
+    {
+        if (!$periodId) {
+            return [];
+        }
+
+        $period = PerformancePeriod::find($periodId);
+
+        if (!$period) {
+            return [];
+        }
+
+        $daysRemaining = (int) Carbon::now()->diffInDays($period->end_date, false);
+
+        if ($daysRemaining < 0 || $daysRemaining > 45) {
+            return [];
+        }
+
+        return [[
+            'title' => $period->name . ' closeout',
+            'due_date' => $period->end_date->format('M d, Y'),
+            'days_remaining' => max(0, $daysRemaining),
+        ]];
+    }
+
+    /**
+     * Build recommendation entries based on compliance metrics.
+     */
+    private function buildComplianceRecommendations(
+        float $complianceRate,
+        float $onTimeRate,
+        float $documentCompleteness,
+        int $overdueCount,
+        array $criticalIssues,
+        array $upcomingDeadlines
+    ): array {
+        $recommendations = [];
+
+        if ($complianceRate < 85) {
+            $recommendations[] = [
+                'title' => 'Boost compliance completion',
+                'description' => 'Review non-compliant workflows and assign follow-up to responsible offices.',
+                'impact' => 'High',
+            ];
+        }
+
+        if ($onTimeRate < 80) {
+            $recommendations[] = [
+                'title' => 'Improve deadline adherence',
+                'description' => 'Schedule reminder notices for departments exceeding processing time thresholds.',
+                'impact' => 'Medium',
+            ];
+        }
+
+        if ($documentCompleteness < 90) {
+            $recommendations[] = [
+                'title' => 'Complete documentation gaps',
+                'description' => 'Ensure completed workflows include ratings and summaries before final approval.',
+                'impact' => 'Medium',
+            ];
+        }
+
+        if ($overdueCount > 0) {
+            $recommendations[] = [
+                'title' => 'Address overdue workflows',
+                'description' => 'Escalate workflows with repeated time-limit violations to the HR compliance officer.',
+                'impact' => 'High',
+            ];
+        }
+
+        if (empty($recommendations) && !empty($upcomingDeadlines)) {
+            $dueSoon = $upcomingDeadlines[0];
+            $recommendations[] = [
+                'title' => 'Maintain compliance momentum',
+                'description' => 'Send a reminder about the upcoming ' . ($dueSoon['title'] ?? 'deadline') . ' to sustain performance.',
+                'impact' => 'Low',
+            ];
+        }
+
+        return array_slice($recommendations, 0, 5);
     }
 
     /**

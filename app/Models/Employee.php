@@ -165,6 +165,14 @@ class Employee extends Model
     }
 
     /**
+     * Individual Performance Commitment and Review records
+     */
+    public function ipcrs(): HasMany
+    {
+        return $this->hasMany(Ipcr::class);
+    }
+
+    /**
      * OPCR Workflow Relationships
      */
     public function opcrWorkflows()
@@ -197,6 +205,16 @@ class Employee extends Model
             'id',
             'id'
         );
+    }
+
+    /**
+     * Get active office assignments directly for this employee
+     */
+    public function activeOfficeAssignments()
+    {
+        return $this->hasMany(OfficeAssignment::class)
+            ->where('is_active', true)
+            ->distinct();
     }
 
     /**
@@ -1050,6 +1068,46 @@ class Employee extends Model
         return $this->name_extension ? $name . ' ' . $this->name_extension : $name;
     }
 
+    /**
+     * Get avatar initials including name extensions.
+     * Returns first and last name initials, prioritizing first and last letters.
+     */
+    public function getAvatarInitialsAttribute(): string
+    {
+        $fullName = $this->full_name;
+
+        // Split full name into words
+        $words = array_filter(explode(' ', $fullName));
+
+        if (count($words) === 0) {
+            return 'E';
+        }
+
+        if (count($words) === 1) {
+            return strtoupper(substr($words[0], 0, 2));
+        }
+
+        // Get first letter of first word and first letter of last significant word
+        $firstWord = $words[0];
+        $lastWord = end($words);
+
+        // Skip common name extensions for initials (Jr, Sr, II, III, IV)
+        $extensions = ['Jr', 'Sr', 'II', 'III', 'IV', 'V', 'VI'];
+        if (in_array($lastWord, $extensions)) {
+            // Find the last word that's not an extension
+            $tempWords = array_filter($words, function($word) use ($extensions) {
+                return !in_array($word, $extensions);
+            });
+            if (count($tempWords) > 1) {
+                $lastWord = end($tempWords);
+            } else {
+                $lastWord = $firstWord;
+            }
+        }
+
+        return strtoupper(substr($firstWord, 0, 1) . substr($lastWord, 0, 1));
+    }
+
     public function getResidentialAddressAttribute(): string
     {
         $parts = array_filter([
@@ -1198,6 +1256,292 @@ class Employee extends Model
         }
 
         return ($answeredQuestions / count($requiredFields)) * 100;
+    }
+
+    /**
+     * Department Head status transition methods
+     */
+
+    /**
+     * Assign employee as Department Head for their office
+     */
+    public function assignAsDepartmentHead(?int $officeId = null): array
+    {
+        return DB::transaction(function () use ($officeId) {
+            $results = [
+                'success' => false,
+                'updated_assignments' => [],
+                'updated_employee_status' => false,
+                'updated_user_roles' => [],
+                'errors' => [],
+            ];
+
+            try {
+                $targetOfficeId = $officeId ?? $this->office_id;
+                if (!$targetOfficeId) {
+                    $results['errors'][] = 'Employee must be assigned to an office';
+                    return $results;
+                }
+
+                // Update employee status
+                $this->update(['is_department_head' => true]);
+                $results['updated_employee_status'] = true;
+
+                // Create or update office assignment
+                $existingAssignment = $this->activeOfficeAssignments()
+                    ->where('office_id', $targetOfficeId)
+                    ->first();
+
+                if ($existingAssignment) {
+                    // Update existing assignment to Department Head
+                    $existingAssignment->update([
+                        'role' => 'Department Head',
+                        'position' => 'Department Head',
+                        'is_active' => true,
+                        'remarks' => ($existingAssignment->remarks ?? '') . "\n\nAutomatically promoted to Department Head",
+                    ]);
+                    $results['updated_assignments'][] = $existingAssignment->id;
+                } else {
+                    // Create new Department Head assignment
+                    $newAssignment = $this->officeAssignments()->create([
+                        'office_id' => $targetOfficeId,
+                        'role' => 'Department Head',
+                        'position' => 'Department Head',
+                        'is_active' => true,
+                        'assigned_date' => now()->toDateString(),
+                        'started_date' => now()->toDateString(),
+                        'assigned_by' => auth()->id(),
+                    ]);
+                    $results['updated_assignments'][] = $newAssignment->id;
+                }
+
+                // Sync user roles if user exists
+                if ($this->user) {
+                    if (!$this->user->hasRole('Department Head')) {
+                        $this->user->assignRole('Department Head');
+                        $results['updated_user_roles'][] = 'assigned_department_head';
+                    }
+
+                    // Remove Employee role if they have it
+                    if ($this->user->hasRole('Employee')) {
+                        $this->user->removeRole('Employee');
+                        $results['updated_user_roles'][] = 'removed_employee_role';
+                    }
+                }
+
+                $results['success'] = true;
+
+                // Log the promotion
+                activity()
+                    ->causedBy(auth()->user())
+                    ->performedOn($this)
+                    ->withProperties([
+                        'action' => 'assigned_as_department_head',
+                        'office_id' => $targetOfficeId,
+                        'assignments_updated' => $results['updated_assignments'],
+                        'user_roles_updated' => $results['updated_user_roles'],
+                    ])
+                    ->log('Employee assigned as Department Head');
+
+            } catch (\Exception $e) {
+                $results['errors'][] = $e->getMessage();
+            }
+
+            return $results;
+        });
+    }
+
+    /**
+     * Remove Department Head status from employee
+     */
+    public function removeAsDepartmentHead(): array
+    {
+        return DB::transaction(function () {
+            $results = [
+                'success' => false,
+                'deactivated_assignments' => [],
+                'updated_employee_status' => false,
+                'updated_user_roles' => [],
+                'errors' => [],
+            ];
+
+            try {
+                // Update employee status
+                $this->update(['is_department_head' => false]);
+                $results['updated_employee_status'] = true;
+
+                // Deactivate Department Head assignments
+                $departmentHeadAssignments = $this->activeOfficeAssignments()
+                    ->where('role', 'Department Head')
+                    ->get();
+
+                foreach ($departmentHeadAssignments as $assignment) {
+                    $assignment->update([
+                        'is_active' => false,
+                        'ended_date' => now()->toDateString(),
+                        'remarks' => ($assignment->remarks ?? '') . "\n\nDepartment Head status removed",
+                    ]);
+                    $results['deactivated_assignments'][] = $assignment->id;
+                }
+
+                // Sync user roles if user exists
+                if ($this->user) {
+                    if ($this->user->hasRole('Department Head')) {
+                        $this->user->removeRole('Department Head');
+                        $results['updated_user_roles'][] = 'removed_department_head';
+                    }
+
+                    // Add Employee role back if they don't have other special roles
+                    if (!$this->user->hasAnyRole(['HR Admin', 'Super Admin', 'Assessor', 'Final Approver'])) {
+                        $this->user->assignRole('Employee');
+                        $results['updated_user_roles'][] = 'assigned_employee_role';
+                    }
+                }
+
+                $results['success'] = true;
+
+                // Log the removal
+                activity()
+                    ->causedBy(auth()->user())
+                    ->performedOn($this)
+                    ->withProperties([
+                        'action' => 'removed_as_department_head',
+                        'deactivated_assignments' => $results['deactivated_assignments'],
+                        'user_roles_updated' => $results['updated_user_roles'],
+                    ])
+                    ->log('Department Head status removed from employee');
+
+            } catch (\Exception $e) {
+                $results['errors'][] = $e->getMessage();
+            }
+
+            return $results;
+        });
+    }
+
+    /**
+     * Check if employee has consistent Department Head status
+     */
+    public function hasConsistentDepartmentHeadStatus(): bool
+    {
+        // Check if employee is marked as Department Head
+        $employeeStatus = $this->is_department_head;
+
+        // Check if employee has active Department Head assignment
+        $hasDepartmentHeadAssignment = $this->activeOfficeAssignments()
+            ->where('role', 'Department Head')
+            ->exists();
+
+        return $employeeStatus === $hasDepartmentHeadAssignment;
+    }
+
+    /**
+     * Get Department Head status consistency details
+     */
+    public function getDepartmentHeadStatusDetails(): array
+    {
+        $activeDepartmentHeadAssignments = $this->activeOfficeAssignments()
+            ->where('role', 'Department Head')
+            ->with('office')
+            ->get();
+
+        return [
+            'employee_is_marked_department_head' => $this->is_department_head,
+            'has_active_department_head_assignments' => $activeDepartmentHeadAssignments->count() > 0,
+            'department_head_assignments_count' => $activeDepartmentHeadAssignments->count(),
+            'department_head_offices' => $activeDepartmentHeadAssignments->map(function ($assignment) {
+                return [
+                    'office_id' => $assignment->office_id,
+                    'office_name' => $assignment->office->name,
+                    'assignment_id' => $assignment->id,
+                    'assigned_date' => $assignment->assigned_date,
+                ];
+            })->toArray(),
+            'is_consistent' => $this->hasConsistentDepartmentHeadStatus(),
+            'issues' => $this->getDepartmentHeadStatusIssues(),
+        ];
+    }
+
+    /**
+     * Get Department Head status issues
+     */
+    private function getDepartmentHeadStatusIssues(): array
+    {
+        $issues = [];
+
+        if ($this->is_department_head) {
+            // Employee is marked as Department Head, check for assignments
+            $activeDepartmentHeadAssignments = $this->activeOfficeAssignments()
+                ->where('role', 'Department Head')
+                ->get();
+
+            if ($activeDepartmentHeadAssignments->count() === 0) {
+                $issues[] = 'Employee is marked as Department Head but has no active Department Head assignments';
+            } elseif ($activeDepartmentHeadAssignments->count() > 1) {
+                $issues[] = 'Employee has multiple active Department Head assignments (should only have one)';
+            }
+        } else {
+            // Employee is not marked as Department Head, check if they have assignments
+            $activeDepartmentHeadAssignments = $this->activeOfficeAssignments()
+                ->where('role', 'Department Head')
+                ->get();
+
+            if ($activeDepartmentHeadAssignments->count() > 0) {
+                $issues[] = 'Employee has active Department Head assignments but is not marked as Department Head';
+            }
+        }
+
+        return $issues;
+    }
+
+    /**
+     * Fix Department Head status consistency
+     */
+    public function fixDepartmentHeadConsistency(): array
+    {
+        $results = [
+            'issues_found' => [],
+            'fixes_applied' => [],
+            'success' => true,
+        ];
+
+        $details = $this->getDepartmentHeadStatusDetails();
+        $results['issues_found'] = $details['issues'];
+
+        try {
+            if (!$details['is_consistent']) {
+                if ($this->is_department_head && !$details['has_active_department_head_assignments']) {
+                    // Employee is marked but no assignments - create assignment
+                    $assignmentResult = $this->assignAsDepartmentHead();
+                    if ($assignmentResult['success']) {
+                        $results['fixes_applied'][] = 'Created Department Head assignment for employee';
+                    } else {
+                        $results['fixes_applied'][] = 'Failed to create Department Head assignment: ' . implode(', ', $assignmentResult['errors']);
+                        $results['success'] = false;
+                    }
+                } elseif (!$this->is_department_head && $details['has_active_department_head_assignments']) {
+                    // Employee has assignments but not marked - remove assignments and update status
+                    foreach ($details['department_head_assignments'] as $assignment) {
+                        $assignmentModel = $this->officeAssignments()->find($assignment['assignment_id']);
+                        if ($assignmentModel) {
+                            $assignmentModel->update([
+                                'is_active' => false,
+                                'ended_date' => now()->toDateString(),
+                                'remarks' => ($assignmentModel->remarks ?? '') . "\n\nDeactivated due to status inconsistency fix",
+                            ]);
+                        }
+                    }
+                    $results['fixes_applied'][] = 'Deactivated inconsistent Department Head assignments';
+                }
+            } else {
+                $results['fixes_applied'][] = 'No fixes needed - status is already consistent';
+            }
+        } catch (\Exception $e) {
+            $results['success'] = false;
+            $results['fixes_applied'][] = 'Error during consistency fix: ' . $e->getMessage();
+        }
+
+        return $results;
     }
 
   }

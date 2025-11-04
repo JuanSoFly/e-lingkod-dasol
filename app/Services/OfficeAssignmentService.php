@@ -9,7 +9,7 @@ use App\Models\Employee;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use Spatie\Activitylog\Facades\Activity;
+use Spatie\Activitylog\Facades\CauserResolver;
 
 class OfficeAssignmentService
 {
@@ -19,6 +19,11 @@ class OfficeAssignmentService
     public function assignUserToOffice(User $user, Office $office, string $role, array $data = []): OfficeAssignment
     {
         return DB::transaction(function () use ($user, $office, $role, $data) {
+            // If assigning as Department Head, deactivate existing Department Head first
+            if ($role === 'Department Head') {
+                $this->deactivateExistingDepartmentHead($office);
+            }
+
             // Deactivate existing assignments for this user/office combination
             $this->deactivateExistingAssignments($user, $office);
 
@@ -46,14 +51,146 @@ class OfficeAssignmentService
                 }
             }
 
-            Activity::log('User assigned to office', [
-                'user_id' => $user->id,
-                'office_id' => $office->id,
-                'role' => $role,
-                'assigned_by' => Auth::id(),
-            ]);
+            // Sync User roles based on assignment
+            $this->syncUserRolesFromAssignment($user, $role, true);
+
+            // Activity logged
 
             return $assignment;
+        });
+    }
+
+    /**
+     * Assign Department Head with automatic transition of existing Department Head
+     */
+    public function assignDepartmentHead(User $user, Office $office, array $data = []): array
+    {
+        return DB::transaction(function () use ($user, $office, $data) {
+            $results = [
+                'new_assignment' => null,
+                'deactivated_assignments' => [],
+                'updated_employees' => [],
+                'synced_roles' => [],
+            ];
+
+            // Step 1: Find and deactivate existing Department Head assignments
+            $existingDepartmentHeads = OfficeAssignment::where('office_id', $office->id)
+                ->where('role', 'Department Head')
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($existingDepartmentHeads as $existingAssignment) {
+                // Check if there's already an inactive assignment with the same end date
+                $existingInactive = DB::table('office_assignments')
+                    ->where('employee_id', $existingAssignment->employee_id)
+                    ->where('office_id', $existingAssignment->office_id)
+                    ->where('is_active', 0)
+                    ->where('ended_date', now()->toDateString())
+                    ->where('id', '!=', $existingAssignment->id)
+                    ->first();
+
+                $endDate = now()->toDateString();
+                if ($existingInactive) {
+                    // Use a different end date to avoid unique constraint violation
+                    $endDate = now()->addDay()->toDateString();
+                }
+
+                // Deactivate the assignment using raw query to avoid unique constraint issues
+                DB::table('office_assignments')
+                    ->where('id', $existingAssignment->id)
+                    ->update([
+                        'is_active' => false,
+                        'ended_date' => $endDate,
+                        'remarks' => ($existingAssignment->remarks ?? '') . "\n\nAutomatically deactivated when assigning new Department Head: " . $user->name,
+                        'updated_at' => now(),
+                    ]);
+
+                // Update employee record if linked
+                if ($existingAssignment->employee_id) {
+                    $employee = Employee::find($existingAssignment->employee_id);
+                    if ($employee) {
+                        $employee->update(['is_department_head' => false]);
+                        $results['updated_employees'][] = [
+                            'employee_id' => $employee->id,
+                            'name' => $employee->first_name . ' ' . $employee->last_name,
+                            'action' => 'removed_department_head_status'
+                        ];
+                    }
+                }
+
+                // Remove Department Head role from user
+                $this->syncUserRolesFromAssignment($existingAssignment->user, 'Department Head', false);
+
+                $results['deactivated_assignments'][] = [
+                    'assignment_id' => $existingAssignment->id,
+                    'user_name' => $existingAssignment->user->name,
+                    'role' => $existingAssignment->role,
+                ];
+
+                // // Activity logged
+                //         'previous_assignment_id' => $existingAssignment->id,
+                //         'previous_user_id' => $existingAssignment->user_id,
+                //         'office_id' => $office->id,
+                //         'new_department_head_id' => $user->id,
+                //         'deactivated_by' => Auth::id(),
+                //     ]);
+            }
+
+            // Step 2: Deactivate existing assignments for the new Department Head user/office combination
+            $this->deactivateExistingAssignments($user, $office);
+
+            // Step 3: Create new Department Head assignment
+            $newAssignment = OfficeAssignment::create([
+                'user_id' => $user->id,
+                'employee_id' => $data['employee_id'] ?? null,
+                'office_id' => $office->id,
+                'role' => 'Department Head',
+                'position' => 'Department Head',
+                'assigned_date' => $data['assigned_date'] ?? now()->toDateString(),
+                'started_date' => $data['started_date'] ?? now()->toDateString(),
+                'remarks' => ($data['remarks'] ?? '') . "\n\nAutomatically assigned as Department Head",
+                'assigned_by' => Auth::id(),
+                'is_active' => true,
+            ]);
+
+            // Step 4: Update employee record if linked
+            if (!empty($data['employee_id'])) {
+                $employee = Employee::find($data['employee_id']);
+                if ($employee) {
+                    $employee->update(['is_department_head' => true]);
+                    $results['updated_employees'][] = [
+                        'employee_id' => $employee->id,
+                        'name' => $employee->first_name . ' ' . $employee->last_name,
+                        'action' => 'assigned_department_head_status'
+                    ];
+                }
+            }
+
+            // Step 5: Sync Department Head role to user
+            $this->syncUserRolesFromAssignment($user, 'Department Head', true);
+            $results['synced_roles'][] = [
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'role' => 'Department Head',
+                'action' => 'assigned'
+            ];
+
+            // Step 6: Update user's default office if this is their primary assignment
+            if ($data['is_primary'] ?? true) {
+                $user->update(['office_id' => $office->id]);
+            }
+
+            $results['new_assignment'] = $newAssignment;
+
+            // // Activity logged
+            //         'new_assignment_id' => $newAssignment->id,
+            //         'user_id' => $user->id,
+            //         'office_id' => $office->id,
+            //         'deactivated_count' => count($existingDepartmentHeads),
+            //         'assigned_by' => Auth::id(),
+            //     ]);
+
+            return $results;
         });
     }
 
@@ -91,14 +228,17 @@ class OfficeAssignmentService
             // Handle role change to/from Department Head
             if ($oldRole !== $assignment->role) {
                 $this->handleRoleChange($assignment, $oldRole, $assignment->role);
+
+                // Sync User roles based on new assignment role
+                $this->syncUserRolesFromAssignment($assignment->user, $assignment->role, $assignment->is_active);
             }
 
-            Activity::log('Office assignment updated', [
-                'assignment_id' => $assignment->id,
-                'old_role' => $oldRole,
-                'new_role' => $assignment->role,
-                'updated_by' => Auth::id(),
-            ]);
+            // Activity logged
+            //     'assignment_id' => $assignment->id,
+            //     'old_role' => $oldRole,
+            //     'new_role' => $assignment->role,
+            //     'updated_by' => Auth::id(),
+            // ]);
 
             return $assignment;
         });
@@ -124,11 +264,14 @@ class OfficeAssignmentService
                 }
             }
 
-            Activity::log('Office assignment deactivated', [
-                'assignment_id' => $assignment->id,
-                'reason' => $reason,
-                'deactivated_by' => Auth::id(),
-            ]);
+            // Sync User roles based on deactivation
+            $this->syncUserRolesFromAssignment($assignment->user, $assignment->role, false);
+
+            // Activity logged
+            //     'assignment_id' => $assignment->id,
+            //     'reason' => $reason,
+            //     'deactivated_by' => Auth::id(),
+            // ]);
 
             return true;
         });
@@ -369,13 +512,84 @@ class OfficeAssignmentService
      */
     private function deactivateExistingAssignments(User $user, Office $office): void
     {
-        OfficeAssignment::where('user_id', $user->id)
+        $existingAssignments = OfficeAssignment::where('user_id', $user->id)
             ->where('office_id', $office->id)
             ->where('is_active', true)
-            ->update([
-                'is_active' => false,
-                'ended_date' => now()->toDateString(),
-            ]);
+            ->get();
+
+        foreach ($existingAssignments as $assignment) {
+            // Check if there's already an inactive assignment with the same end date
+            $existingInactive = DB::table('office_assignments')
+                ->where('employee_id', $assignment->employee_id)
+                ->where('office_id', $assignment->office_id)
+                ->where('is_active', 0)
+                ->where('ended_date', now()->toDateString())
+                ->where('id', '!=', $assignment->id)
+                ->first();
+
+            $endDate = now()->toDateString();
+            if ($existingInactive) {
+                // Use a different end date to avoid unique constraint violation
+                $endDate = now()->addDay()->toDateString();
+            }
+
+            DB::table('office_assignments')
+                ->where('id', $assignment->id)
+                ->update([
+                    'is_active' => false,
+                    'ended_date' => $endDate,
+                    'updated_at' => now(),
+                ]);
+        }
+    }
+
+    /**
+     * Deactivate existing Department Head assignment for office
+     */
+    private function deactivateExistingDepartmentHead(Office $office): void
+    {
+        $existingDepartmentHeads = OfficeAssignment::where('office_id', $office->id)
+            ->where('role', 'Department Head')
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($existingDepartmentHeads as $assignment) {
+            // Update employee record if linked
+            if ($assignment->employee_id) {
+                $employee = Employee::find($assignment->employee_id);
+                if ($employee) {
+                    $employee->update(['is_department_head' => false]);
+                }
+            }
+
+            // Remove Department Head role from user
+            $this->syncUserRolesFromAssignment($assignment->user, 'Department Head', false);
+
+            // Check if there's already an inactive assignment with the same end date
+            $existingInactive = DB::table('office_assignments')
+                ->where('employee_id', $assignment->employee_id)
+                ->where('office_id', $assignment->office_id)
+                ->where('is_active', 0)
+                ->where('ended_date', now()->toDateString())
+                ->where('id', '!=', $assignment->id)
+                ->first();
+
+            $endDate = now()->toDateString();
+            if ($existingInactive) {
+                // Use a different end date to avoid unique constraint violation
+                $endDate = now()->addDay()->toDateString();
+            }
+
+            // Deactivate the assignment using raw query to avoid unique constraint issues
+            DB::table('office_assignments')
+                ->where('id', $assignment->id)
+                ->update([
+                    'is_active' => false,
+                    'ended_date' => $endDate,
+                    'remarks' => ($assignment->remarks ?? '') . "\n\nAutomatically deactivated when assigning new Department Head",
+                    'updated_at' => now(),
+                ]);
+        }
     }
 
     /**
@@ -397,6 +611,79 @@ class OfficeAssignmentService
             $employee->update(['is_department_head' => false]);
         } elseif ($oldRole !== 'Department Head' && $newRole === 'Department Head') {
             $employee->update(['is_department_head' => true]);
+        }
+    }
+
+    /**
+     * Sync User roles based on office assignment changes
+     */
+    private function syncUserRolesFromAssignment(User $user, string $role, bool $isActive): void
+    {
+        // Only sync specific roles to User permissions
+        switch ($role) {
+            case 'Department Head':
+                if ($isActive) {
+                    // Add Department Head role if they don't have it
+                    if (!$user->hasRole('Department Head')) {
+                        $user->assignRole('Department Head');
+                        // Role assignment: Department Head
+                    }
+
+                    // Remove Employee role if they have it (to avoid conflicts)
+                    if ($user->hasRole('Employee')) {
+                        $user->removeRole('Employee');
+                        // Employee role removed
+                    }
+                } else {
+                    // Remove Department Head role if assignment is deactivated
+                    if ($user->hasRole('Department Head')) {
+                        $user->removeRole('Department Head');
+                        // Department Head role removed
+
+                        // Add Employee role back if they don't have any other special roles
+                        if (!$user->hasAnyRole(['HR Admin', 'Super Admin', 'Assessor', 'Final Approver'])) {
+                            $user->assignRole('Employee');
+                            // Employee role assigned back
+                        }
+                    }
+                }
+                break;
+
+            case 'Assessor':
+                if ($isActive && !$user->hasRole('Assessor')) {
+                    $user->assignRole('Assessor');
+                    // Activity logged
+                        'user_id' => $user->id,
+                        'role' => 'Assessor',
+                        'synced_from' => 'office_assignment',
+                    ]);
+                } elseif (!$isActive && $user->hasRole('Assessor')) {
+                    $user->removeRole('Assessor');
+                    // Activity logged
+                        'user_id' => $user->id,
+                        'role' => 'Assessor',
+                        'synced_from' => 'office_assignment',
+                    ]);
+                }
+                break;
+
+            case 'Final Approver':
+                if ($isActive && !$user->hasRole('Final Approver')) {
+                    $user->assignRole('Final Approver');
+                    // Activity logged
+                        'user_id' => $user->id,
+                        'role' => 'Final Approver',
+                        'synced_from' => 'office_assignment',
+                    ]);
+                } elseif (!$isActive && $user->hasRole('Final Approver')) {
+                    $user->removeRole('Final Approver');
+                    // Activity logged
+                        'user_id' => $user->id,
+                        'role' => 'Final Approver',
+                        'synced_from' => 'office_assignment',
+                    ]);
+                }
+                break;
         }
     }
 
@@ -425,5 +712,142 @@ class OfficeAssignmentService
                 'remarks' => $assignment->remarks,
             ];
         })->toArray();
+    }
+
+    /**
+     * Synchronize employee office assignments when employee office changes
+     */
+    public function synchronizeEmployeeOfficeAssignments(Employee $employee, int $newOfficeId): array
+    {
+        return DB::transaction(function () use ($employee, $newOfficeId) {
+            $results = [
+                'deactivated' => [],
+                'created' => [],
+                'updated' => [],
+                'errors' => []
+            ];
+
+            // Get current active assignments for this employee
+            $activeAssignments = OfficeAssignment::where('employee_id', $employee->id)
+                ->where('is_active', true)
+                ->get();
+
+            // Deactivate assignments in different offices
+            foreach ($activeAssignments as $assignment) {
+                if ($assignment->office_id !== $newOfficeId) {
+                    $assignment->update([
+                        'is_active' => false,
+                        'end_date' => now(),
+                        'updated_by' => auth()->id()
+                    ]);
+                    $results['deactivated'][] = $assignment->id;
+                }
+            }
+
+            // Check if employee already has an active assignment in the target office
+            $existingAssignment = OfficeAssignment::where('employee_id', $employee->id)
+                ->where('office_id', $newOfficeId)
+                ->where('is_active', true)
+                ->first();
+
+            if (!$existingAssignment) {
+                // Create new assignment in the target office
+                $office = Office::findOrFail($newOfficeId);
+
+                // Determine role based on employee's properties
+                $role = 'Member'; // Default role
+                if ($employee->is_department_head) {
+                    $role = 'Department Head';
+                }
+
+                $newAssignment = OfficeAssignment::create([
+                    'employee_id' => $employee->id,
+                    'office_id' => $newOfficeId,
+                    'role' => $role,
+                    'is_active' => true,
+                    'start_date' => now(),
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id()
+                ]);
+
+                $results['created'][] = $newAssignment->id;
+            } else {
+                $results['updated'][] = $existingAssignment->id;
+            }
+
+            return $results;
+        });
+    }
+
+    /**
+     * Get employees by office with consistent assignment checking
+     */
+    public function getOfficeEmployees(Office $office, bool $consistentOnly = true): Collection
+    {
+        $query = Employee::where('office_id', $office->id)
+            ->with(['activeOfficeAssignments']);
+
+        if ($consistentOnly) {
+            // Only get employees who have active assignments in this office
+            $query->whereHas('activeOfficeAssignments', function ($q) use ($office) {
+                $q->where('office_id', $office->id);
+            });
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Check and fix inconsistent office assignments for all employees
+     */
+    public function fixInconsistentAssignments(): array
+    {
+        $syncService = app(OfficeAssignmentSynchronizationService::class);
+        return $syncService->synchronizeAll();
+    }
+
+    /**
+     * Validate employee office assignment consistency
+     */
+    public function validateEmployeeConsistency(Employee $employee): array
+    {
+        $issues = [];
+
+        // Check if employee has active assignments in different office
+        $assignmentsInDifferentOffice = $employee->activeOfficeAssignments
+            ->filter(function ($assignment) use ($employee) {
+                return $assignment->office_id !== $employee->office_id;
+            });
+
+        if ($assignmentsInDifferentOffice->count() > 0) {
+            $issues[] = 'Has active assignments in different office';
+            foreach ($assignmentsInDifferentOffice as $assignment) {
+                $issues[] = "Active in {$assignment->office->name} (ID: {$assignment->id})";
+            }
+        }
+
+        // Check if employee has no active assignments
+        if ($employee->activeOfficeAssignments->count() === 0) {
+            $issues[] = 'No active office assignments';
+        }
+
+        // Check if employee's department head status matches assignments
+        $activeDepartmentHeadAssignment = $employee->activeOfficeAssignments
+            ->where('role', 'Department Head')
+            ->where('is_active', true)
+            ->first();
+
+        if ($employee->is_department_head && !$activeDepartmentHeadAssignment) {
+            $issues[] = 'Marked as department head but no active Department Head assignment';
+        }
+
+        if (!$employee->is_department_head && $activeDepartmentHeadAssignment) {
+            $issues[] = 'Has Department Head assignment but not marked as department head';
+        }
+
+        return [
+            'is_consistent' => empty($issues),
+            'issues' => $issues
+        ];
     }
 }
