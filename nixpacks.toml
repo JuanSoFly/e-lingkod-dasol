@@ -2,7 +2,7 @@
 nixPkgs = [
     "php83",
     "php83Packages.composer",
-    "nodejs_22.20.0",
+    "nodejs_20",
     "git",
     "php83Extensions.mysqli",
     "php83Extensions.gd",
@@ -40,12 +40,13 @@ cmds = [
 
 [variables]
 PHP_VERSION = "8.3"
-NODE_VERSION = "22.20.0"
+NODE_VERSION = "20"
 APP_ENV = "production"
 APP_DEBUG = "false"
 LOG_CHANNEL = "stderr"
 LOG_LEVEL = "info"
 NIXPACKS_PHP_ROOT_DIR = "/app/public"
+NIXPACKS_PHP_FALLBACK_PATH = "/index.php"
 COMPOSER_ALLOW_SUPERUSER = "1"
 
 [healthCheck]
