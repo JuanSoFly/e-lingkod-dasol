@@ -31,7 +31,7 @@ return [
         'url' => env('REDIS_URL'),
         'host' => env('REDIS_HOST', 'caboose.proxy.rlwy.net'),
         'username' => env('REDIS_USERNAME'),
-        'password' => env('REDIS_PASSWORD', 'qQkUlCDABPwWfcRrvvhzBKgnPxLDpaXW'),
+        'password' => env('REDIS_PASSWORD'),
         'port' => env('REDIS_PORT', '53382'),
         'database' => env('REDIS_DB', '0'),
 
@@ -49,7 +49,7 @@ return [
         'url' => env('REDIS_URL'),
         'host' => env('REDIS_HOST', 'caboose.proxy.rlwy.net'),
         'username' => env('REDIS_USERNAME'),
-        'password' => env('REDIS_PASSWORD', 'qQkUlCDABPwWfcRrvvhzBKgnPxLDpaXW'),
+        'password' => env('REDIS_PASSWORD'),
         'port' => env('REDIS_PORT', '53382'),
         'database' => env('REDIS_CACHE_DB', '1'), // Same database as default
 
@@ -66,7 +66,7 @@ return [
         'url' => env('REDIS_URL'),
         'host' => env('REDIS_HOST', 'caboose.proxy.rlwy.net'),
         'username' => env('REDIS_USERNAME'),
-        'password' => env('REDIS_PASSWORD', 'qQkUlCDABPwWfcRrvvhzBKgnPxLDpaXW'),
+        'password' => env('REDIS_PASSWORD'),
         'port' => env('REDIS_PORT', '53382'),
         'database' => env('REDIS_SESSION_DB', '3'), // Same database as default
 
@@ -83,7 +83,7 @@ return [
         'url' => env('REDIS_URL'),
         'host' => env('REDIS_HOST', 'caboose.proxy.rlwy.net'),
         'username' => env('REDIS_USERNAME'),
-        'password' => env('REDIS_PASSWORD', 'qQkUlCDABPwWfcRrvvhzBKgnPxLDpaXW'),
+        'password' => env('REDIS_PASSWORD'),
         'port' => env('REDIS_PORT', '53382'),
         'database' => env('REDIS_QUEUE_DB', '2'), // Same database as default
 
