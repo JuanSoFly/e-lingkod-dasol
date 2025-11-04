@@ -1,0 +1,87 @@
+# Nixpacks configuration for E-Lingkod Dasol HRIS on Railway
+# This configures the build environment and deployment process
+
+[phases.setup]
+nixPkgs = ["php83", "php83Packages.composer", "nodejs_22", "nginx", "curl", "git", "unzip", "icu", "libzip", "libpng", "libjpeg", "freetype"]
+
+[phases.build]
+cmds = [
+    "composer install --no-interaction --no-dev --optimize-autoloader",
+    "npm ci",
+    "npm run build",
+    "cp .env.example .env",
+    "echo 'APP_ENV=production' >> .env",
+    "echo 'APP_DEBUG=false' >> .env",
+    "echo 'APP_URL=http://localhost' >> .env",
+    "echo 'APP_KEY=' >> .env",
+    "php artisan config:clear",
+    "php artisan route:clear",
+    "php artisan view:clear",
+    "php artisan cache:clear",
+    "mkdir -p storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache",
+    "chmod -R 755 storage bootstrap/cache",
+    "chmod -R 777 storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache",
+    "php artisan config:cache",
+    "php artisan route:cache",
+    "php artisan view:cache",
+    "php artisan storage:link"
+]
+
+[start]
+cmd = "php -S 0.0.0.0:$PORT -t public public/router.php"
+
+[variables]
+PHP_VERSION = "8.3"
+NODE_VERSION = "22"
+APP_ENV = "production"
+APP_DEBUG = "false"
+APP_URL = "${RAILWAY_PUBLIC_URL}"
+ASSET_URL = ""
+FORCE_HTTPS = "true"
+CACHE_DRIVER = "array"
+SESSION_DRIVER = "file"
+LOG_CHANNEL = "stderr"
+LOG_LEVEL = "error"
+LOG_DEPRECATIONS_CHANNEL = "null"
+VIEW_COMPILED_PATH = "storage/framework/views"
+
+# PHP Configuration
+PHP_MEMORY_LIMIT = "512M"
+PHP_MAX_EXECUTION_TIME = "300"
+PHP_UPLOAD_MAX_FILESIZE = "64M"
+PHP_POST_MAX_SIZE = "64M"
+
+# Laravel Optimization
+COMPOSER_ALLOW_SUPERUSER = "1"
+COMPOSER_MEMORY_LIMIT = "2G"
+
+[build.env]
+COMPOSER_ALLOW_SUPERUSER = "1"
+COMPOSER_MEMORY_LIMIT = "2G"
+NODE_ENV = "production"
+
+[start.env]
+APP_ENV = "production"
+APP_DEBUG = "false"
+LOG_CHANNEL = "stderr"
+
+[phases.setup.nixpkgs]
+add = [
+    "php83",
+    "php83Packages.composer",
+    "php83Extensions.mbstring",
+    "php83Extensions.xml",
+    "php83Extensions.curl",
+    "php83Extensions.dom",
+    "php83Extensions.iconv",
+    "php83Extensions.fileinfo",
+    "php83Extensions.gd",
+    "php83Extensions.tokenizer",
+    "php83Extensions.ctype",
+    "php83Extensions.simplexml",
+    "php83Extensions.intl",
+    "php83Extensions.zip",
+    "php83Extensions.openssl",
+    "php83Extensions.pdo",
+    "nodejs_22"
+]

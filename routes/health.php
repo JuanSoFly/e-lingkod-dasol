@@ -1,92 +1,111 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 // Helper function to measure execution time
 if (!function_exists('measureExecutionTime')) {
-    function measureExecutionTime($callback)
+    function measureExecutionTime(callable $callback): float
     {
         $start = microtime(true);
         $callback();
         $end = microtime(true);
+
         return round(($end - $start) * 1000, 2); // Return time in milliseconds
     }
 }
 
-Route::get('/health', function () {
+Route::get('/health', function (Request $request) {
     $health = [
         'status' => 'healthy',
         'timestamp' => now()->toISOString(),
         'application' => 'E-Lingkod Dasol HRIS',
         'version' => app()->version(),
         'environment' => app()->environment(),
-        'checks' => []
+        'checks' => [],
+        'http_status' => 200,
     ];
 
-    $statusCode = 200;
+    $criticalFailures = [];
+    $nonCriticalFailures = [];
+    $storageDisk = config('health.storage_disk', 'local');
 
     try {
-        // Database connection check
+        // Database connection check (critical)
         try {
-            DB::connection()->getPdo();
+            $dbTime = measureExecutionTime(function () {
+                DB::connection()->getPdo();
+                DB::select('SELECT 1');
+            });
+
             $health['checks']['database'] = [
                 'status' => 'connected',
-                'response_time' => measureExecutionTime(function () {
-                    DB::select('SELECT 1');
-                })
+                'response_time' => $dbTime,
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $health['checks']['database'] = [
                 'status' => 'error',
-                'error' => app()->environment('production') ? 'Database connection failed' : $e->getMessage()
+                'error' => app()->environment('production') ? 'Database connection failed' : $e->getMessage(),
             ];
             $health['status'] = 'unhealthy';
-            $statusCode = 503;
+            $criticalFailures[] = 'database';
         }
 
-        // Cache connection check
+        // Cache connection check (non-critical)
         try {
             $cacheTime = measureExecutionTime(function () {
                 Cache::put('health_check', 'ok', 60);
                 Cache::get('health_check');
             });
+
             $health['checks']['cache'] = [
                 'status' => 'connected',
-                'response_time' => $cacheTime
+                'response_time' => $cacheTime,
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $health['checks']['cache'] = [
                 'status' => 'error',
-                'error' => app()->environment('production') ? 'Cache connection failed' : $e->getMessage()
+                'error' => app()->environment('production') ? 'Cache connection failed' : $e->getMessage(),
             ];
-            $health['status'] = 'degraded';
-            if ($statusCode === 200) $statusCode = 503;
+            if ($health['status'] === 'healthy') {
+                $health['status'] = 'degraded';
+            }
+            $nonCriticalFailures[] = 'cache';
         }
 
-        // Storage system check
+        // Storage system check (non-critical, forced to local disk by default)
         try {
-            $storageTime = measureExecutionTime(function () {
-                \Storage::put('health_check.txt', 'ok');
-                \Storage::exists('health_check.txt');
-                \Storage::delete('health_check.txt');
+            $storageTime = measureExecutionTime(function () use ($storageDisk) {
+                $storage = Storage::disk($storageDisk);
+                $tempFile = sprintf('health_check_%s.txt', Str::uuid());
+                $storage->put($tempFile, 'ok');
+                $storage->exists($tempFile);
+                $storage->delete($tempFile);
             });
+
             $health['checks']['storage'] = [
                 'status' => 'connected',
-                'response_time' => $storageTime
+                'response_time' => $storageTime,
+                'disk' => $storageDisk,
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $health['checks']['storage'] = [
                 'status' => 'error',
-                'error' => app()->environment('production') ? 'Storage system error' : $e->getMessage()
+                'error' => app()->environment('production') ? 'Storage system error' : $e->getMessage(),
+                'disk' => $storageDisk,
             ];
-            $health['status'] = 'degraded';
-            if ($statusCode === 200) $statusCode = 503;
+            if ($health['status'] === 'healthy') {
+                $health['status'] = 'degraded';
+            }
+            $nonCriticalFailures[] = 'storage';
         }
 
-        // Migration status check
+        // Migration status check (informational)
         try {
             $migrationFlagFile = storage_path('app/migrations_complete.flag');
             $migrationLockFile = storage_path('app/migration.lock');
@@ -96,58 +115,43 @@ Route::get('/health', function () {
                 $health['checks']['migrations'] = [
                     'status' => 'completed',
                     'completed_at' => $migrationData['completed_at'] ?? 'Unknown',
-                    'migration_count' => $migrationData['migration_count'] ?? 'Unknown'
+                    'migration_count' => $migrationData['migration_count'] ?? 'Unknown',
                 ];
             } elseif (file_exists($migrationLockFile)) {
                 $lockTime = filemtime($migrationLockFile);
                 $health['checks']['migrations'] = [
                     'status' => 'running',
                     'lock_time' => date('Y-m-d H:i:s', $lockTime),
-                    'duration_seconds' => time() - $lockTime
+                    'duration_seconds' => time() - $lockTime,
                 ];
                 if ($health['status'] === 'healthy') {
                     $health['status'] = 'degraded';
-                    if ($statusCode === 200) $statusCode = 503;
                 }
             } else {
-                // Check if migrations table exists and has migrations
-                try {
-                    if (Schema::hasTable('migrations')) {
-                        $migrationCount = DB::table('migrations')->count();
-                        $health['checks']['migrations'] = [
-                            'status' => 'completed',
-                            'migration_count' => $migrationCount,
-                            'note' => 'Detected from existing migrations table'
-                        ];
-                    } else {
-                        $health['checks']['migrations'] = [
-                            'status' => 'pending',
-                            'note' => 'Migrations not yet run'
-                        ];
-                        if ($health['status'] === 'healthy') {
-                            $health['status'] = 'degraded';
-                            if ($statusCode === 200) $statusCode = 503;
-                        }
-                    }
-                } catch (\Exception $e) {
+                if (Schema::hasTable('migrations')) {
+                    $migrationCount = DB::table('migrations')->count();
                     $health['checks']['migrations'] = [
-                        'status' => 'unknown',
-                        'error' => 'Cannot check migration status: ' . $e->getMessage()
+                        'status' => 'completed',
+                        'migration_count' => $migrationCount,
+                        'note' => 'Detected from existing migrations table',
+                    ];
+                } else {
+                    $health['checks']['migrations'] = [
+                        'status' => 'pending',
+                        'note' => 'Migrations not yet run',
                     ];
                     if ($health['status'] === 'healthy') {
                         $health['status'] = 'degraded';
-                        if ($statusCode === 200) $statusCode = 503;
                     }
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $health['checks']['migrations'] = [
-                'status' => 'error',
-                'error' => 'Migration check failed: ' . $e->getMessage()
+                'status' => 'unknown',
+                'error' => app()->environment('production') ? 'Migration check failed' : $e->getMessage(),
             ];
             if ($health['status'] === 'healthy') {
                 $health['status'] = 'degraded';
-                if ($statusCode === 200) $statusCode = 503;
             }
         }
 
@@ -155,14 +159,25 @@ Route::get('/health', function () {
         $health['metrics'] = [
             'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 2) . ' MB',
             'peak_memory' => round(memory_get_peak_usage(true) / 1024 / 1024, 2) . ' MB',
-            'uptime' => config('app.uptime', 'Unknown')
+            'uptime' => config('app.uptime', 'Unknown'),
         ];
-
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
         $health['status'] = 'unhealthy';
         $health['error'] = app()->environment('production') ? 'Service unavailable' : $e->getMessage();
-        $statusCode = 503;
+        $criticalFailures[] = 'application';
     }
 
-    return response()->json($health, $statusCode);
+    $shouldEnforce = $request->boolean('enforceStatus', false);
+    $httpStatus = ($shouldEnforce && !empty($criticalFailures)) ? 503 : 200;
+
+    $health['checks']['meta'] = [
+        'critical_failures' => $criticalFailures,
+        'non_critical_failures' => $nonCriticalFailures,
+        'enforce_status' => $shouldEnforce,
+        'storage_disk_checked' => $storageDisk,
+    ];
+
+    $health['http_status'] = $httpStatus;
+
+    return response()->json($health, $httpStatus);
 })->name('health');
