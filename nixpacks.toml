@@ -17,12 +17,9 @@ nixPkgs = [
     "php83Extensions.fileinfo",
     "php83Extensions.tokenizer",
     "php83Extensions.ctype",
-    "php83Extensions.json",
     "php83Extensions.iconv",
-    "php83Extensions.posix",
     "php83Extensions.session",
     "php83Extensions.simplexml",
-    "php83Extensions.spl",
     "php83Extensions.pdo",
     "php83Extensions.pdo_mysql"
 ]
