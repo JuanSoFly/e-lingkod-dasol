@@ -31,8 +31,7 @@ cmds = [
 cmds = [
     "npm run build",
     "php artisan storage:link",
-    "php artisan config:cache",
-    "php artisan migrate --force"
+    "php artisan config:cache"
 ]
 
 [variables]

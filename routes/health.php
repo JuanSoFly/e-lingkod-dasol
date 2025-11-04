@@ -74,6 +74,71 @@ Route::get('/health', function () {
             if ($statusCode === 200) $statusCode = 503;
         }
 
+        // Migration status check
+        try {
+            $migrationFlagFile = storage_path('app/migrations_complete.flag');
+            $migrationLockFile = storage_path('app/migration.lock');
+
+            if (file_exists($migrationFlagFile)) {
+                $migrationData = json_decode(file_get_contents($migrationFlagFile), true);
+                $health['checks']['migrations'] = [
+                    'status' => 'completed',
+                    'completed_at' => $migrationData['completed_at'] ?? 'Unknown',
+                    'migration_count' => $migrationData['migration_count'] ?? 'Unknown'
+                ];
+            } elseif (file_exists($migrationLockFile)) {
+                $lockTime = filemtime($migrationLockFile);
+                $health['checks']['migrations'] = [
+                    'status' => 'running',
+                    'lock_time' => date('Y-m-d H:i:s', $lockTime),
+                    'duration_seconds' => time() - $lockTime
+                ];
+                if ($health['status'] === 'healthy') {
+                    $health['status'] = 'degraded';
+                    if ($statusCode === 200) $statusCode = 503;
+                }
+            } else {
+                // Check if migrations table exists and has migrations
+                try {
+                    if (Schema::hasTable('migrations')) {
+                        $migrationCount = DB::table('migrations')->count();
+                        $health['checks']['migrations'] = [
+                            'status' => 'completed',
+                            'migration_count' => $migrationCount,
+                            'note' => 'Detected from existing migrations table'
+                        ];
+                    } else {
+                        $health['checks']['migrations'] = [
+                            'status' => 'pending',
+                            'note' => 'Migrations not yet run'
+                        ];
+                        if ($health['status'] === 'healthy') {
+                            $health['status'] = 'degraded';
+                            if ($statusCode === 200) $statusCode = 503;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    $health['checks']['migrations'] = [
+                        'status' => 'unknown',
+                        'error' => 'Cannot check migration status: ' . $e->getMessage()
+                    ];
+                    if ($health['status'] === 'healthy') {
+                        $health['status'] = 'degraded';
+                        if ($statusCode === 200) $statusCode = 503;
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            $health['checks']['migrations'] = [
+                'status' => 'error',
+                'error' => 'Migration check failed: ' . $e->getMessage()
+            ];
+            if ($health['status'] === 'healthy') {
+                $health['status'] = 'degraded';
+                if ($statusCode === 200) $statusCode = 503;
+            }
+        }
+
         // Application metrics
         $health['metrics'] = [
             'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 2) . ' MB',

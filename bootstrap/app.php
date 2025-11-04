@@ -16,9 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
         \App\Console\Commands\CheckIpcrHealth::class,
         \App\Console\Commands\SyncUserNamesWithEmployeeFullNames::class,
         \App\Console\Commands\CleanupOrphanedUsers::class,
+        \App\Console\Commands\CheckMigrationStatus::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
+            \App\Http\Middleware\EnsureMigrations::class,
             \App\Http\Middleware\ValidateEmployeeRelationship::class,
         ]);
 
