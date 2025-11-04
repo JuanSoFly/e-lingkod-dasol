@@ -14,12 +14,18 @@ class EnsureMigrations
     /**
      * Migration lock file path
      */
-    private const MIGRATION_LOCK_FILE = storage_path('app/migration.lock');
+    private function getMigrationLockFile(): string
+    {
+        return storage_path('app/migration.lock');
+    }
 
     /**
      * Migration completion flag file path
      */
-    private const MIGRATION_COMPLETE_FLAG = storage_path('app/migrations_complete.flag');
+    private function getMigrationCompleteFlag(): string
+    {
+        return storage_path('app/migrations_complete.flag');
+    }
 
     /**
      * Handle an incoming request.
@@ -97,7 +103,7 @@ class EnsureMigrations
      */
     private function areMigrationsComplete(): bool
     {
-        return File::exists(self::MIGRATION_COMPLETE_FLAG);
+        return File::exists($this->getMigrationCompleteFlag());
     }
 
     /**
@@ -107,8 +113,8 @@ class EnsureMigrations
      */
     private function acquireMigrationLock(): bool
     {
-        if (File::exists(self::MIGRATION_LOCK_FILE)) {
-            $lockTime = File::lastModified(self::MIGRATION_LOCK_FILE);
+        if (File::exists($this->getMigrationLockFile())) {
+            $lockTime = File::lastModified($this->getMigrationLockFile());
 
             // If lock is older than 5 minutes, consider it stale
             if (time() - $lockTime > 300) {
@@ -118,7 +124,7 @@ class EnsureMigrations
             }
         }
 
-        return File::put(self::MIGRATION_LOCK_FILE, (string) time()) !== false;
+        return File::put($this->getMigrationLockFile(), (string) time()) !== false;
     }
 
     /**
@@ -128,8 +134,8 @@ class EnsureMigrations
      */
     private function releaseMigrationLock(): void
     {
-        if (File::exists(self::MIGRATION_LOCK_FILE)) {
-            File::delete(self::MIGRATION_LOCK_FILE);
+        if (File::exists($this->getMigrationLockFile())) {
+            File::delete($this->getMigrationLockFile());
         }
     }
 
@@ -177,7 +183,7 @@ class EnsureMigrations
      */
     private function markMigrationsComplete(): void
     {
-        File::put(self::MIGRATION_COMPLETE_FLAG, json_encode([
+        File::put($this->getMigrationCompleteFlag(), json_encode([
             'completed_at' => now()->toISOString(),
             'migration_count' => DB::table('migrations')->count()
         ]));

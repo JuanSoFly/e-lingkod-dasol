@@ -3,6 +3,18 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
+
+// Helper function to measure execution time
+if (!function_exists('measureExecutionTime')) {
+    function measureExecutionTime($callback)
+    {
+        $start = microtime(true);
+        $callback();
+        $end = microtime(true);
+        return round(($end - $start) * 1000, 2); // Return time in milliseconds
+    }
+}
 
 Route::get('/health', function () {
     $health = [
@@ -22,7 +34,7 @@ Route::get('/health', function () {
             DB::connection()->getPdo();
             $health['checks']['database'] = [
                 'status' => 'connected',
-                'response_time' => measure(function () {
+                'response_time' => measureExecutionTime(function () {
                     DB::select('SELECT 1');
                 })
             ];
@@ -37,7 +49,7 @@ Route::get('/health', function () {
 
         // Cache connection check
         try {
-            $cacheTime = measure(function () {
+            $cacheTime = measureExecutionTime(function () {
                 Cache::put('health_check', 'ok', 60);
                 Cache::get('health_check');
             });
@@ -56,7 +68,7 @@ Route::get('/health', function () {
 
         // Storage system check
         try {
-            $storageTime = measure(function () {
+            $storageTime = measureExecutionTime(function () {
                 \Storage::put('health_check.txt', 'ok');
                 \Storage::exists('health_check.txt');
                 \Storage::delete('health_check.txt');
@@ -154,14 +166,3 @@ Route::get('/health', function () {
 
     return response()->json($health, $statusCode);
 })->name('health');
-
-// Helper function to measure execution time
-if (!function_exists('measure')) {
-    function measure($callback)
-    {
-        $start = microtime(true);
-        $callback();
-        $end = microtime(true);
-        return round(($end - $start) * 1000, 2); // Return time in milliseconds
-    }
-}
