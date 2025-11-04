@@ -1,5 +1,31 @@
 [phases.setup]
-nixPkgs = ["php83", "php83Packages.composer", "nodejs_20", "git"]
+nixPkgs = [
+    "php83",
+    "php83Packages.composer",
+    "nodejs_20",
+    "git",
+    "php83Extensions.mysql",
+    "php83Extensions.gd",
+    "php83Extensions.zip",
+    "php83Extensions.curl",
+    "php83Extensions.redis",
+    "php83Extensions.mbstring",
+    "php83Extensions.xml",
+    "php83Extensions.bcmath",
+    "php83Extensions.intl",
+    "php83Extensions.exif",
+    "php83Extensions.fileinfo",
+    "php83Extensions.tokenizer",
+    "php83Extensions.ctype",
+    "php83Extensions.json",
+    "php83Extensions.iconv",
+    "php83Extensions.posix",
+    "php83Extensions.session",
+    "php83Extensions.simplexml",
+    "php83Extensions.spl",
+    "php83Extensions.pdo",
+    "php83Extensions.pdo_mysql"
+]
 
 [phases.install]
 cmds = [
@@ -25,31 +51,6 @@ APP_ENV = "production"
 APP_DEBUG = "false"
 LOG_CHANNEL = "stderr"
 LOG_LEVEL = "info"
-
-[phases.setup.nixPkgs]
-extend = [
-    "php83Extensions.mysql",
-    "php83Extensions.gd",
-    "php83Extensions.zip",
-    "php83Extensions.curl",
-    "php83Extensions.redis",
-    "php83Extensions.mbstring",
-    "php83Extensions.xml",
-    "php83Extensions.bcmath",
-    "php83Extensions.intl",
-    "php83Extensions.exif",
-    "php83Extensions.fileinfo",
-    "php83Extensions.tokenizer",
-    "php83Extensions.ctype",
-    "php83Extensions.json",
-    "php83Extensions.iconv",
-    "php83Extensions.posix",
-    "php83Extensions.session",
-    "php83Extensions.simplexml",
-    "php83Extensions.spl",
-    "php83Extensions.pdo",
-    "php83Extensions.pdo_mysql"
-]
 
 [healthCheck]
 httpPath = "/health"
