@@ -1,8 +1,9 @@
 [phases.setup]
 nixPkgs = [
+    "php",
     "php83",
     "php83Packages.composer",
-    "nodejs_20",
+    "nodejs_22",
     "git",
     "php83Extensions.mysqli",
     "php83Extensions.gd",
@@ -20,6 +21,7 @@ nixPkgs = [
     "php83Extensions.iconv",
     "php83Extensions.session",
     "php83Extensions.simplexml",
+    "php83Extensions.openssl",
     "php83Extensions.pdo",
     "php83Extensions.pdo_mysql"
 ]
@@ -36,15 +38,18 @@ cmds = [
     "php artisan config:cache",
     "php artisan route:cache",
     "php artisan view:cache"
+    "php artisan storage:link"
 ]
 
 [variables]
 PHP_VERSION = "8.3"
-NODE_VERSION = "20"
+NODE_VERSION = "22"
 APP_ENV = "production"
 APP_DEBUG = "false"
+APP_URL = "${RAILWAY_PUBLIC_URL}"
 LOG_CHANNEL = "stderr"
-LOG_LEVEL = "info"
+LOG_LEVEL = "error"
+LOG_DEPRECATIONS_CHANNEL = "null"
 NIXPACKS_PHP_ROOT_DIR = "/app/public"
 NIXPACKS_PHP_FALLBACK_PATH = "/index.php"
 COMPOSER_ALLOW_SUPERUSER = "1"
