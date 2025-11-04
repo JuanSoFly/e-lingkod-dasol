@@ -31,8 +31,12 @@ cmds = [
 cmds = [
     "npm run build",
     "php artisan storage:link",
-    "php artisan config:cache"
+    "php artisan config:cache",
+    "chmod +x start.sh"
 ]
+
+[start]
+cmd = "./start.sh"
 
 [variables]
 PHP_VERSION = "8.3"
@@ -40,12 +44,10 @@ NODE_VERSION = "20"
 APP_ENV = "production"
 APP_DEBUG = "false"
 APP_URL = "${RAILWAY_PUBLIC_URL}"
-APP_KEY = "base64:SWLhXQa+HwGZ1lUAdJxQ1luTfpv1hmxTnzQ5V2Uiz2Y="
+APP_KEY = "base64:D/TsmGmfxxeeIpV+YJC9fuCapDnHcfBYxrgckkzg1qs="
 LOG_CHANNEL = "stderr"
 LOG_LEVEL = "error"
 LOG_DEPRECATIONS_CHANNEL = "null"
-NIXPACKS_PHP_ROOT_DIR = "/app/public"
-NIXPACKS_PHP_FALLBACK_PATH = "/index.php"
 COMPOSER_ALLOW_SUPERUSER = "1"
 COMPOSER_MEMORY_LIMIT = "2G"
 PHP_MEMORY_LIMIT = "512M"

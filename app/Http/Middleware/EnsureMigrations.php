@@ -40,7 +40,14 @@ class EnsureMigrations
             return $next($request);
         }
 
-        // Try to acquire migration lock
+        // Quick database connectivity check before attempting migrations
+        if (!$this->isDatabaseQuickCheck()) {
+            // Database not ready, but don't block - let the application try
+            Log::warning('Database not accessible for migration check, continuing...');
+            return $next($request);
+        }
+
+        // Try to acquire migration lock with timeout
         if ($this->acquireMigrationLock()) {
             try {
                 $this->runMigrations();
@@ -50,32 +57,34 @@ class EnsureMigrations
                 $this->releaseMigrationLock();
                 Log::error('Migration failed', [
                     'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
+                    'request_path' => $request->path(),
+                    'user_agent' => $request->userAgent()
                 ]);
 
-                // In production, show a maintenance page
-                if (app()->environment('production')) {
-                    return response()->view('errors.maintenance', [
-                        'message' => 'Database migration in progress. Please wait a moment and refresh.'
-                    ], 503);
-                }
-
-                // In development, show the error
-                throw $e;
+                // Don't block the application on migration failures
+                // Log the error and continue
+                return $next($request);
             }
         } else {
-            // Another process is running migrations, wait briefly
-            usleep(500000); // 0.5 seconds
+            // Another process is running migrations, wait briefly with timeout
+            $waitTime = 0;
+            $maxWaitTime = 3; // 3 seconds maximum wait
 
-            // Check again if migrations completed while waiting
+            while (!$this->areMigrationsComplete() && $waitTime < $maxWaitTime) {
+                usleep(500000); // 0.5 seconds
+                $waitTime += 0.5;
+
+                // If we've waited too long, continue with the request
+                if ($waitTime >= $maxWaitTime) {
+                    Log::warning('Migration wait timeout, continuing with request');
+                    return $next($request);
+                }
+            }
+
+            // Check if migrations completed while waiting
             if ($this->areMigrationsComplete()) {
                 return $next($request);
             }
-
-            // Still running, show maintenance page
-            return response()->view('errors.maintenance', [
-                'message' => 'Database migration in progress. Please wait a moment and refresh.'
-            ], 503);
         }
 
         return $next($request);
@@ -186,6 +195,29 @@ class EnsureMigrations
             return true;
         } catch (\Exception $e) {
             Log::warning('Database not accessible', ['error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    /**
+     * Quick database connectivity check with timeout
+     *
+     * @return bool
+     */
+    private function isDatabaseQuickCheck(): bool
+    {
+        try {
+            // Use a very short timeout for quick connectivity check
+            $originalTimeout = DB::connection()->getPdo()->getAttribute(\PDO::ATTR_TIMEOUT);
+            DB::connection()->getPdo()->setAttribute(\PDO::ATTR_TIMEOUT, 2);
+
+            $result = DB::connection()->select('SELECT 1');
+
+            // Restore original timeout
+            DB::connection()->getPdo()->setAttribute(\PDO::ATTR_TIMEOUT, $originalTimeout);
+
+            return true;
+        } catch (\Exception $e) {
             return false;
         }
     }
