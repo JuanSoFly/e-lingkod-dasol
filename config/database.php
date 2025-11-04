@@ -45,11 +45,11 @@ return [
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '3306'),
-            'database' => env('DB_DATABASE', 'e-lingkod-dasol'),
+            'host' => env('DB_HOST', 'shuttle.proxy.rlwy.net'),
+            'port' => env('DB_PORT', '55504'),
+            'database' => env('DB_DATABASE', 'railway'),
             'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', ''),
+            'password' => env('DB_PASSWORD', 'feUfOgSbHZzExphJCbxkcAqwpdCKXsJi'),
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
@@ -153,19 +153,19 @@ return [
 
         'default' => [
             'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'host' => env('REDIS_HOST', 'caboose.proxy.rlwy.net'),
             'username' => env('REDIS_USERNAME'),
-            'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
+            'password' => env('REDIS_PASSWORD', 'qQkUlCDABPwWfcRrvvhzBKgnPxLDpaXW'),
+            'port' => env('REDIS_PORT', '53382'),
             'database' => env('REDIS_DB', '0'),
         ],
 
         'cache' => [
             'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'host' => env('REDIS_HOST', 'caboose.proxy.rlwy.net'),
             'username' => env('REDIS_USERNAME'),
-            'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
+            'password' => env('REDIS_PASSWORD', 'qQkUlCDABPwWfcRrvvhzBKgnPxLDpaXW'),
+            'port' => env('REDIS_PORT', '53382'),
             'database' => env('REDIS_CACHE_DB', '1'),
         ],
 
