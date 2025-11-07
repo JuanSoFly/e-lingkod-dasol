@@ -120,7 +120,7 @@ class PDSExportReady extends Mailable implements ShouldQueue
                 'downloadUrl' => $this->downloadUrl,
                 'expiresAt' => $this->expiresAt->format('F j, Y \a\t g:i A'),
                 'exportDate' => now()->format('F j, Y \a\t g:i A'),
-                'supportEmail' => config('mail.support_email', 'hrmo@dasol.gov.ph'),
+                'supportEmail' => config('mail.support_email', 'hrmo2411@gmail.com'),
             ]);
     }
 }
