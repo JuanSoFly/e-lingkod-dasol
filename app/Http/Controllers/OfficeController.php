@@ -448,7 +448,7 @@ class OfficeController extends Controller
             ]);
 
             return redirect()
-                ->route('offices.index')
+                ->route('opcr.offices.index')
                 ->with('success', 'Office deleted successfully.');
         } catch (\Exception $e) {
             return back()

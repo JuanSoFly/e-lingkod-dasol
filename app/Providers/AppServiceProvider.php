@@ -7,6 +7,7 @@ use App\Services\DashboardService;
 use App\Models\Employee;
 use App\Observers\EmployeeObserver;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,9 +26,14 @@ class AppServiceProvider extends ServiceProvider
     {
         Employee::observe(EmployeeObserver::class);
 
+        if (app()->environment('production')) {
+        // Make all generated URLs use https://
+        URL::forceScheme('https');
+
         // Create storage link for Railway deployment
         if (app()->environment('production') && !file_exists(public_path('storage'))) {
             app('files')->link(storage_path('app/public'), public_path('storage'));
         }
     }
+}
 }

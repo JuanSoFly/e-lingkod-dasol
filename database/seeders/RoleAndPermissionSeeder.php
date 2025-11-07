@@ -28,7 +28,7 @@ class RoleAndPermissionSeeder extends Seeder
             'performance-period.view', 'performance-period.create', 'performance-period.edit', 'performance-period.delete', 'performance-period.manage',
             'reports.view', 'reports.generate', 'reports.export',
             'document-approval.view', 'document-approval.create', 'document-approval.edit', 'document-approval.delete', 'document-approval.approve',
-            'opcr.view', 'opcr.create', 'opcr.edit', 'opcr.commit', 'opcr.submit', 'opcr.assess', 'opcr.approve', 'opcr.manage', 'opcr.return',
+            'opcr.view', 'opcr.create', 'opcr.edit', 'opcr.delete', 'opcr.commit', 'opcr.submit', 'opcr.assess', 'opcr.approve', 'opcr.manage', 'opcr.return',
             'opcr.export', 'opcr.analytics', 'opcr.settings', 'opcr.admin',
             // Office Assignment permissions
             'opcr.assignments.view', 'opcr.assignments.create', 'opcr.assignments.edit', 'opcr.assignments.delete',
@@ -124,7 +124,7 @@ class RoleAndPermissionSeeder extends Seeder
             'performance-period.view', 'performance-period.create', 'performance-period.edit', 'performance-period.delete', 'performance-period.manage',
             'reports.view', 'reports.generate', 'reports.export',
             'document-approval.view', 'document-approval.create', 'document-approval.edit', 'document-approval.delete', 'document-approval.approve',
-            'opcr.view', 'opcr.create', 'opcr.edit', 'opcr.submit', 'opcr.assess', 'opcr.approve', 'opcr.manage',
+            'opcr.view', 'opcr.create', 'opcr.edit', 'opcr.delete', 'opcr.submit', 'opcr.assess', 'opcr.approve', 'opcr.manage',
             'opcr.export', 'opcr.analytics', 'opcr.settings', 'opcr.admin',
             'si.view', 'si.create', 'si.edit', 'si.delete',
             'ipcr.view', 'ipcr.create', 'ipcr.edit', 'ipcr.submit', 'ipcr.review', 'ipcr.approve', 'ipcr.validate',

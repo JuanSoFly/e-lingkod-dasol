@@ -89,33 +89,6 @@
                             </div>
                         </div>
 
-                        <!-- Department Head Assignment -->
-                        <div class="border-t border-gray-200 pt-6">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">Department Head Assignment</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="col-span-2">
-                                    <x-input-label for="department_head_id" value="Department Head" />
-                                    <select id="department_head_id" name="department_head_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
-                                        <option value="">Select Department Head (Optional)</option>
-                                        @php
-                                            // Get all employees for department head selection
-                                            $employees = \App\Models\Employee::whereNull('deleted_at')
-                                                ->orderBy('last_name')
-                                                ->orderBy('first_name')
-                                                ->get();
-                                        @endphp
-                                        @foreach($employees as $employee)
-                                            <option value="{{ $employee->id }}" {{ old('department_head_id') == $employee->id ? 'selected' : '' }}>
-                                                {{ $employee->full_name }} ({{ $employee->employee_number }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <p class="mt-1 text-sm text-gray-500">Assign the department head for this office</p>
-                                    <x-input-error :messages="$errors->get('department_head_id')" class="mt-2" />
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Form Actions -->
                         <div class="border-t border-gray-200 pt-6">
                             <div class="flex justify-end space-x-4">
