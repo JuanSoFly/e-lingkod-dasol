@@ -402,7 +402,7 @@ Route::middleware('auth')->group(function () {
             // Office Assignments
             Route::prefix('{office}/assignments')->name('assignments.')->middleware('office.access')->group(function () {
                 Route::get('/', [OPCROfficeAssignmentController::class, 'index'])->name('index');
-                Route::get('/create', [OPCROfficeAssignmentController::class, 'opcrCreate'])->name('create')->middleware('can:opcr.create');
+                Route::get('/create', [OfficeAssignmentController::class, 'opcrCreate'])->name('create')->middleware('can:opcr.create');
                 Route::post('/', [OPCROfficeAssignmentController::class, 'opcrStore'])->name('store')->middleware('can:opcr.create');
                 Route::get('/{assignment}/edit', [OPCROfficeAssignmentController::class, 'edit'])->name('edit')->middleware('can:opcr.edit');
                 Route::patch('/{assignment}', [OPCROfficeAssignmentController::class, 'update'])->name('update')->middleware('can:opcr.edit');
