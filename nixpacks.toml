@@ -33,6 +33,7 @@ cmd = "php -S 0.0.0.0:$PORT -t public public/router.php"
 [variables]
 PHP_VERSION = "8.3"
 NODE_VERSION = "22"
+PHP_EXTENSIONS = "redis"
 APP_ENV = "production"
 APP_DEBUG = "false"
 APP_URL = "${RAILWAY_PUBLIC_URL}"
