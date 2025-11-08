@@ -2,7 +2,35 @@
 # This configures the build environment and deployment process
 
 [phases.setup]
-nixPkgs = ["php83", "php83Packages.composer", "php83Extensions.redis", "nodejs_22", "nginx", "curl", "git", "unzip", "icu", "libzip", "libpng", "libjpeg", "freetype"]
+nixPkgs = [
+    "php83",
+    "php83Packages.composer",
+    "php83Extensions.mbstring",
+    "php83Extensions.xml",
+    "php83Extensions.curl",
+    "php83Extensions.dom",
+    "php83Extensions.iconv",
+    "php83Extensions.fileinfo",
+    "php83Extensions.gd",
+    "php83Extensions.tokenizer",
+    "php83Extensions.ctype",
+    "php83Extensions.simplexml",
+    "php83Extensions.intl",
+    "php83Extensions.zip",
+    "php83Extensions.openssl",
+    "php83Extensions.pdo",
+    "php83Extensions.redis",
+    "nodejs_22",
+    "nginx",
+    "curl",
+    "git",
+    "unzip",
+    "icu",
+    "libzip",
+    "libpng",
+    "libjpeg",
+    "freetype"
+]
 
 [phases.build]
 cmds = [
@@ -65,25 +93,3 @@ NODE_ENV = "production"
 APP_ENV = "production"
 APP_DEBUG = "false"
 LOG_CHANNEL = "stderr"
-
-[phases.setup.nixpkgs]
-add = [
-    "php83",
-    "php83Packages.composer",
-    "php83Extensions.mbstring",
-    "php83Extensions.xml",
-    "php83Extensions.curl",
-    "php83Extensions.dom",
-    "php83Extensions.iconv",
-    "php83Extensions.fileinfo",
-    "php83Extensions.gd",
-    "php83Extensions.tokenizer",
-    "php83Extensions.ctype",
-    "php83Extensions.simplexml",
-    "php83Extensions.intl",
-    "php83Extensions.zip",
-    "php83Extensions.openssl",
-    "php83Extensions.pdo",
-    "php83Extensions.redis",
-    "nodejs_22"
-]
