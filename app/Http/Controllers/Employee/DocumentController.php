@@ -4,14 +4,16 @@ namespace App\Http\Controllers\Employee;
 
 use App\Http\Controllers\Controller;
 use App\Models\EmployeeDocument;
-use Illuminate\Http\Request;
+use App\Services\DocumentAccessService;
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class DocumentController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly DocumentAccessService $documentAccessService)
     {
         $this->middleware('auth');
     }
@@ -34,7 +36,7 @@ class DocumentController extends Controller
                     'id' => $doc->id,
                     'document_type' => $doc->document_type,
                     'category' => $doc->category,
-                    'filename' => $doc->filename,
+                    'filename' => $doc->display_file_name,
                     'file_path' => $doc->file_path,
                     'file_size' => $doc->file_size,
                     'upload_date' => $doc->created_at->format('Y-m-d H:i:s'),
@@ -42,6 +44,10 @@ class DocumentController extends Controller
                     'is_verified' => $doc->is_verified,
                     'verified_by' => $doc->verified_by,
                     'verified_at' => $doc->verified_at?->format('Y-m-d H:i:s'),
+                    'download_url' => route('employee-portal.documents.download-file', $doc->id),
+                    'preview_url' => $this->documentAccessService->canPreview($doc)
+                        ? route('employee-portal.documents.preview', $doc->id)
+                        : null,
                 ];
             });
 
@@ -68,7 +74,7 @@ class DocumentController extends Controller
 
         $validated = $request->validate([
             'document_type' => ['required', 'string', 'max:100'],
-            'category' => ['required', 'string', 'max:100'],
+            'category' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:500'],
             'file' => ['required', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'], // 10MB max
         ]);
@@ -88,20 +94,19 @@ class DocumentController extends Controller
 
             $file = $request->file('file');
             $filename = $this->generateUniqueFilename($file);
-            $filePath = $this->storeFile($file, $filename, $employee->id);
+            $diskName = config('filesystems.default', 'local');
+            $filePath = $this->storeFile($file, $filename, $employee->id, $diskName);
 
             // Create document record
             $document = EmployeeDocument::create([
                 'employee_id' => $employee->id,
                 'document_type' => $validated['document_type'],
-                'category' => $validated['category'],
-                'filename' => $filename,
-                'original_filename' => $file->getClientOriginalName(),
+                'file_name' => $file->getClientOriginalName(),
                 'file_path' => $filePath,
+                'storage_disk' => $diskName,
                 'file_size' => $newFileSize,
                 'mime_type' => $file->getMimeType(),
-                'description' => $validated['description'],
-                'is_verified' => false,
+                'uploaded_at' => now(),
                 'uploaded_by' => auth()->user()->id,
             ]);
 
@@ -111,7 +116,7 @@ class DocumentController extends Controller
                     'id' => $document->id,
                     'document_type' => $document->document_type,
                     'category' => $document->category,
-                    'filename' => $document->filename,
+                    'filename' => $document->display_file_name,
                     'file_path' => $document->file_path,
                     'file_size' => $document->file_size,
                     'upload_date' => $document->created_at->format('Y-m-d H:i:s'),
@@ -142,7 +147,7 @@ class DocumentController extends Controller
         }
 
         try {
-            if (!Storage::disk('local')->exists($document->file_path)) {
+            if (!$this->documentAccessService->fileExists($document)) {
                 return response()->json([
                     'message' => 'File not found',
                 ], 404);
@@ -150,7 +155,10 @@ class DocumentController extends Controller
 
             return response()->json([
                 'download_url' => route('employee-portal.documents.download-file', $document->id),
-                'filename' => $document->original_filename,
+                'preview_url' => $this->documentAccessService->canPreview($document)
+                    ? route('employee-portal.documents.preview', $document->id)
+                    : null,
+                'filename' => $document->display_file_name,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -172,11 +180,29 @@ class DocumentController extends Controller
             abort(403);
         }
 
-        if (!Storage::disk('local')->exists($document->file_path)) {
-            abort(404);
+        try {
+            return $this->documentAccessService->download($document);
+        } catch (FileNotFoundException $exception) {
+            abort(404, 'Document file not found.');
+        }
+    }
+
+    /**
+     * Preview a document inline when possible
+     */
+    public function preview(EmployeeDocument $document)
+    {
+        $employee = auth()->user()->employee;
+
+        if ($document->employee_id !== $employee->id) {
+            abort(403);
         }
 
-        return Storage::disk('local')->download($document->file_path, $document->original_filename);
+        try {
+            return $this->documentAccessService->preview($document);
+        } catch (FileNotFoundException $exception) {
+            abort(404, 'Document file not found.');
+        }
     }
 
     /**
@@ -195,8 +221,11 @@ class DocumentController extends Controller
 
         try {
             // Delete file from storage
-            if (Storage::disk('local')->exists($document->file_path)) {
-                Storage::disk('local')->delete($document->file_path);
+            $disk = Storage::disk($document->storageDiskName());
+            $path = $document->currentStoragePath();
+
+            if ($path && $disk->exists($path)) {
+                $disk->delete($path);
             }
 
             // Delete database record
@@ -229,8 +258,6 @@ class DocumentController extends Controller
 
         $validated = $request->validate([
             'document_type' => ['required', 'string', 'max:100'],
-            'category' => ['required', 'string', 'max:100'],
-            'description' => ['nullable', 'string', 'max:500'],
         ]);
 
         try {
@@ -241,9 +268,7 @@ class DocumentController extends Controller
                 'document' => [
                     'id' => $document->id,
                     'document_type' => $document->document_type,
-                    'category' => $document->category,
-                    'filename' => $document->filename,
-                    'description' => $document->description,
+                    'filename' => $document->display_file_name,
                     'updated_at' => $document->updated_at->format('Y-m-d H:i:s'),
                 ],
             ]);
@@ -270,9 +295,9 @@ class DocumentController extends Controller
     /**
      * Store file in storage
      */
-    private function storeFile($file, string $filename, int $employeeId): string
+    private function storeFile($file, string $filename, int $employeeId, string $disk): string
     {
         $directory = "documents/employees/{$employeeId}";
-        return $file->storeAs($directory, $filename, 'local');
+        return $file->storeAs($directory, $filename, $disk);
     }
 }

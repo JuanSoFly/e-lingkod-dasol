@@ -542,7 +542,7 @@ class EmployeeSelfServiceController extends Controller
         $workExperience = $employee->workExperiences()->orderBy('from_date', 'desc')->get();
         $documents = $employee->documents()->orderBy('document_type', 'asc')->get();
         $familyBackground = $employee->familyBackground;
-        $children = $familyBackground ? $familyBackground->children()->orderBy('birth_date', 'desc')->get() : collect();
+        $children = $employee->children()->orderBy('date_of_birth', 'desc')->get();
         $eligibilities = $employee->pdsEligibilities()->orderBy('created_at', 'desc')->get();
         $voluntaryWork = $employee->voluntaryWork()->orderBy('inclusive_date_from', 'desc')->get();
         $trainingPrograms = $employee->employeeTrainings() ? $employee->employeeTrainings()->with('trainingProgram')->orderBy('start_date', 'desc')->get() : collect();

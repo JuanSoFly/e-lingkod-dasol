@@ -304,6 +304,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/documents', [App\Http\Controllers\Employee\DocumentController::class, 'store'])->name('documents.store');
         Route::get('/documents/{document}/download', [App\Http\Controllers\Employee\DocumentController::class, 'download'])->name('documents.download');
         Route::get('/documents/{document}/download-file', [App\Http\Controllers\Employee\DocumentController::class, 'downloadFile'])->name('documents.download-file');
+        Route::get('/documents/{document}/preview', [App\Http\Controllers\Employee\DocumentController::class, 'preview'])->name('documents.preview');
         Route::put('/documents/{document}', [App\Http\Controllers\Employee\DocumentController::class, 'update'])->name('documents.update');
         Route::delete('/documents/{document}', [App\Http\Controllers\Employee\DocumentController::class, 'destroy'])->name('documents.destroy');
 

@@ -170,17 +170,29 @@
                         <div class="border-l-4 border-emerald-200 pl-4 py-2">
                             <div class="flex items-start justify-between">
                                 <div>
-                                    <h3 class="text-lg font-medium text-gray-900">{{ $education->degree }}</h3>
-                                    <p class="text-gray-600">{{ $education->school_name }}</p>
+                                    <h3 class="text-lg font-medium text-gray-900">
+                                        {{ $education->degree_course ?? $education->course ?? $education->school_name ?? 'Educational Record' }}
+                                    </h3>
+                                    @if($education->school_name)
+                                        <p class="text-gray-600">{{ $education->school_name }}</p>
+                                    @endif
                                     <p class="text-sm text-gray-500 mt-1">
-                                        {{ $education->start_date ? $education->start_date->format('Y') : '' }} -
-                                        {{ $education->end_date ? $education->end_date->format('Y') : 'Present' }}
+                                        @if($education->period_from || $education->period_to)
+                                            {{ $education->period_from ?? '—' }} - {{ $education->period_to ?? 'Present' }}
+                                        @elseif($education->graduation_year)
+                                            Graduated {{ $education->graduation_year }}
+                                        @else
+                                            Period not specified
+                                        @endif
                                     </p>
                                 </div>
                                 <div class="text-right">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                        {{ $education->level ?? 'Not specified' }}
+                                        {{ $education->education_level_display ?? $education->education_level ?? 'Not specified' }}
                                     </span>
+                                    @if($education->all_honors)
+                                        <p class="text-xs text-emerald-700 mt-2">{{ $education->all_honors }}</p>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -213,20 +225,41 @@
                         <div class="border-l-4 border-blue-200 pl-4 py-2">
                             <div class="flex items-start justify-between">
                                 <div>
-                                    <h3 class="text-lg font-medium text-gray-900">{{ $work->position }}</h3>
-                                    <p class="text-gray-600">{{ $work->company }}</p>
-                                    <p class="text-sm text-gray-500 mt-1">
-                                        {{ $work->start_date ? $work->start_date->format('M Y') : '' }} -
-                                        {{ $work->end_date ? $work->end_date->format('M Y') : 'Present' }}
+                                    <h3 class="text-lg font-medium text-gray-900">
+                                        {{ $work->position_title ?? $work->position ?? 'Work Experience' }}
+                                    </h3>
+                                    <p class="text-gray-600">
+                                        {{ $work->department_agency_office ?? $work->company ?? 'Organization not specified' }}
                                     </p>
+                                    <p class="text-sm text-gray-500 mt-1">
+                                        @php
+                                            $from = $work->inclusive_date_from ?? $work->from_date;
+                                            $to = $work->inclusive_date_to ?? $work->to_date;
+                                        @endphp
+                                        {{ $from ? $from->format('M d, Y') : 'Start date N/A' }} -
+                                        {{ $to ? $to->format('M d, Y') : 'Present' }}
+                                    </p>
+                                    @if($work->salary_grade_step || $work->monthly_salary)
+                                        <p class="text-sm text-gray-500">
+                                            {{ $work->salary_grade_step ? 'SG ' . $work->salary_grade_step : '' }}
+                                            {{ $work->monthly_salary ? ' | ₱' . number_format($work->monthly_salary, 2) : '' }}
+                                        </p>
+                                    @elseif($work->salary)
+                                        <p class="text-sm text-gray-500">₱{{ number_format($work->salary, 2) }}</p>
+                                    @endif
                                     @if($work->description)
-                                    <p class="text-sm text-gray-600 mt-2">{{ $work->description }}</p>
+                                        <p class="text-sm text-gray-600 mt-2">{{ $work->description }}</p>
                                     @endif
                                 </div>
-                                <div class="text-right">
+                                <div class="text-right space-y-1">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                        {{ $work->employment_type ?? 'Not specified' }}
+                                        {{ $work->status_of_appointment ?? $work->status ?? $work->employment_type ?? 'Not specified' }}
                                     </span>
+                                    @if(!is_null($work->is_government_service))
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $work->is_government_service ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' }}">
+                                            {{ $work->is_government_service ? 'Government Service' : 'Private Sector' }}
+                                        </span>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -260,11 +293,15 @@
                             <div class="space-y-3">
                                 <div>
                                     <h4 class="text-sm font-medium text-gray-500">Father's Name</h4>
-                                    <p class="text-gray-900">{{ $familyBackground->father_name ?? 'N/A' }}</p>
+                                    <p class="text-gray-900">
+                                        {{ $familyBackground->father_full_name ?? $familyBackground->father_name ?? 'N/A' }}
+                                    </p>
                                 </div>
                                 <div>
                                     <h4 class="text-sm font-medium text-gray-500">Mother's Name</h4>
-                                    <p class="text-gray-900">{{ $familyBackground->mother_name ?? 'N/A' }}</p>
+                                    <p class="text-gray-900">
+                                        {{ $familyBackground->mother_full_name ?? $familyBackground->mother_name ?? 'N/A' }}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -272,7 +309,9 @@
                             <h3 class="text-lg font-medium text-gray-900 mb-3">Spouse</h3>
                             <div>
                                 <h4 class="text-sm font-medium text-gray-500">Spouse's Name</h4>
-                                <p class="text-gray-900">{{ $familyBackground->spouse_name ?? 'N/A' }}</p>
+                                <p class="text-gray-900">
+                                    {{ $familyBackground->spouse_full_name ?? $familyBackground->spouse_name ?? 'N/A' }}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -283,8 +322,10 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             @foreach($children as $child)
                             <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
-                                <h4 class="font-medium text-gray-900">{{ $child->name }}</h4>
-                                <p class="text-sm text-gray-600">Born: {{ $child->birth_date ? $child->birth_date->format('F d, Y') : 'N/A' }}</p>
+                                <h4 class="font-medium text-gray-900">{{ $child->full_name ?? $child->name ?? 'N/A' }}</h4>
+                                <p class="text-sm text-gray-600">
+                                    Born: {{ $child->date_of_birth ? $child->date_of_birth->format('F d, Y') : ($child->birth_date ? $child->birth_date->format('F d, Y') : 'N/A') }}
+                                </p>
                             </div>
                             @endforeach
                         </div>
@@ -310,24 +351,70 @@
                     Documents
                 </h2>
             </div>
-            <div class="p-6">
+            <div class="p-6" x-data="documentPreviewManager()">
                 @if($documents->count() > 0)
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         @foreach($documents as $document)
-                        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
-                            <div class="flex items-center justify-between mb-2">
-                                <h3 class="font-medium text-gray-900">{{ $document->document_type }}</h3>
-                                @if($document->file_path)
-                                <a href="{{ route('documents.download', $document) }}"
-                                   class="text-blue-600 hover:text-blue-800">
-                                    <i class="fas fa-download"></i>
-                                </a>
-                                @endif
+                            @php
+                                $mime = $document->mime_type ?? '';
+                                $iconClass = 'fa-file-alt text-amber-500';
+                                if (str_starts_with($mime, 'image/')) {
+                                    $iconClass = 'fa-file-image text-emerald-500';
+                                } elseif ($mime === 'application/pdf') {
+                                    $iconClass = 'fa-file-pdf text-red-500';
+                                } elseif ($mime === 'application/msword' || $mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                                    $iconClass = 'fa-file-word text-blue-500';
+                                }
+                            @endphp
+                            <div class="border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow duration-200 bg-white flex flex-col">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="text-xs uppercase tracking-wide text-gray-500">{{ $document->document_type ?? 'Document' }}</p>
+                                        <p class="text-base font-semibold text-gray-900 truncate" title="{{ $document->display_file_name }}">
+                                            {{ $document->display_file_name }}
+                                        </p>
+                                    </div>
+                                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center">
+                                        <i class="fas {{ $iconClass }} text-lg"></i>
+                                    </div>
+                                </div>
+
+                                <dl class="mt-4 space-y-2 text-sm text-gray-600">
+                                    <div class="flex items-center justify-between">
+                                        <dt>Uploaded</dt>
+                                        <dd>{{ $document->uploaded_at?->format('M d, Y') ?? $document->created_at->format('M d, Y') }}</dd>
+                                    </div>
+                                    @if($document->human_file_size)
+                                    <div class="flex items-center justify-between">
+                                        <dt>Size</dt>
+                                        <dd>{{ $document->human_file_size }}</dd>
+                                    </div>
+                                    @endif
+                                </dl>
+
+                                <div class="mt-4 flex flex-wrap gap-2">
+                                    @if($document->file_exists)
+                                        @if($document->is_previewable)
+                                            <button type="button"
+                                                    class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                                    @click='openPreview(@json(route("employee-portal.documents.preview", $document)), @json($document->display_file_name), @json($document->mime_type ?? "application/octet-stream"), @json(route("employee-portal.documents.download-file", $document)))'>
+                                                <i class="fas fa-eye mr-2"></i>
+                                                Preview
+                                            </button>
+                                        @endif
+                                        <a href="{{ route('employee-portal.documents.download-file', $document) }}"
+                                           class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500">
+                                            <i class="fas fa-download mr-2"></i>
+                                            Download
+                                        </a>
+                                    @else
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700">
+                                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                                            File unavailable
+                                        </span>
+                                    @endif
+                                </div>
                             </div>
-                            <p class="text-sm text-gray-500">
-                                Uploaded: {{ $document->created_at->format('M d, Y') }}
-                            </p>
-                        </div>
                         @endforeach
                     </div>
                 @else
@@ -339,6 +426,51 @@
                         <p class="text-gray-500">No documents have been uploaded to your file.</p>
                     </div>
                 @endif
+
+                <!-- Preview modal -->
+                <div x-cloak x-show="showModal" class="fixed inset-0 z-40" x-transition>
+                    <div class="absolute inset-0 bg-gray-900 bg-opacity-60" @click="closePreview()"></div>
+                    <div class="relative z-50 max-w-4xl mx-auto my-10 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                            <div>
+                                <p class="text-xs uppercase tracking-wide text-gray-500">Document Preview</p>
+                                <h3 class="text-lg font-semibold text-gray-900" x-text="title"></h3>
+                            </div>
+                            <button type="button" class="text-gray-500 hover:text-gray-700" @click="closePreview()">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                        <div class="bg-gray-50 px-6 py-3 text-sm text-gray-600 flex items-center justify-between flex-wrap gap-2">
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-file-alt text-gray-500"></i>
+                                <span x-text="mime"></span>
+                            </div>
+                            <a x-show="downloadFallback" :href="downloadFallback" target="_blank"
+                               class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
+                                <i class="fas fa-arrow-down mr-2"></i>
+                                Download copy
+                            </a>
+                        </div>
+                        <div class="bg-black/5 p-6">
+                            <template x-if="isImage()">
+                                <img :src="previewUrl" alt="Document preview" class="max-h-[70vh] w-auto mx-auto rounded-lg shadow-lg bg-white" loading="lazy">
+                            </template>
+                            <template x-if="isPdf()">
+                                <iframe :src="previewUrl" class="w-full h-[70vh] bg-white rounded-lg" frameborder="0"></iframe>
+                            </template>
+                            <template x-if="!isImage() && !isPdf()">
+                                <div class="flex flex-col items-center justify-center text-center text-gray-600 space-y-4 py-12">
+                                    <i class="fas fa-eye-slash text-4xl text-gray-400"></i>
+                                    <p>Preview is not available for this file type. Please download the file to view its contents.</p>
+                                    <a :href="downloadFallback" target="_blank" class="inline-flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700">
+                                        <i class="fas fa-download mr-2"></i>
+                                        Download document
+                                    </a>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -357,15 +489,15 @@
                         <div class="border-l-4 border-green-200 pl-4 py-2">
                             <div class="flex items-start justify-between">
                                 <div>
-                                    <h3 class="text-lg font-medium text-gray-900">{{ $eligibility->career_service }}</h3>
+                                    <h3 class="text-lg font-medium text-gray-900">{{ $eligibility->eligibility_name ?? $eligibility->career_service }}</h3>
                                     <p class="text-gray-600">Rating: {{ $eligibility->rating ?? 'N/A' }}</p>
                                     <p class="text-sm text-gray-500 mt-1">
-                                        Date Acquired: {{ $eligibility->date_acquired ? $eligibility->date_acquired->format('F d, Y') : 'N/A' }}
+                                        Date Acquired: {{ $eligibility->date_of_examination ? $eligibility->date_of_examination->format('F d, Y') : ($eligibility->date_acquired ? $eligibility->date_acquired->format('F d, Y') : 'N/A') }}
                                     </p>
                                 </div>
                                 <div class="text-right">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        {{ $eligibility->examination_place ?? 'N/A' }}
+                                        {{ $eligibility->place_of_examination ?? $eligibility->examination_place ?? 'N/A' }}
                                     </span>
                                 </div>
                             </div>
@@ -405,6 +537,36 @@
 </div>
 
 <script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('documentPreviewManager', () => ({
+        showModal: false,
+        previewUrl: null,
+        title: '',
+        mime: '',
+        downloadFallback: null,
+        openPreview(url, title, mime, downloadUrl) {
+            this.previewUrl = url;
+            this.title = title;
+            this.mime = mime || 'application/octet-stream';
+            this.downloadFallback = downloadUrl;
+            this.showModal = true;
+        },
+        closePreview() {
+            this.showModal = false;
+            this.previewUrl = null;
+            this.title = '';
+            this.mime = '';
+            this.downloadFallback = null;
+        },
+        isImage() {
+            return this.mime && this.mime.startsWith('image/');
+        },
+        isPdf() {
+            return this.mime === 'application/pdf';
+        }
+    }));
+});
+
 function downloadPDSExcel(button) {
     // Disable button and show loading state
     const originalText = document.getElementById('download-text').textContent;
