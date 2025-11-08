@@ -83,5 +83,6 @@ add = [
     "php83Extensions.zip",
     "php83Extensions.openssl",
     "php83Extensions.pdo",
+    "php83Extensions.redis",
     "nodejs_22"
 ]
