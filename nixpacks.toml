@@ -2,7 +2,7 @@
 # This configures the build environment and deployment process
 
 [phases.setup]
-nixPkgs = ["php83", "php83Packages.composer", "nodejs_22", "nginx", "curl", "git", "unzip", "icu", "libzip", "libpng", "libjpeg", "freetype"]
+nixPkgs = ["php83", "php83Packages.composer", "php83Extensions.redis", "nodejs_22", "nginx", "curl", "git", "unzip", "icu", "libzip", "libpng", "libjpeg", "freetype"]
 
 [phases.build]
 cmds = [
