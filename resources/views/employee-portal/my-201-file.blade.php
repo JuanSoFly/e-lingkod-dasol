@@ -428,9 +428,12 @@
                 @endif
 
                 <!-- Preview modal -->
-                <div x-cloak x-show="showModal" class="fixed inset-0 z-40" x-transition>
-                    <div class="absolute inset-0 bg-gray-900 bg-opacity-60" @click="closePreview()"></div>
-                    <div class="relative z-50 max-w-4xl mx-auto my-10 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                <div x-cloak x-show="showModal"
+                     class="fixed inset-0 z-[120] flex items-center justify-center px-4 sm:px-6 py-10"
+                     x-transition
+                     role="dialog" aria-modal="true">
+                    <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" @click="closePreview()"></div>
+                    <div class="relative z-[130] w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
                         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-gray-500">Document Preview</p>

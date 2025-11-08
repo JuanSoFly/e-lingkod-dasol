@@ -118,216 +118,263 @@
             </div>
 
         <!-- Career Progression -->
-        <div class="col-lg-6 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pb-0">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-chart-line text-success me-2"></i>Career Progression
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @if($careerProgression->count() > 0)
-                        <div class="list-group list-group-flush">
-                            @foreach($careerProgression as $progression)
-                                <div class="list-group-item border-0 px-0">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h6 class="mb-1">{{ ucfirst($progression->progression_type) }}</h6>
-                                            <p class="text-muted mb-1">
-                                                From: {{ $progression->from_position }}<br>
-                                                To: {{ $progression->to_position }}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 h-full">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center">
+                <i class="fas fa-chart-line text-emerald-500 mr-3"></i>
+                <h2 class="text-lg font-semibold text-gray-900">Career Progression</h2>
+            </div>
+            <div class="p-6">
+                @if($careerProgression->count() > 0)
+                    <div class="space-y-4">
+                        @foreach($careerProgression as $progression)
+                            <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+                                            {{ Str::headline($progression->progression_type ?? 'Progression') }}
+                                        </p>
+                                        <p class="text-sm text-gray-600 mt-1">
+                                            <span class="font-medium text-gray-900">From:</span> {{ $progression->from_position ?? 'N/A' }}<br>
+                                            <span class="font-medium text-gray-900">To:</span> {{ $progression->to_position ?? 'N/A' }}
+                                        </p>
+                                        @if($progression->salary_change_amount)
+                                            <p class="text-xs text-emerald-600 mt-2 flex items-center gap-2">
+                                                <i class="fas fa-arrow-up"></i>
+                                                Salary change: ₱{{ number_format($progression->salary_change_amount, 2) }}
                                             </p>
-                                            @if($progression->salary_change_amount)
-                                                <small class="text-success">
-                                                    <i class="fas fa-arrow-up me-1"></i>
-                                                    Salary change: ₱{{ number_format($progression->salary_change_amount, 2) }}
-                                                </small>
-                                            @endif
-                                        </div>
-                                        <div class="text-end">
-                                            <small class="text-muted">{{ $progression->effective_date?->format('M d, Y') }}</small>
-                                        </div>
+                                        @endif
+                                    </div>
+                                    <div class="text-sm text-gray-500 sm:text-right">
+                                        Effective {{ $progression->effective_date?->format('M d, Y') ?? 'TBD' }}
                                     </div>
                                 </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="text-center py-4">
-                            <i class="fas fa-user-tie text-muted fa-2x mb-3"></i>
-                            <p class="text-muted mb-0">No career progression records</p>
-                        </div>
-                    @endif
-                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-6">
+                        <i class="fas fa-user-tie text-slate-400 fa-2x mb-3"></i>
+                        <p class="text-gray-500">No career progression records</p>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
 
-    <!-- Training History -->
-    <div class="row mb-4">
-        <div class="col-lg-6 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pb-0">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-graduation-cap text-info me-2"></i>Training & Development
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @if($trainingHistory->count() > 0)
-                        <div class="list-group list-group-flush">
-                            @foreach($trainingHistory->take(5) as $training)
-                                <div class="list-group-item border-0 px-0">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h6 class="mb-1">{{ $training->trainingProgram?->title ?? 'Training Program' }}</h6>
-                                            <p class="text-muted mb-1">{{ $training->trainingProgram?->description ?? 'N/A' }}</p>
-                                            <small class="badge bg-{{ $training->status === 'completed' ? 'success' : 'warning' }}">
-                                                {{ ucfirst($training->status) }}
-                                            </small>
-                                            @if($training->training_hours)
-                                                <small class="text-muted ms-2">{{ $training->training_hours }} hours</small>
+    <!-- Training & Performance -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 h-full">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center">
+                <i class="fas fa-graduation-cap text-blue-500 mr-3"></i>
+                <h2 class="text-lg font-semibold text-gray-900">Training & Development</h2>
+            </div>
+            <div class="p-6">
+                @if($trainingHistory->count() > 0)
+                    <div class="divide-y divide-gray-100">
+                        @foreach($trainingHistory->take(5) as $training)
+                            @php
+                                $trainingTitle = $training->training_title
+                                    ?? $training->trainingProgram?->program_name
+                                    ?? 'Training Program';
+                                $trainingDescription = $training->trainingProgram?->description
+                                    ?? $training->trainingProgram?->learning_objectives
+                                    ?? $training->conducted_sponsored_by
+                                    ?? 'Details not provided';
+                                $status = $training->completion_status
+                                    ?? $training->enrollment_status
+                                    ?? $training->record_status
+                                    ?? 'Scheduled';
+                                $statusStyles = [
+                                    'completed' => 'bg-green-100 text-green-800',
+                                    'in progress' => 'bg-yellow-100 text-yellow-800',
+                                    'approved' => 'bg-yellow-100 text-yellow-800',
+                                    'enrolled' => 'bg-blue-100 text-blue-800',
+                                    'scheduled' => 'bg-blue-100 text-blue-800',
+                                    'failed' => 'bg-red-100 text-red-800',
+                                    'withdrawn' => 'bg-gray-200 text-gray-700',
+                                    'canceled' => 'bg-gray-200 text-gray-700',
+                                    'cancelled' => 'bg-gray-200 text-gray-700',
+                                ];
+                                $statusClass = $statusStyles[strtolower($status)] ?? 'bg-slate-100 text-slate-800';
+                                $hours = $training->number_of_hours
+                                    ?? $training->hours_attended
+                                    ?? $training->trainingProgram?->duration_hours;
+                                $startDate = $training->inclusive_date_from ?? $training->start_date;
+                                $endDate = $training->inclusive_date_to ?? $training->end_date;
+                            @endphp
+                            <div class="py-5">
+                                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                                    <div>
+                                        <h3 class="text-base font-semibold text-gray-900">{{ $trainingTitle }}</h3>
+                                        <p class="text-sm text-gray-600 mt-1">{{ Str::limit($trainingDescription, 120) }}</p>
+                                        <div class="mt-3 flex flex-wrap items-center gap-3 text-xs font-medium">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full {{ $statusClass }}">
+                                                {{ ucfirst($status) }}
+                                            </span>
+                                            @if($hours)
+                                                <span class="text-gray-500">{{ $hours }} hrs</span>
+                                            @endif
+                                            @if($startDate || $endDate)
+                                                <span class="text-gray-500">
+                                                    {{ $startDate?->format('M d, Y') ?? 'TBD' }} – {{ $endDate?->format('M d, Y') ?? 'Ongoing' }}
+                                                </span>
                                             @endif
                                         </div>
-                                        <div class="text-end">
-                                            <small class="text-muted">{{ $training->training_date?->format('M d, Y') }}</small>
-                                        </div>
+                                    </div>
+                                    <div class="text-sm text-gray-500 sm:text-right">
+                                        {{ $training->trainingProgram?->provider_organization ?? $training->conducted_sponsored_by ?? 'Internal' }}
                                     </div>
                                 </div>
-                            @endforeach
-                        </div>
-                        @if($trainingHistory->count() > 5)
-                            <div class="text-center mt-3">
-                                <small class="text-muted">And {{ $trainingHistory->count() - 5 }} more training records...</small>
                             </div>
-                        @endif
-                    @else
-                        <div class="text-center py-4">
-                            <i class="fas fa-chalkboard-teacher text-muted fa-2x mb-3"></i>
-                            <p class="text-muted mb-0">No training records found</p>
+                        @endforeach
+                    </div>
+                    @if($trainingHistory->count() > 5)
+                        <div class="mt-4 text-sm text-center text-gray-500">
+                            And {{ $trainingHistory->count() - 5 }} more training records…
                         </div>
                     @endif
-                </div>
+                @else
+                    <div class="text-center py-6">
+                        <i class="fas fa-chalkboard-teacher text-slate-400 fa-2x mb-3"></i>
+                        <p class="text-gray-500">No training records found</p>
+                    </div>
+                @endif
             </div>
         </div>
 
-        <!-- Performance History -->
-        <div class="col-lg-6 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pb-0">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-star text-warning me-2"></i>Performance History
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @if($performanceHistory->count() > 0)
-                        <div class="list-group list-group-flush">
-                            @foreach($performanceHistory->take(5) as $review)
-                                <div class="list-group-item border-0 px-0">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h6 class="mb-1">{{ $review->performancePeriod?->period_name ?? 'Performance Review' }}</h6>
-                                            <p class="text-muted mb-1">
-                                                Final Rating: 
-                                                @if($review->final_rating)
-                                                    <span class="fw-bold text-primary">{{ number_format($review->final_rating, 2) }}</span>
-                                                @else
-                                                    <span class="text-muted">Not yet rated</span>
-                                                @endif
-                                            </p>
-                                            @if($review->performanceTargets)
-                                                <small class="text-muted">
-                                                    {{ $review->performanceTargets->count() }} targets set
-                                                </small>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 h-full">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center">
+                <i class="fas fa-star text-amber-500 mr-3"></i>
+                <h2 class="text-lg font-semibold text-gray-900">Performance History</h2>
+            </div>
+            <div class="p-6">
+                @if($performanceHistory->count() > 0)
+                    <div class="divide-y divide-gray-100">
+                        @foreach($performanceHistory->take(5) as $review)
+                            <div class="py-5">
+                                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                                    <div>
+                                        <h3 class="text-base font-semibold text-gray-900">{{ $review->performancePeriod?->name ?? 'Performance Review' }}</h3>
+                                        <p class="text-sm text-gray-600 mt-1">
+                                            Overall Rating:
+                                            @if(!is_null($review->overall_rating))
+                                                <span class="text-blue-600 font-semibold">{{ number_format($review->overall_rating, 2) }}</span>
+                                            @else
+                                                <span class="text-gray-500">Not yet rated</span>
                                             @endif
-                                        </div>
-                                        <div class="text-end">
-                                            <small class="text-muted">{{ $review->review_date?->format('M d, Y') }}</small>
-                                        </div>
+                                        </p>
+                                        @if($review->performanceTargets && $review->performanceTargets->count() > 0)
+                                            <p class="text-xs text-gray-500 mt-2">
+                                                {{ $review->performanceTargets->count() }} targets set
+                                            </p>
+                                        @endif
+                                    </div>
+                                    <div class="text-sm text-gray-500 sm:text-right">
+                                        {{ $review->review_date?->format('M d, Y') ?? 'Pending Date' }}
                                     </div>
                                 </div>
-                            @endforeach
-                        </div>
-                        @if($performanceHistory->count() > 5)
-                            <div class="text-center mt-3">
-                                <small class="text-muted">And {{ $performanceHistory->count() - 5 }} more performance records...</small>
                             </div>
-                        @endif
-                    @else
-                        <div class="text-center py-4">
-                            <i class="fas fa-chart-bar text-muted fa-2x mb-3"></i>
-                            <p class="text-muted mb-0">No performance reviews found</p>
+                        @endforeach
+                    </div>
+                    @if($performanceHistory->count() > 5)
+                        <div class="mt-4 text-sm text-center text-gray-500">
+                            And {{ $performanceHistory->count() - 5 }} more performance records…
                         </div>
                     @endif
-                </div>
+                @else
+                    <div class="text-center py-6">
+                        <i class="fas fa-chart-bar text-slate-400 fa-2x mb-3"></i>
+                        <p class="text-gray-500">No performance reviews found</p>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
 
     <!-- Education & Work Experience -->
-    <div class="row">
-        <div class="col-lg-6 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pb-0">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-university text-primary me-2"></i>Educational Background
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @if($educationHistory->count() > 0)
-                        <div class="list-group list-group-flush">
-                            @foreach($educationHistory as $education)
-                                <div class="list-group-item border-0 px-0">
-                                    <h6 class="mb-1">{{ $education->degree }} - {{ $education->field_of_study }}</h6>
-                                    <p class="text-muted mb-1">{{ $education->institution }}</p>
-                                    <small class="text-muted">
-                                        Graduated: {{ $education->graduation_year ?? 'N/A' }}
-                                        @if($education->gpa)
-                                            | GPA: {{ $education->gpa }}
-                                        @endif
-                                    </small>
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="text-center py-4">
-                            <i class="fas fa-graduation-cap text-muted fa-2x mb-3"></i>
-                            <p class="text-muted mb-0">No education records found</p>
-                        </div>
-                    @endif
-                </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 h-full">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center">
+                <i class="fas fa-university text-indigo-500 mr-3"></i>
+                <h2 class="text-lg font-semibold text-gray-900">Educational Background</h2>
+            </div>
+            <div class="p-6">
+                @if($educationHistory->count() > 0)
+                    <div class="divide-y divide-gray-100">
+                        @foreach($educationHistory as $education)
+                            @php
+                                $degree = $education->degree_course ?? $education->course ?? 'Program / Course not specified';
+                                $school = $education->school_name ?? 'School not specified';
+                                $graduationYear = $education->graduation_year ?? $education->year_graduated ?? $education->year_graduated_pds;
+                                $honors = $education->all_honors;
+                            @endphp
+                            <div class="py-4">
+                                <h3 class="text-base font-semibold text-gray-900">{{ $education->education_level }} – {{ $school }}</h3>
+                                <p class="text-sm text-gray-600 mt-1">{{ $degree }}</p>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    {{ $education->duration }}
+                                    @if($graduationYear)
+                                        | Graduated: {{ $graduationYear }}
+                                    @endif
+                                </p>
+                                @if($honors)
+                                    <p class="text-xs text-emerald-600 mt-1">Honors/Scholarships: {{ $honors }}</p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-6">
+                        <i class="fas fa-graduation-cap text-slate-400 fa-2x mb-3"></i>
+                        <p class="text-gray-500">No education records found</p>
+                    </div>
+                @endif
             </div>
         </div>
 
-        <div class="col-lg-6 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pb-0">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-briefcase text-success me-2"></i>Previous Work Experience
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @if($workExperience->count() > 0)
-                        <div class="list-group list-group-flush">
-                            @foreach($workExperience as $work)
-                                <div class="list-group-item border-0 px-0">
-                                    <h6 class="mb-1">{{ $work->position }}</h6>
-                                    <p class="text-muted mb-1">{{ $work->company }} - {{ $work->department }}</p>
-                                    <small class="text-muted">
-                                        {{ $work->start_date?->format('M Y') }} - 
-                                        {{ $work->end_date?->format('M Y') ?? 'Present' }}
-                                        @if($work->start_date && $work->end_date)
-                                            ({{ $work->start_date->diffInMonths($work->end_date) }} months)
-                                        @endif
-                                    </small>
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="text-center py-4">
-                            <i class="fas fa-building text-muted fa-2x mb-3"></i>
-                            <p class="text-muted mb-0">No previous work experience on record</p>
-                        </div>
-                    @endif
-                </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 h-full">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center">
+                <i class="fas fa-briefcase text-green-500 mr-3"></i>
+                <h2 class="text-lg font-semibold text-gray-900">Previous Work Experience</h2>
+            </div>
+            <div class="p-6">
+                @if($workExperience->count() > 0)
+                    <div class="divide-y divide-gray-100">
+                        @foreach($workExperience as $work)
+                            @php
+                                $position = $work->position_title ?? $work->position ?? 'Position not specified';
+                                $organization = $work->department_agency_office ?? $work->company ?? 'Organization not specified';
+                                $startDate = $work->inclusive_date_from ?? $work->from_date;
+                                $endDate = $work->inclusive_date_to ?? $work->to_date;
+                                $status = $work->status_of_appointment ?? $work->status;
+                                $durationMonths = ($startDate && $endDate) ? $startDate->diffInMonths($endDate) : null;
+                            @endphp
+                            <div class="py-4">
+                                <h3 class="text-base font-semibold text-gray-900">{{ $position }}</h3>
+                                <p class="text-sm text-gray-600 mt-1">{{ $organization }}</p>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    {{ $startDate?->format('M Y') ?? 'Unknown' }} – {{ $endDate?->format('M Y') ?? 'Present' }}
+                                    @if($durationMonths)
+                                        ({{ $durationMonths }} months)
+                                    @endif
+                                </p>
+                                @if($status)
+                                    <p class="text-xs text-gray-500">Status: {{ $status }}</p>
+                                @endif
+                                @if(!is_null($work->is_government_service))
+                                    <p class="text-xs text-gray-500">
+                                        {{ $work->is_government_service ? 'Government Service' : 'Private Sector' }}
+                                    </p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-6">
+                        <i class="fas fa-building text-slate-400 fa-2x mb-3"></i>
+                        <p class="text-gray-500">No previous work experience on record</p>
+                    </div>
+                @endif
             </div>
         </div>
     </div>

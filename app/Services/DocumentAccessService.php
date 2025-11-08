@@ -77,17 +77,48 @@ class DocumentAccessService
         ];
     }
 
-    private function resolveMime(EmployeeDocument $document, FilesystemAdapter $disk, string $path): string
+    private function resolveMime(EmployeeDocument $document, ?FilesystemAdapter $disk = null, ?string $path = null): string
     {
         if (!empty($document->mime_type)) {
             return $document->mime_type;
         }
 
-        try {
-            return $disk->mimeType($path);
-        } catch (\Throwable $e) {
-            return 'application/octet-stream';
+        $disk ??= $this->disk($document);
+        $path ??= $this->resolvePath($document);
+
+        if ($path) {
+            try {
+                $mime = $disk->mimeType($path);
+
+                if (is_string($mime) && $mime !== '') {
+                    return $mime;
+                }
+            } catch (\Throwable $e) {
+                // Swallow and allow fallback resolution below.
+            }
         }
+
+        $extension = strtolower(pathinfo($document->file_name ?? $document->file_path ?? '', PATHINFO_EXTENSION));
+
+        if ($extension !== '') {
+            $fallbackMime = match ($extension) {
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'bmp' => 'image/bmp',
+                'webp' => 'image/webp',
+                'pdf' => 'application/pdf',
+                'doc' => 'application/msword',
+                'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                default => null,
+            };
+
+            if ($fallbackMime) {
+                return $fallbackMime;
+            }
+        }
+
+        return 'application/octet-stream';
     }
 
     private function disk(EmployeeDocument $document): FilesystemAdapter
@@ -99,14 +130,19 @@ class DocumentAccessService
 
     private function pathOrFail(EmployeeDocument $document, FilesystemAdapter $disk): string
     {
-        $path = $document->usesLocalDisk()
-            ? $document->resolvedStoragePath()
-            : $document->file_path;
+        $path = $this->resolvePath($document);
 
         if (!$path || !$disk->exists($path)) {
             throw new FileNotFoundException('Document file is missing.');
         }
 
         return $path;
+    }
+
+    private function resolvePath(EmployeeDocument $document): ?string
+    {
+        return $document->usesLocalDisk()
+            ? $document->resolvedStoragePath()
+            : ($document->file_path ?: null);
     }
 }

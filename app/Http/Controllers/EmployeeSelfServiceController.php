@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Employee;
-use App\Models\User;
+use App\Models\CareerProgression;
 use App\Models\DocumentRequest;
+use App\Models\Employee;
 use App\Models\EmployeeChangeRequest;
-use App\Models\LeaveApplication;
-use App\Models\PerformanceTarget;
 use App\Models\EmployeeTraining;
 use App\Models\GovernmentBenefit;
-use App\Models\CareerProgression;
+use App\Models\LeaveApplication;
 use App\Models\LeaveCredit;
+use App\Models\PerformanceTarget;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -54,11 +53,11 @@ class EmployeeSelfServiceController extends Controller
 
         // Get complete service history
         $serviceHistory = $this->getServiceHistory($employee);
-        $careerProgression = $employee->careerProgressions()->orderBy('effective_date', 'desc')->get();
-        $trainingHistory = $employee->employeeTrainings() ? $employee->employeeTrainings()->with('trainingProgram')->orderBy('start_date', 'desc')->get() : collect();
-        $performanceHistory = collect(); // Temporarily disabled - will implement when performance system is set up
-        $educationHistory = collect(); // Temporarily disabled - will implement when education system is set up  
-        $workExperience = collect(); // Temporarily disabled - will implement when work experience system is set up
+        $careerProgression = $this->getCareerProgressionHistory($employee);
+        $trainingHistory = $this->getTrainingHistory($employee);
+        $performanceHistory = $this->getPerformanceHistory($employee);
+        $educationHistory = $this->getEducationHistory($employee);
+        $workExperience = $this->getWorkExperienceHistory($employee);
 
         return view('employee-portal.service-record', compact(
             'employee', 
@@ -433,6 +432,70 @@ class EmployeeSelfServiceController extends Controller
         });
 
         return $history;
+    }
+
+    /**
+     * Get ordered career progression records
+     */
+    private function getCareerProgressionHistory(Employee $employee)
+    {
+        return $employee->careerProgressions()
+            ->orderByDesc('effective_date')
+            ->orderByDesc('updated_at')
+            ->get();
+    }
+
+    /**
+     * Get employee training records with program details
+     */
+    private function getTrainingHistory(Employee $employee)
+    {
+        return $employee->employeeTrainings()
+            ->with('trainingProgram')
+            ->orderByDesc(DB::raw('COALESCE(end_date, start_date, certificate_date, created_at)'))
+            ->get();
+    }
+
+    /**
+     * Get performance reviews with linked period and targets
+     */
+    private function getPerformanceHistory(Employee $employee)
+    {
+        return $employee->performanceReviews()
+            ->with(['performancePeriod', 'performanceTargets'])
+            ->orderByDesc(DB::raw('COALESCE(review_date, updated_at, created_at)'))
+            ->get();
+    }
+
+    /**
+     * Get education history ordered by level and recency
+     */
+    private function getEducationHistory(Employee $employee)
+    {
+        $levelOrder = [
+            'Graduate Studies',
+            'College',
+            'Vocational/Trade',
+            'Secondary',
+            'Elementary',
+        ];
+
+        $orderSql = "FIELD(education_level, '" . implode("','", $levelOrder) . "')";
+
+        return $employee->education()
+            ->orderByRaw($orderSql)
+            ->orderByDesc(DB::raw('COALESCE(period_to, year_graduated_pds, year_graduated, period_from, created_at)'))
+            ->get();
+    }
+
+    /**
+     * Get work experience timeline entries
+     */
+    private function getWorkExperienceHistory(Employee $employee)
+    {
+        return $employee->workExperiences()
+            ->orderByDesc(DB::raw('COALESCE(inclusive_date_to, to_date, inclusive_date_from, from_date, created_at)'))
+            ->get();
     }
 
     /**
