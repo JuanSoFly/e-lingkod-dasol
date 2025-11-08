@@ -61,6 +61,7 @@ class RoleAndPermissionSeeder extends Seeder
         $employeeRole->syncPermissions([
             // Granular employee permissions - can only access own data
             'employee.view-own',
+            'employee.view', // Allow employees to view their own employee records
             'leave.view-own',
             'leave.create',
             'performance.view-own',

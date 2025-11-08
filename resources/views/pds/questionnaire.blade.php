@@ -191,7 +191,7 @@
     }
 
     function updateProgressDescription(progress, questionPrefixes) {
-        const progressDescription = document.getElementById('progress-description');
+        let progressDescription = document.getElementById('progress-description');
         if (!progressDescription) {
             // Create progress description element if it doesn't exist
             const container = document.querySelector('.bg-blue-50.border-blue-200');

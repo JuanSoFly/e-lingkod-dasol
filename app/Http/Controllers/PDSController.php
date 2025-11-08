@@ -909,6 +909,9 @@ public function updateQuestionnaire(Request $request, Employee $employee)
                 $validated
             );
 
+            // Calculate completion percentage to determine next action
+            $completionPercentage = $questionnaire ? $questionnaire->getCompletionPercentage() : 0;
+
             // Log the PDS Panel 10 update
             $this->auditTrailService->logPDSUpdate('Panel 10 - Questionnaire', $employee, [
                 'fields_updated' => array_keys($validated),
@@ -926,9 +929,6 @@ public function updateQuestionnaire(Request $request, Employee $employee)
                 'is_new_record' => $questionnaire->wasRecentlyCreated,
                 'timestamp' => now()->toDateTimeString()
             ]);
-
-            // Calculate completion percentage to determine next action
-            $completionPercentage = $questionnaire ? $questionnaire->getCompletionPercentage() : 0;
 
             \Log::info('PDS updateQuestionnaire - Completion calculation', [
                 'employee_id' => $employee->id,
