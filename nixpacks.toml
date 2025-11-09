@@ -6,7 +6,6 @@ nixPkgs = ["...", "php83Extensions.redis"]
 
 [phases.build]
 cmds = [
-    "composer install --no-dev --prefer-dist --optimize-autoloader",
     "npm ci",
     "npm run build",
     "mkdir -p storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache",
@@ -16,7 +15,7 @@ cmds = [
 ]
 
 [start]
-cmd = "bash -lc 'php artisan config:clear && php artisan route:clear && php artisan view:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan event:cache && php -d opcache.enable_cli=1 -S 0.0.0.0:$PORT -t public public/router.php'"
+cmd = "bash -lc 'php artisan config:clear && php artisan route:clear && php artisan view:clear && php -S 0.0.0.0:$PORT -t public public/router.php'"
 
 [variables]
 PHP_VERSION = "8.3"
