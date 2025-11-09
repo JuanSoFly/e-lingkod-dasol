@@ -2,36 +2,21 @@
 # This configures the build environment and deployment process
 
 [phases.setup]
-nixPkgs = [
-    "nodejs_22",
-    "php83",
-    "php83Packages.composer",
-    "php83Extensions.curl",
-    "php83Extensions.fileinfo",
-    "php83Extensions.mbstring",
-    "php83Extensions.openssl",
-    "php83Extensions.pdo_mysql",
-    "php83Extensions.redis",
-    "php83Extensions.opcache"
-]
+nixPkgs = ["...", "php83Extensions.redis"]
 
 [phases.build]
 cmds = [
     "composer install --no-dev --prefer-dist --optimize-autoloader",
-    "php artisan config:cache",
-    "php artisan route:cache",
-    "php artisan view:cache",
-    "php artisan event:cache",
     "npm ci",
     "npm run build",
     "mkdir -p storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache",
     "chmod -R 755 storage bootstrap/cache",
-    "chmod -R 775 storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache",
+    "chmod -R 777 storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache",
     "php artisan storage:link"
 ]
 
 [start]
-cmd = "bash -lc 'php artisan migrate --force && php -d opcache.enable_cli=1 -S 0.0.0.0:$PORT -t public public/router.php'"
+cmd = "bash -lc 'php artisan config:clear && php artisan route:clear && php artisan view:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan event:cache && php -d opcache.enable_cli=1 -S 0.0.0.0:$PORT -t public public/router.php'"
 
 [variables]
 PHP_VERSION = "8.3"
@@ -63,6 +48,7 @@ COMPOSER_MEMORY_LIMIT = "2G"
 COMPOSER_ALLOW_SUPERUSER = "1"
 COMPOSER_MEMORY_LIMIT = "2G"
 NODE_ENV = "production"
+PHP_EXTENSIONS = "redis"
 
 [start.env]
 APP_ENV = "production"
