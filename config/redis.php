@@ -29,10 +29,10 @@ return [
     */
     'default' => [
         'url' => env('REDIS_URL'),
-        'host' => env('REDIS_HOST', 'caboose.proxy.rlwy.net'),
+        'host' => env('REDIS_HOST', 'shuttle.proxy.rlwy.net'),
         'username' => env('REDIS_USERNAME'),
-        'password' => env('REDIS_PASSWORD'),
-        'port' => env('REDIS_PORT', '53382'),
+        'password' => env('REDIS_PASSWORD', 'RBLzgGDriUQCeJsaPlbxTdpryYmUxnOG'),
+        'port' => env('REDIS_PORT', '41198'),
         'database' => env('REDIS_DB', '0'),
 
         // Basic timeout settings for Railway
@@ -47,10 +47,10 @@ return [
     */
     'cache' => [
         'url' => env('REDIS_URL'),
-        'host' => env('REDIS_HOST', 'caboose.proxy.rlwy.net'),
+        'host' => env('REDIS_HOST', 'shuttle.proxy.rlwy.net'),
         'username' => env('REDIS_USERNAME'),
-        'password' => env('REDIS_PASSWORD'),
-        'port' => env('REDIS_PORT', '53382'),
+        'password' => env('REDIS_PASSWORD', 'RBLzgGDriUQCeJsaPlbxTdpryYmUxnOG'),
+        'port' => env('REDIS_PORT', '41198'),
         'database' => env('REDIS_CACHE_DB', '1'), // Same database as default
 
         'read_timeout' => 30,
@@ -64,10 +64,10 @@ return [
     */
     'session' => [
         'url' => env('REDIS_URL'),
-        'host' => env('REDIS_HOST', 'caboose.proxy.rlwy.net'),
+        'host' => env('REDIS_HOST', 'shuttle.proxy.rlwy.net'),
         'username' => env('REDIS_USERNAME'),
-        'password' => env('REDIS_PASSWORD'),
-        'port' => env('REDIS_PORT', '53382'),
+        'password' => env('REDIS_PASSWORD', 'RBLzgGDriUQCeJsaPlbxTdpryYmUxnOG'),
+        'port' => env('REDIS_PORT', '41198'),
         'database' => env('REDIS_SESSION_DB', '3'), // Same database as default
 
         'read_timeout' => 10,
@@ -81,10 +81,10 @@ return [
     */
     'queue' => [
         'url' => env('REDIS_URL'),
-        'host' => env('REDIS_HOST', 'caboose.proxy.rlwy.net'),
+        'host' => env('REDIS_HOST', 'shuttle.proxy.rlwy.net'),
         'username' => env('REDIS_USERNAME'),
-        'password' => env('REDIS_PASSWORD'),
-        'port' => env('REDIS_PORT', '53382'),
+        'password' => env('REDIS_PASSWORD', 'RBLzgGDriUQCeJsaPlbxTdpryYmUxnOG'),
+        'port' => env('REDIS_PORT', '41198'),
         'database' => env('REDIS_QUEUE_DB', '2'), // Same database as default
 
         'read_timeout' => 120,
