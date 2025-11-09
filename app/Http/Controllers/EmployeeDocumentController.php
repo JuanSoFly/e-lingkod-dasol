@@ -45,13 +45,14 @@ class EmployeeDocumentController extends Controller
         $path = $uploadedFile->storeAs(
             'private/employee_documents/' . $employee->id,
             $secureFileName,
-            'local'
+            's3'
         );
 
         $document = $employee->documents()->create([
             'document_type' => $request->document_type,
             'file_name' => $originalName,
             'file_path' => $path,
+            'storage_disk' => 's3',
             'uploaded_by' => auth()->id(),
             'uploaded_at' => now(),
             'file_size' => $uploadedFile->getSize(),

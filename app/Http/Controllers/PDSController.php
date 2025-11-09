@@ -1037,8 +1037,8 @@ public function updateQuestionnaire(Request $request, Employee $employee)
             $photo->photo_format = $image->getClientOriginalExtension();
             $photo->photo_taken_date = now();
 
-            // Store in storage/app/public/employee_photos
-            $photoPath = $image->store('employee_photos', 'public');
+            // Store in S3
+            $photoPath = $image->store('employee_photos', 's3');
             $photo->photo_path = $photoPath;
             $photo->is_active = true;
 
@@ -1077,8 +1077,8 @@ public function updateQuestionnaire(Request $request, Employee $employee)
             $photo->thumbmark_format = $image->getClientOriginalExtension();
             $photo->thumbmark_taken_date = now();
 
-            // Store in storage/app/public/employee_photos
-            $thumbmarkPath = $image->store('employee_photos', 'public');
+            // Store in S3
+            $thumbmarkPath = $image->store('employee_photos', 's3');
             $photo->thumbmark_path = $thumbmarkPath;
 
             $photo->save();

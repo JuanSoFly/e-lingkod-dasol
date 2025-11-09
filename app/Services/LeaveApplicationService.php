@@ -201,7 +201,7 @@ class LeaveApplicationService
     {
         // Store file
         $filename = $this->generateUniqueFilename($file);
-        $filePath = $file->storeAs('leave-applications/' . $application->id, $filename, 'local');
+        $filePath = $file->storeAs('leave-applications/' . $application->id, $filename, 's3');
 
         // Create document record
         $document = EmployeeDocument::create([
@@ -211,6 +211,7 @@ class LeaveApplicationService
             'filename' => $filename,
             'original_filename' => $file->getClientOriginalName(),
             'file_path' => $filePath,
+            'storage_disk' => 's3',
             'file_size' => $file->getSize(),
             'mime_type' => $file->getMimeType(),
             'description' => 'Supporting document for leave application',

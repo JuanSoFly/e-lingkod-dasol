@@ -28,7 +28,7 @@ class DocumentManagementService
     ): DocumentVersion {
         return DB::transaction(function () use ($document, $file, $uploader, $changeReason, $versionNotes, $autoApprove) {
             // Store the file
-            $filePath = $file->store('documents/versions', 'public');
+            $filePath = $file->store('documents/versions', 's3');
             $fileHash = hash_file('sha256', $file->getPathname());
             $checksum = hash_file('md5', $file->getPathname());
 

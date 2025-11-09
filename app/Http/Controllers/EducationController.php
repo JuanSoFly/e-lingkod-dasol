@@ -219,7 +219,7 @@ class EducationController extends Controller
         $path = $file->storeAs(
             "employee_documents/{$employee->id}/education",
             $filename,
-            'public'
+            's3'
         );
 
         // Create employee document record
@@ -228,6 +228,7 @@ class EducationController extends Controller
             'document_type' => 'education_credential',
             'file_name' => $originalName,
             'file_path' => $path,
+            'storage_disk' => 's3',
             'file_size' => $file->getSize(),
             'mime_type' => $file->getMimeType(),
             'description' => "Education credential for {$education->education_level} - {$education->school_name}",

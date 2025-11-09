@@ -193,7 +193,7 @@ class EmployeeSelfServiceController extends Controller
         $uploadedFiles = [];
         if ($request->hasFile('supporting_documents')) {
             foreach ($request->file('supporting_documents') as $file) {
-                $path = $file->store('employee_change_requests/' . $employee->id, 'private');
+                $path = $file->store('employee_change_requests/' . $employee->id, 's3');
                 $uploadedFiles[] = [
                     'path' => $path,
                     'name' => $file->getClientOriginalName(),
