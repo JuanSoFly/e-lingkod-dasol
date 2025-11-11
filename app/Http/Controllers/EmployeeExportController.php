@@ -22,7 +22,9 @@ class EmployeeExportController extends Controller
 
         $filename = 'employees_' . now()->format('Y_m_d_His') . '.xlsx';
 
-        return Excel::download(new EmployeesExport(), $filename);
+        $filters = $this->extractEmployeeFilters($request);
+
+        return Excel::download(new EmployeesExport($filters), $filename);
     }
 
     /**
@@ -35,7 +37,29 @@ class EmployeeExportController extends Controller
 
         $filename = 'employees_filtered_' . now()->format('Y_m_d_His') . '.xlsx';
 
-        // We can enhance this later to apply the same filters as the index page
-        return Excel::download(new EmployeesExport(), $filename);
+        $filters = $this->extractEmployeeFilters($request);
+
+        return Excel::download(new EmployeesExport($filters), $filename);
+    }
+
+    /**
+     * Mirror the employee list filters when exporting.
+     */
+    protected function extractEmployeeFilters(Request $request): array
+    {
+        $filters = $request->only([
+            'search',
+            'department',
+            'position',
+            'employment_status',
+            'office_id',
+            'is_department_head',
+        ]);
+
+        if ($request->has('is_department_head')) {
+            $filters['is_department_head'] = $request->boolean('is_department_head');
+        }
+
+        return $filters;
     }
 }

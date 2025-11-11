@@ -7,6 +7,7 @@ use App\Models\OfficeAssignment;
 use App\Models\User;
 use App\Models\WorkCalendar;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -133,6 +134,49 @@ class Employee extends Model
     public function user(): HasOne
     {
         return $this->hasOne(User::class, 'employee_id', 'id');
+    }
+
+    /**
+     * Apply shared employee filters to the query builder.
+     */
+    public function scopeApplyFilters(Builder $query, array $filters = []): Builder
+    {
+        $search = $filters['search'] ?? null;
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $likeTerm = "%{$search}%";
+                $q->where('first_name', 'LIKE', $likeTerm)
+                    ->orWhere('last_name', 'LIKE', $likeTerm)
+                    ->orWhere('email', 'LIKE', $likeTerm)
+                    ->orWhere('employee_number', 'LIKE', $likeTerm)
+                    ->orWhere('position', 'LIKE', $likeTerm)
+                    ->orWhere('department', 'LIKE', $likeTerm)
+                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$likeTerm]);
+            });
+        }
+
+        if (!empty($filters['department'])) {
+            $query->where('department', $filters['department']);
+        }
+
+        if (!empty($filters['position'])) {
+            $query->where('position', $filters['position']);
+        }
+
+        if (!empty($filters['employment_status'])) {
+            $query->where('employment_status', $filters['employment_status']);
+        }
+
+        if (!empty($filters['office_id'])) {
+            $query->where('office_id', $filters['office_id']);
+        }
+
+        if (array_key_exists('is_department_head', $filters) && $filters['is_department_head'] !== null && $filters['is_department_head'] !== '') {
+            $query->where('is_department_head', filter_var($filters['is_department_head'], FILTER_VALIDATE_BOOLEAN));
+        }
+
+        return $query;
     }
 
     /**

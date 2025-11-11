@@ -1,14 +1,14 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Leave Policy Details') }}
             </h2>
-            <div class="space-x-2">
-                <a href="{{ route('leave-policies.edit', $leavePolicy) }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            <div class="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:items-center">
+                <a href="{{ route('leave-policies.edit', $leavePolicy) }}" class="inline-flex justify-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full sm:w-auto">
                     Edit Policy
                 </a>
-                <a href="{{ route('leave-policies.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                <a href="{{ route('leave-policies.index') }}" class="inline-flex justify-center bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded w-full sm:w-auto">
                     Back to Policies
                 </a>
             </div>

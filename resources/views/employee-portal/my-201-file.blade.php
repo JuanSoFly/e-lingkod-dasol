@@ -5,12 +5,12 @@
     <!-- Header Section -->
     <div class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900">My 201 File</h1>
                     <p class="text-lg text-gray-600 mt-1">Complete employee record and information</p>
                 </div>
-                <div class="flex space-x-3">
+                <div class="flex flex-wrap gap-3 md:justify-end">
                     <!--
                     <button onclick="downloadPDSExcel(this)"
                             class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200">

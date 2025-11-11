@@ -1,12 +1,14 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Leave Policies Management') }}
             </h2>
-            <a href="{{ route('leave-policies.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Create New Policy
-            </a>
+            <div class="flex flex-wrap gap-3">
+                <a href="{{ route('leave-policies.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Create New Policy
+                </a>
+            </div>
         </div>
     </x-slot>
 

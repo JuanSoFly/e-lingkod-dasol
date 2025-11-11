@@ -14,12 +14,18 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 class EmployeesExport implements FromCollection, WithHeadings, WithMapping, WithColumnWidths, WithStyles
 {
     use WithExcelFormatting;
+
+    public function __construct(protected array $filters = [])
+    {
+    }
     /**
      * @return \Illuminate\Support\Collection
      */
     public function collection()
     {
-        return Employee::with('user')->get();
+        return Employee::with('user')
+            ->applyFilters($this->filters)
+            ->get();
     }
 
     /**

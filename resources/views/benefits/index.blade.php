@@ -1,15 +1,17 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Government Benefits Management') }}
             </h2>
-            <x-primary-button onclick="window.location.href='{{ route('benefits.create') }}'">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                Add New Enrollment
-            </x-primary-button>
+            <div class="flex flex-wrap gap-3">
+                <x-primary-button onclick="window.location.href='{{ route('benefits.create') }}'">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Add New Enrollment
+                </x-primary-button>
+            </div>
         </div>
     </x-slot>
 

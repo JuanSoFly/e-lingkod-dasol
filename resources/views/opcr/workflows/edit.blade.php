@@ -9,14 +9,14 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 bg-white border-b border-gray-200">
-                    <div class="flex items-center justify-between">
+                    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
                             <h3 class="text-lg font-medium text-gray-900">Edit Office Performance Commitment</h3>
                             <p class="mt-1 text-sm text-gray-600">
                                 {{ $workflow->office->name }} • {{ $workflow->period->year }} - {{ $workflow->period->semester }}
                             </p>
                         </div>
-                        <div class="flex items-center space-x-4">
+                        <div class="flex flex-wrap items-center gap-3 md:justify-end">
                             <a href="{{ route('opcr.workflows.show', $workflow) }}" class="inline-flex items-center px-4 py-2 bg-gray-100 border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
                                 Cancel
                             </a>
@@ -48,14 +48,16 @@
 
                         <!-- Performance Targets Section -->
                         <div class="border-t pt-6">
-                            <div class="flex items-center justify-between mb-4">
+                            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
                                 <h3 class="text-lg font-medium text-gray-900">Performance Targets</h3>
-                                <button type="button" id="add-target-btn" class="inline-flex items-center px-3 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                    </svg>
-                                    Add Target
-                                </button>
+                                <div class="flex flex-wrap gap-3 md:justify-end">
+                                    <button type="button" id="add-target-btn" class="inline-flex items-center px-3 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                        </svg>
+                                        Add Target
+                                    </button>
+                                </div>
                             </div>
 
                             <div id="targets-container" class="space-y-4">

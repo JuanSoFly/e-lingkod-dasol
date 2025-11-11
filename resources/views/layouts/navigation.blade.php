@@ -265,16 +265,23 @@
                                 <x-dropdown-link :href="route('employee-portal.service-record')">
                                     {{ __('Service Record') }}
                                 </x-dropdown-link>
-                                <x-dropdown-link :href="route('employee-portal.document-requests')">
-                                    {{ __('HR Document Services') }}
-                                </x-dropdown-link>
+                                @if (config('employee_portal.features.document_services'))
+                                    <x-dropdown-link :href="route('employee-portal.document-requests')">
+                                        {{ __('HR Document Services') }}
+                                    </x-dropdown-link>
+                                @endif
 
-                                <x-dropdown-link :href="route('employee-portal.personal-data-update')">
-                                    {{ __('Update Personal Info') }}
-                                </x-dropdown-link>
-                                <x-dropdown-link :href="route('employee-portal.benefits-summary')">
-                                    {{ __('Benefits Summary') }}
-                                </x-dropdown-link>
+                                @if (config('employee_portal.features.personal_data_update'))
+                                    <x-dropdown-link :href="route('employee-portal.personal-data-update')">
+                                        {{ __('Update Personal Info') }}
+                                    </x-dropdown-link>
+                                @endif
+
+                                @if (config('employee_portal.features.benefits_summary'))
+                                    <x-dropdown-link :href="route('employee-portal.benefits-summary')">
+                                        {{ __('Benefits Summary') }}
+                                    </x-dropdown-link>
+                                @endif
                             </x-slot>
                         </x-dropdown>
                     </div>
@@ -530,15 +537,21 @@
                 <x-responsive-nav-link :href="route('employee-portal.service-record')" :active="request()->routeIs('employee-portal.service-record')">
                     {{ __('Service Record') }}
                 </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('employee-portal.document-requests')" :active="request()->routeIs('employee-portal.document-requests')">
-                    {{ __('HR Document Services') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('employee-portal.personal-data-update')" :active="request()->routeIs('employee-portal.personal-data-update')">
-                    {{ __('Update Personal Info') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('employee-portal.benefits-summary')" :active="request()->routeIs('employee-portal.benefits-summary')">
-                    {{ __('Benefits Summary') }}
-                </x-responsive-nav-link>
+                @if (config('employee_portal.features.document_services'))
+                    <x-responsive-nav-link :href="route('employee-portal.document-requests')" :active="request()->routeIs('employee-portal.document-requests')">
+                        {{ __('HR Document Services') }}
+                    </x-responsive-nav-link>
+                @endif
+                @if (config('employee_portal.features.personal_data_update'))
+                    <x-responsive-nav-link :href="route('employee-portal.personal-data-update')" :active="request()->routeIs('employee-portal.personal-data-update')">
+                        {{ __('Update Personal Info') }}
+                    </x-responsive-nav-link>
+                @endif
+                @if (config('employee_portal.features.benefits_summary'))
+                    <x-responsive-nav-link :href="route('employee-portal.benefits-summary')" :active="request()->routeIs('employee-portal.benefits-summary')">
+                        {{ __('Benefits Summary') }}
+                    </x-responsive-nav-link>
+                @endif
             @endif
         </div>
 

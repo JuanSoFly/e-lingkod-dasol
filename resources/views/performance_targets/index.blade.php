@@ -1,15 +1,17 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ Auth::user()->can('performance.evaluate') && !request()->routeIs('performance-targets.*') ? 'Performance Reviews' : 'My Performance Targets' }}
             </h2>
             @if($selectedPeriodId && $periods->firstWhere('id', $selectedPeriodId)->status == 'active' && Auth::user()->can('performance.create'))
-            <a href="{{ route('performance-targets.create', ['period_id' => $selectedPeriodId]) }}">
-                <x-primary-button>
-                    {{ __('Add Target') }}
-                </x-primary-button>
-            </a>
+            <div class="flex flex-wrap gap-3">
+                <a href="{{ route('performance-targets.create', ['period_id' => $selectedPeriodId]) }}">
+                    <x-primary-button>
+                        {{ __('Add Target') }}
+                    </x-primary-button>
+                </a>
+            </div>
             @endif
         </div>
     </x-slot>

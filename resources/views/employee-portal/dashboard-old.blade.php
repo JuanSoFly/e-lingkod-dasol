@@ -33,7 +33,10 @@
                     </h2>
                 </div>
                 <div class="p-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    @php
+                        $quickActionGridLgCols = config('employee_portal.features.document_services') ? 'lg:grid-cols-5' : 'lg:grid-cols-4';
+                    @endphp
+                    <div class="grid grid-cols-1 md:grid-cols-2 {{ $quickActionGridLgCols }} gap-4">
                         <a href="{{ route('employee-portal.dashboard.leave') }}"
                            class="group relative bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-blue-200">
                             <div class="flex items-center">
@@ -47,18 +50,20 @@
                             </div>
                         </a>
 
-                        <a href="{{ route('employee-portal.document-requests') }}"
-                           class="group relative bg-gradient-to-r from-emerald-50 to-emerald-100 hover:from-emerald-100 hover:to-emerald-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-emerald-200">
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0">
-                                    <i class="fas fa-file-alt text-emerald-600 text-2xl"></i>
+                        @if (config('employee_portal.features.document_services'))
+                            <a href="{{ route('employee-portal.document-requests') }}"
+                               class="group relative bg-gradient-to-r from-emerald-50 to-emerald-100 hover:from-emerald-100 hover:to-emerald-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-emerald-200">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-file-alt text-emerald-600 text-2xl"></i>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-emerald-900 group-hover:text-emerald-800">Request Documents</h3>
+                                        <p class="text-xs text-emerald-700 mt-1">Official certificates</p>
+                                    </div>
                                 </div>
-                                <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-emerald-900 group-hover:text-emerald-800">Request Documents</h3>
-                                    <p class="text-xs text-emerald-700 mt-1">Official certificates</p>
-                                </div>
-                            </div>
-                        </a>
+                            </a>
+                        @endif
 
                         <a href="{{ route('pds.dashboard', auth()->user()->employee) }}"
                            class="group relative bg-gradient-to-r from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-amber-200">
@@ -106,7 +111,19 @@
         <!-- Personal Metrics -->
         <div class="mb-8">
             <h2 class="text-2xl font-bold text-gray-900 mb-6">Personal Metrics</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            @php
+                $personalMetricsCards = 2
+                    + (config('employee_portal.features.document_services') ? 1 : 0)
+                    + (config('employee_portal.features.personal_data_update') ? 1 : 0);
+
+                $personalMetricsLgCols = match ($personalMetricsCards) {
+                    4 => 'lg:grid-cols-4',
+                    3 => 'lg:grid-cols-3',
+                    2 => 'lg:grid-cols-2',
+                    default => 'lg:grid-cols-1',
+                };
+            @endphp
+            <div class="grid grid-cols-1 md:grid-cols-2 {{ $personalMetricsLgCols }} gap-6">
                 
                 <!-- Leave Balance -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
@@ -133,61 +150,65 @@
                     @endif
                 </div>
 
-                <!-- Document Requests -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-file-alt text-emerald-600 text-xl"></i>
+                @if (config('employee_portal.features.document_services'))
+                    <!-- Document Requests -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-file-alt text-emerald-600 text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="ml-4 flex-1">
+                                <h3 class="text-sm font-medium text-gray-600">Document Requests</h3>
+                                <p class="text-2xl font-bold text-gray-900">{{ $metrics['document_requests']['total_this_year'] ?? 0 }}</p>
+                                <p class="text-xs text-gray-500 mt-1">This year</p>
                             </div>
                         </div>
-                        <div class="ml-4 flex-1">
-                            <h3 class="text-sm font-medium text-gray-600">Document Requests</h3>
-                            <p class="text-2xl font-bold text-gray-900">{{ $metrics['document_requests']['total_this_year'] ?? 0 }}</p>
-                            <p class="text-xs text-gray-500 mt-1">This year</p>
+                        <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+                            @if(($metrics['document_requests']['pending'] ?? 0) > 0)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                    {{ $metrics['document_requests']['pending'] }} pending
+                                </span>
+                            @endif
+                            @if(($metrics['document_requests']['ready'] ?? 0) > 0)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    {{ $metrics['document_requests']['ready'] }} ready
+                                </span>
+                            @endif
                         </div>
                     </div>
-                    <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
-                        @if(($metrics['document_requests']['pending'] ?? 0) > 0)
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                                {{ $metrics['document_requests']['pending'] }} pending
-                            </span>
-                        @endif
-                        @if(($metrics['document_requests']['ready'] ?? 0) > 0)
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                {{ $metrics['document_requests']['ready'] }} ready
-                            </span>
-                        @endif
-                    </div>
-                </div>
+                @endif
 
-                <!-- Change Requests -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-user-edit text-amber-600 text-xl"></i>
+                @if (config('employee_portal.features.personal_data_update'))
+                    <!-- Change Requests -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-user-edit text-amber-600 text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="ml-4 flex-1">
+                                <h3 class="text-sm font-medium text-gray-600">Change Requests</h3>
+                                <p class="text-2xl font-bold text-gray-900">{{ ($metrics['change_requests']['pending'] ?? 0) + ($metrics['change_requests']['under_review'] ?? 0) }}</p>
+                                <p class="text-xs text-gray-500 mt-1">Active requests</p>
                             </div>
                         </div>
-                        <div class="ml-4 flex-1">
-                            <h3 class="text-sm font-medium text-gray-600">Change Requests</h3>
-                            <p class="text-2xl font-bold text-gray-900">{{ ($metrics['change_requests']['pending'] ?? 0) + ($metrics['change_requests']['under_review'] ?? 0) }}</p>
-                            <p class="text-xs text-gray-500 mt-1">Active requests</p>
+                        <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+                            @if(($metrics['change_requests']['pending'] ?? 0) > 0)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                    {{ $metrics['change_requests']['pending'] }} pending
+                                </span>
+                            @endif
+                            @if(($metrics['change_requests']['approved'] ?? 0) > 0)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    {{ $metrics['change_requests']['approved'] }} approved
+                                </span>
+                            @endif
                         </div>
                     </div>
-                    <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
-                        @if(($metrics['change_requests']['pending'] ?? 0) > 0)
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                                {{ $metrics['change_requests']['pending'] }} pending
-                            </span>
-                        @endif
-                        @if(($metrics['change_requests']['approved'] ?? 0) > 0)
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                {{ $metrics['change_requests']['approved'] }} approved
-                            </span>
-                        @endif
-                    </div>
-                </div>
+                @endif
 
                 <!-- Performance -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">

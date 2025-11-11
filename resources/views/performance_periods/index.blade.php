@@ -1,14 +1,16 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Manage Performance Periods') }}
             </h2>
-            <a href="{{ route('performance-periods.create') }}">
-                <x-primary-button>
-                    {{ __('Add Period') }}
-                </x-primary-button>
-            </a>
+            <div class="flex flex-wrap gap-3">
+                <a href="{{ route('performance-periods.create') }}">
+                    <x-primary-button>
+                        {{ __('Add Period') }}
+                    </x-primary-button>
+                </a>
+            </div>
         </div>
     </x-slot>
 

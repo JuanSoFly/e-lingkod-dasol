@@ -40,7 +40,14 @@ class EmployeeController extends Controller
     {
         // Log access attempt
         AuditService::logEmployeeAccess(0, 'index_accessed', [
-            'filters' => $request->only(['search', 'department', 'position', 'status']),
+            'filters' => $request->only([
+                'search',
+                'department',
+                'position',
+                'employment_status',
+                'office_id',
+                'is_department_head',
+            ]),
         ]);
 
         // Employees should not see all employees list
@@ -54,46 +61,9 @@ class EmployeeController extends Controller
         // Only HR Admin and Super Admin can view all employees
         $this->authorize('viewAny', Employee::class);
 
-        $query = Employee::with(['user', 'office']);
+        $filters = $this->extractEmployeeFilters($request);
 
-        // Search functionality
-        if ($request->filled('search')) {
-            $search = $request->get('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'LIKE', "%{$search}%")
-                  ->orWhere('last_name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%")
-                  ->orWhere('employee_number', 'LIKE', "%{$search}%")
-                  ->orWhere('position', 'LIKE', "%{$search}%")
-                  ->orWhere('department', 'LIKE', "%{$search}%")
-                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
-            });
-        }
-
-        // Department filter
-        if ($request->filled('department')) {
-            $query->where('department', $request->get('department'));
-        }
-
-        // Position filter
-        if ($request->filled('position')) {
-            $query->where('position', $request->get('position'));
-        }
-
-        // Employment status filter
-        if ($request->filled('employment_status')) {
-            $query->where('employment_status', $request->get('employment_status'));
-        }
-
-        // Office filter
-        if ($request->filled('office_id')) {
-            $query->where('office_id', $request->get('office_id'));
-        }
-
-        // Department head filter
-        if ($request->filled('is_department_head')) {
-            $query->where('is_department_head', $request->boolean('is_department_head'));
-        }
+        $query = Employee::with(['user', 'office'])->applyFilters($filters);
 
         $employees = $query->latest()->paginate(10)->appends($request->query());
 
@@ -499,7 +469,9 @@ class EmployeeController extends Controller
 
         $filename = 'employees_' . now()->format('Y_m_d_His') . '.xlsx';
 
-        return Excel::download(new EmployeesExport(), $filename);
+        $filters = $this->extractEmployeeFilters($request);
+
+        return Excel::download(new EmployeesExport($filters), $filename);
     }
 
     /**
@@ -512,7 +484,29 @@ class EmployeeController extends Controller
 
         $filename = 'employees_filtered_' . now()->format('Y_m_d_His') . '.xlsx';
 
-        // We can enhance this later to apply the same filters as the index page
-        return Excel::download(new EmployeesExport(), $filename);
+        $filters = $this->extractEmployeeFilters($request);
+
+        return Excel::download(new EmployeesExport($filters), $filename);
+    }
+
+    /**
+     * Extract the supported employee filters from the incoming request.
+     */
+    protected function extractEmployeeFilters(Request $request): array
+    {
+        $filters = $request->only([
+            'search',
+            'department',
+            'position',
+            'employment_status',
+            'office_id',
+            'is_department_head',
+        ]);
+
+        if ($request->has('is_department_head')) {
+            $filters['is_department_head'] = $request->boolean('is_department_head');
+        }
+
+        return $filters;
     }
 }
