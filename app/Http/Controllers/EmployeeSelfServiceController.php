@@ -10,6 +10,7 @@ use App\Models\EmployeeTraining;
 use App\Models\GovernmentBenefit;
 use App\Models\LeaveApplication;
 use App\Models\LeaveCredit;
+use App\Models\PerformancePeriod;
 use App\Models\PerformanceTarget;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -282,6 +283,45 @@ class EmployeeSelfServiceController extends Controller
     private function getPersonalMetrics(Employee $employee): array
     {
         $currentYear = now()->year;
+        $latestEvaluation = $employee->performanceEvaluations()
+            ->where('evaluation_status', 'final')
+            ->orderByDesc('evaluation_date')
+            ->orderByDesc('created_at')
+            ->first();
+
+        $latestRating = $latestEvaluation?->overall_rating ?? $employee->latest_performance_rating;
+
+        $activePeriod = PerformancePeriod::query()
+            ->where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now());
+            })
+            ->orderByDesc('start_date')
+            ->first();
+
+        $targetsBaseQuery = $employee->performanceTargets()
+            ->when($activePeriod, function ($query) use ($activePeriod) {
+                $query->where('period_id', $activePeriod->id);
+            }, function ($query) use ($currentYear) {
+                $query->whereYear('created_at', $currentYear);
+            });
+
+        $targetsThisPeriod = (clone $targetsBaseQuery)->count();
+
+        $completedTargets = (clone $targetsBaseQuery)
+            ->where(function ($query) {
+                $query->where('is_target_met', true)
+                    ->orWhereHas('rating', function ($ratingQuery) {
+                        $ratingQuery->whereNotNull('final_rating')
+                            ->orWhereNotNull('average_qet_rating')
+                            ->orWhere(function ($subQuery) {
+                                $subQuery->whereNotNull('self_rating')
+                                    ->whereNotNull('supervisor_rating');
+                            });
+                    });
+            })
+            ->count();
         
         return [
             'leave_balance' => [
@@ -310,9 +350,9 @@ class EmployeeSelfServiceController extends Controller
                     ->count(),
             ],
             'performance' => [
-                'latest_rating' => null, // Will implement later when performance system is fully set up
-                'targets_this_period' => 0,
-                'completed_targets' => 0,
+                'latest_rating' => $latestRating,
+                'targets_this_period' => $targetsThisPeriod,
+                'completed_targets' => $completedTargets,
             ],
             'training' => [
                 'hours_this_year' => 0, // Will implement later when training system is fully set up

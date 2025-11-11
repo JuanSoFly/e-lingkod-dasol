@@ -13,7 +13,7 @@
                 <!-- Navigation Links -->
                 <div class="hidden space-x-1 sm:ms-12 xlg:flex items-center">
                     @if(auth()->user()->hasRole('Employee') && !auth()->user()->hasAnyRole(['HR Admin', 'Super Admin', 'Department Head']))
-                        <x-nav-link :href="route('employee-portal.dashboard')" :active="request()->routeIs('employee-portal.*')">
+                        <x-nav-link :href="route('employee-portal.dashboard')" :active="request()->routeIs('employee-portal.dashboard')">
                             {{ __('My Dashboard') }}
                         </x-nav-link>
                     @else
@@ -248,7 +248,7 @@
                     <div class="hidden xlg:flex xlg:items-center">
                         <x-dropdown align="left" width="60">
                             <x-slot name="trigger">
-                                <button class="inline-flex items-center px-3 py-2 border-b-2 {{ request()->routeIs('employee-portal.*') ? 'border-indigo-400 text-indigo-600' : 'border-transparent text-gray-600' }} text-sm font-medium leading-5 hover:text-gray-800 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:border-gray-300 transition-all duration-200 ease-in-out rounded-t-md group">
+                                <button class="inline-flex items-center px-3 py-2 border-b-2 {{ (request()->routeIs('employee-portal.*') && !request()->routeIs('employee-portal.dashboard')) ? 'border-indigo-400 text-indigo-600' : 'border-transparent text-gray-600' }} text-sm font-medium leading-5 hover:text-gray-800 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:border-gray-300 transition-all duration-200 ease-in-out rounded-t-md group">
                                     <div class="flex items-center space-x-1">
                                         <svg class="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
@@ -386,7 +386,7 @@
     <div :class="{'block': open, 'hidden': ! open}" class="hidden xlg:hidden bg-white border-t border-gray-100 shadow-sm">
         <div class="pt-4 pb-3 space-y-2 px-4">
             @if(auth()->user()->hasRole('Employee') && !auth()->user()->hasAnyRole(['HR Admin', 'Super Admin', 'Department Head']))
-                <x-responsive-nav-link :href="route('employee-portal.dashboard')" :active="request()->routeIs('employee-portal.*')">
+                <x-responsive-nav-link :href="route('employee-portal.dashboard')" :active="request()->routeIs('employee-portal.dashboard')">
                     {{ __('My Dashboard') }}
                 </x-responsive-nav-link>
             @else
