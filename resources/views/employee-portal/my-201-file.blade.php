@@ -570,12 +570,18 @@ document.addEventListener('alpine:init', () => {
     }));
 });
 
-function downloadPDSExcel(button) {
+async function downloadPDSExcel(button) {
     // Disable button and show loading state
     const originalText = document.getElementById('download-text').textContent;
     button.disabled = true;
     document.getElementById('download-text').textContent = 'Preparing Download...';
     button.classList.add('opacity-75', 'cursor-not-allowed');
+
+    const resetButtonState = () => {
+        button.disabled = false;
+        document.getElementById('download-text').textContent = originalText;
+        button.classList.remove('opacity-75', 'cursor-not-allowed');
+    };
 
     // Show status message
     showStatusMessage('Preparing your PDS Excel file...', 'info');
@@ -616,11 +622,17 @@ function downloadPDSExcel(button) {
     if (warnings.length > 0) {
         const warningMessage = 'Your PDS data appears incomplete. The following sections are empty: ' + warnings.join(', ') + '. You may want to update your information first. Continue with export?';
 
-        if (!confirm(warningMessage)) {
-            // Reset button state
-            button.disabled = false;
-            document.getElementById('download-text').textContent = originalText;
-            button.classList.remove('opacity-75', 'cursor-not-allowed');
+        const proceedWithIncompleteData = window.confirmDialog
+            ? await window.confirmDialog({
+                title: 'Incomplete PDS Data',
+                message: warningMessage,
+                confirmLabel: 'Continue',
+                cancelLabel: 'Review First'
+            })
+            : window.confirm(warningMessage);
+
+        if (!proceedWithIncompleteData) {
+            resetButtonState();
             hideStatusMessage();
             return;
         }
@@ -632,11 +644,17 @@ function downloadPDSExcel(button) {
             if (!isBusinessHours) {
                 const businessHoursMessage = 'Exports are only allowed during business hours (9 AM - 6 PM, Monday-Friday). Current time is outside business hours. The export may be restricted. Continue?';
 
-                if (!confirm(businessHoursMessage)) {
-                    // Reset button state
-                    button.disabled = false;
-                    document.getElementById('download-text').textContent = originalText;
-                    button.classList.remove('opacity-75', 'cursor-not-allowed');
+                const proceedOutsideBusinessHours = window.confirmDialog
+                    ? await window.confirmDialog({
+                        title: 'Outside Business Hours',
+                        message: businessHoursMessage,
+                        confirmLabel: 'Continue',
+                        cancelLabel: 'Cancel'
+                    })
+                    : window.confirm(businessHoursMessage);
+
+                if (!proceedOutsideBusinessHours) {
+                    resetButtonState();
                     hideStatusMessage();
                     return;
                 }
@@ -650,9 +668,7 @@ function downloadPDSExcel(button) {
 
     // Reset button state after a delay
     setTimeout(() => {
-        button.disabled = false;
-        document.getElementById('download-text').textContent = originalText;
-        button.classList.remove('opacity-75', 'cursor-not-allowed');
+        resetButtonState();
         hideStatusMessage();
     }, 3000);
 }

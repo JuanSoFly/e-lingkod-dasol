@@ -174,7 +174,7 @@ $employee = $employee ?? null;
 </div>
 
 <script>
-function validateAndGeneratePDF(employeeId) {
+async function validateAndGeneratePDF(employeeId) {
     if (!window.CSCValidation) {
         window.location.href = `/pds/${employeeId}/generate-pdf`;
         return;
@@ -188,7 +188,17 @@ function validateAndGeneratePDF(employeeId) {
     }
 
     if (complianceStatus.completeness_percentage < 100) {
-        if (!confirm('Your CSC Form No. 212 is not fully compliant. Some required fields are missing. Continue anyway?')) {
+        const message = 'Your CSC Form No. 212 is not fully compliant. Some required fields are missing. Continue anyway?';
+        const confirmed = window.confirmDialog
+            ? await window.confirmDialog({
+                title: 'Proceed with Incomplete CSC Form',
+                message,
+                confirmLabel: 'Continue',
+                cancelLabel: 'Review First'
+            })
+            : window.confirm(message);
+
+        if (!confirmed) {
             return;
         }
     }

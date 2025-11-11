@@ -283,10 +283,20 @@ function leaveCard() {
             window.location.href = `${url}?year=${this.selectedYear}`;
         },
 
-        initializeBalances() {
+        async initializeBalances() {
             if (!this.selectedEmployee) return;
 
-            if (confirm('Are you sure you want to initialize balances for this employee and year?')) {
+            const message = 'Are you sure you want to initialize balances for this employee and year?';
+            const confirmed = window.confirmDialog
+                ? await window.confirmDialog({
+                    title: 'Initialize Leave Balances',
+                    message,
+                    confirmLabel: 'Initialize',
+                    cancelLabel: 'Cancel'
+                })
+                : window.confirm(message);
+
+            if (confirmed) {
                 fetch(`/leave-cards/${this.selectedEmployee}/initialize`, {
                     method: 'POST',
                     headers: {

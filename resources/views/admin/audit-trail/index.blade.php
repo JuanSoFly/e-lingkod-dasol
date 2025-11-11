@@ -369,7 +369,7 @@
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div class="mt-3">
                 <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Cleanup Audit Trail</h3>
-                <form action="{{ route('admin.audit-trail.cleanup') }}" method="POST">
+                <form action="{{ route('admin.audit-trail.cleanup') }}" method="POST" data-confirm="This action cannot be undone. Are you sure you want to clean up the audit trail?">
                     @csrf
                     <div class="space-y-4">
                         <div>
@@ -410,7 +410,7 @@
                         <button type="button" onclick="hideCleanupModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500">
                             Cancel
                         </button>
-                        <button type="submit" onclick="return confirm('This action cannot be undone. Are you sure?')" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+                        <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
                             Cleanup
                         </button>
                     </div>

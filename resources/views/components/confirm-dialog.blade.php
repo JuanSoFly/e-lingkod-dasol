@@ -3,39 +3,54 @@
         open: false,
         message: '',
         pendingForm: null,
+        pendingResolve: null,
+        confirmLabel: 'Yes, Continue',
+        cancelLabel: 'Cancel',
+        title: 'Please Confirm',
         show(detail) {
             this.message = detail?.message ?? '';
             this.pendingForm = detail?.form ?? null;
+            this.pendingResolve = detail?.resolve ?? null;
+            this.confirmLabel = detail?.confirmLabel ?? 'Yes, Continue';
+            this.cancelLabel = detail?.cancelLabel ?? 'Cancel';
+            this.title = detail?.title ?? 'Please Confirm';
             this.open = true;
             document.body.classList.add('overflow-hidden');
             this.$nextTick(() => {
                 this.$refs?.cancelButton?.focus();
             });
         },
-        hide() {
+        hide(cancelled = false) {
             this.open = false;
             this.message = '';
             this.pendingForm = null;
+            if (cancelled && this.pendingResolve) {
+                this.pendingResolve(false);
+            }
+            this.pendingResolve = null;
             document.body.classList.remove('overflow-hidden');
         },
         confirm() {
             if (this.pendingForm) {
                 this.pendingForm.dataset.confirmed = 'true';
                 this.pendingForm.submit();
+            } else if (this.pendingResolve) {
+                this.pendingResolve(true);
+                this.pendingResolve = null;
             }
             this.hide();
         }
     }"
-    x-init="window.addEventListener('confirm-dialog:open', event => show(event.detail)); window.addEventListener('confirm-dialog:close', () => hide());"
+    x-init="window.addEventListener('confirm-dialog:open', event => show(event.detail)); window.addEventListener('confirm-dialog:close', () => hide(true));"
     x-show="open"
     x-cloak
     class="fixed inset-0 z-[70] flex items-center justify-center px-4 py-8 sm:px-6"
     aria-live="assertive"
     role="dialog"
     aria-modal="true"
-    x-on:keydown.escape.window="hide()"
+    x-on:keydown.escape.window="hide(true)"
 >
-    <div class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm" @click="hide"></div>
+    <div class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm" @click="hide(true)"></div>
 
     <div
         x-show="open"
@@ -55,14 +70,14 @@
                     </svg>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900">Please Confirm</h3>
+                    <h3 class="text-lg font-semibold text-gray-900" x-text="title"></h3>
                     <p class="mt-2 text-sm text-gray-600" x-text="message"></p>
                 </div>
             </div>
         </div>
         <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
-            <button type="button" x-ref="cancelButton" class="inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" @click="hide">Cancel</button>
-            <button type="button" class="inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" @click="confirm">Yes, Continue</button>
+            <button type="button" x-ref="cancelButton" class="inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" @click="hide(true)" x-text="cancelLabel"></button>
+            <button type="button" class="inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" @click="confirm" x-text="confirmLabel"></button>
         </div>
     </div>
 </div>

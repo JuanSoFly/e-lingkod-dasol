@@ -398,29 +398,49 @@
             approvalStatus.addEventListener('change', updateActionButtons);
 
             // Handle different action buttons
-            returnBtn.addEventListener('click', function() {
+            returnBtn.addEventListener('click', async function() {
                 if (!document.getElementById('final_remarks').value.trim()) {
                     alert('Please provide final review remarks explaining why the OPCR is being returned for revision.');
                     return;
                 }
 
-                if (confirm('Are you sure you want to return this OPCR for revision? The Department Head will need to make the requested changes.')) {
+                const message = 'Are you sure you want to return this OPCR for revision? The Department Head will need to make the requested changes.';
+                const confirmed = window.confirmDialog
+                    ? await window.confirmDialog({
+                        title: 'Return OPCR',
+                        message,
+                        confirmLabel: 'Return for Revision',
+                        cancelLabel: 'Cancel'
+                    })
+                    : window.confirm(message);
+
+                if (confirmed) {
                     document.getElementById('review-form').submit();
                 }
             });
 
-            rejectBtn.addEventListener('click', function() {
+            rejectBtn.addEventListener('click', async function() {
                 if (!document.getElementById('final_remarks').value.trim()) {
                     alert('Please provide detailed final review remarks explaining why the OPCR is being rejected.');
                     return;
                 }
 
-                if (confirm('Are you sure you want to reject this OPCR? This indicates significant issues that need to be addressed.')) {
+                const message = 'Are you sure you want to reject this OPCR? This indicates significant issues that need to be addressed.';
+                const confirmed = window.confirmDialog
+                    ? await window.confirmDialog({
+                        title: 'Reject OPCR',
+                        message,
+                        confirmLabel: 'Reject',
+                        cancelLabel: 'Cancel'
+                    })
+                    : window.confirm(message);
+
+                if (confirmed) {
                     document.getElementById('review-form').submit();
                 }
             });
 
-            approveBtn.addEventListener('click', function(e) {
+            approveBtn.addEventListener('click', async function(e) {
                 e.preventDefault();
 
                 if (!document.getElementById('final_remarks').value.trim()) {
@@ -428,7 +448,17 @@
                     return;
                 }
 
-                if (confirm('Are you sure you want to approve this OPCR? This action is final and cannot be undone.')) {
+                const message = 'Are you sure you want to approve this OPCR? This action is final and cannot be undone.';
+                const confirmed = window.confirmDialog
+                    ? await window.confirmDialog({
+                        title: 'Approve OPCR',
+                        message,
+                        confirmLabel: 'Approve',
+                        cancelLabel: 'Cancel'
+                    })
+                    : window.confirm(message);
+
+                if (confirmed) {
                     document.getElementById('review-form').submit();
                 }
             });

@@ -183,12 +183,11 @@
                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                                 Edit Policy
                             </a>
-                            <form method="POST" action="{{ route('leave-policies.destroy', $leavePolicy) }}" class="inline">
+                            <form method="POST" action="{{ route('leave-policies.destroy', $leavePolicy) }}" class="inline" data-confirm="Are you sure you want to delete this leave policy? This action cannot be undone.">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" 
-                                        class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-                                        onclick="return confirm('Are you sure you want to delete this leave policy? This action cannot be undone.')">
+                                        class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
                                     Delete Policy
                                 </button>
                             </form>

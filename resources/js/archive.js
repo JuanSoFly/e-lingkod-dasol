@@ -14,7 +14,7 @@ window.ArchiveManager = (function() {
      * @param {function} onSuccess - Optional callback for success
      * @param {function} onError - Optional callback for errors
      */
-    function restoreEmployee(employeeId, employeeName, context, onSuccess, onError) {
+    async function restoreEmployee(employeeId, employeeName, context, onSuccess, onError) {
         // Handle backward compatibility
         if (typeof context === 'function') {
             // Old signature: restoreEmployee(id, name, onSuccess, onError)
@@ -25,7 +25,14 @@ window.ArchiveManager = (function() {
             context = 'auto';
         }
 
-        if (!confirm(`Are you sure you want to restore ${employeeName} to active status?`)) {
+        const confirmed = await confirmWithFallback({
+            title: 'Restore Employee',
+            message: `Are you sure you want to restore ${employeeName} to active status?`,
+            confirmLabel: 'Restore',
+            cancelLabel: 'Keep Archived'
+        });
+
+        if (!confirmed) {
             return;
         }
 
@@ -78,8 +85,13 @@ window.ArchiveManager = (function() {
      * @param {function} onSuccess - Optional callback for success
      * @param {function} onError - Optional callback for errors
      */
-    function forceDeleteEmployee(employeeId, employeeName, onSuccess, onError) {
-        const confirmation1 = confirm(`⚠️ WARNING: This will permanently delete ${employeeName} and all their data. This action cannot be undone.\n\nDo you want to continue?`);
+    async function forceDeleteEmployee(employeeId, employeeName, onSuccess, onError) {
+        const confirmation1 = await confirmWithFallback({
+            title: 'Permanent Deletion Warning',
+            message: `⚠️ This will permanently delete ${employeeName} and all their data. This action cannot be undone.\n\nDo you want to continue?`,
+            confirmLabel: 'Yes, Continue',
+            cancelLabel: 'Cancel'
+        });
 
         if (!confirmation1) {
             return;
@@ -92,7 +104,12 @@ window.ArchiveManager = (function() {
             return;
         }
 
-        const finalConfirmation = confirm(`🚨 FINAL WARNING: This is your last chance to cancel.\n\nDeleting: ${employeeName}\nEmployee ID: ${employeeId}\n\nThis action cannot be undone.\n\nAre you absolutely sure?`);
+        const finalConfirmation = await confirmWithFallback({
+            title: 'Final Warning',
+            message: `🚨 FINAL WARNING: This is your last chance to cancel.\n\nDeleting: ${employeeName}\nEmployee ID: ${employeeId}\n\nThis action cannot be undone.\n\nAre you absolutely sure?`,
+            confirmLabel: 'Delete Permanently',
+            cancelLabel: 'Cancel'
+        });
 
         if (!finalConfirmation) {
             return;
@@ -263,6 +280,15 @@ window.ArchiveManager = (function() {
                 button.setAttribute('data-action', 'delete');
             }
         });
+    }
+
+    function confirmWithFallback(options) {
+        if (typeof window.confirmDialog === 'function') {
+            return window.confirmDialog(options);
+        }
+
+        const message = options?.message ?? 'Are you sure?';
+        return Promise.resolve(window.confirm(message));
     }
 
     // Public API

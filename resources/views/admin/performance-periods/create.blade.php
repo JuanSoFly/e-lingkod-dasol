@@ -216,7 +216,7 @@
         });
 
         // Validate no overlapping periods
-        document.querySelector('form').addEventListener('submit', function(e) {
+        document.querySelector('form').addEventListener('submit', async function(e) {
             const startDate = new Date(document.getElementById('start_date').value);
             const endDate = new Date(document.getElementById('end_date').value);
             const status = document.getElementById('status').value;
@@ -234,7 +234,17 @@
                 startDate.setHours(0, 0, 0, 0);
 
                 if (startDate > today) {
-                    if (!confirm('You are setting this period as active, but the start date is in the future. The period will be activated on the start date. Continue?')) {
+                    const message = 'You are setting this period as active, but the start date is in the future. The period will be activated on the start date. Continue?';
+                    const confirmed = window.confirmDialog
+                        ? await window.confirmDialog({
+                            title: 'Activate Future Period',
+                            message,
+                            confirmLabel: 'Continue',
+                            cancelLabel: 'Cancel'
+                        })
+                        : window.confirm(message);
+
+                    if (!confirmed) {
                         e.preventDefault();
                         return;
                     }

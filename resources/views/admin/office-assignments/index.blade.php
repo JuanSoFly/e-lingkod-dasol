@@ -131,9 +131,9 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                             </svg>
                                         </a>
-                                        <form method="POST" action="{{ route('admin.office-assignments.toggle-status', $assignment) }}" class="inline">
+                                        <form method="POST" action="{{ route('admin.office-assignments.toggle-status', $assignment) }}" class="inline" data-confirm="Are you sure you want to toggle the status of this assignment?">
                                             @csrf
-                                            <button type="submit" class="text-yellow-600 hover:text-yellow-900" title="Toggle Status" onclick="return confirm('Are you sure you want to toggle the status of this assignment?')">
+                                            <button type="submit" class="text-yellow-600 hover:text-yellow-900" title="Toggle Status">
                                                 @if($assignment->is_active)
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>

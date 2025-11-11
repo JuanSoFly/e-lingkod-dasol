@@ -6,11 +6,12 @@
             </h2>
             @if($selectedPeriodId && $periods->firstWhere('id', $selectedPeriodId)->status == 'active' && Auth::user()->can('performance.create'))
             <div class="flex flex-wrap gap-3">
-                <a href="{{ route('performance-targets.create', ['period_id' => $selectedPeriodId]) }}">
-                    <x-primary-button>
+                <form method="GET" action="{{ route('performance-targets.create') }}">
+                    <input type="hidden" name="period_id" value="{{ $selectedPeriodId }}">
+                    <button type="submit" class="inline-flex items-center justify-center px-4 py-2.5 bg-amber-600 border border-amber-600 rounded-lg font-medium text-sm text-white hover:bg-amber-700 focus:bg-amber-700 active:bg-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 focus:ring-offset-amber-100 transition-colors duration-200 ease-in-out">
                         {{ __('Add Target') }}
-                    </x-primary-button>
-                </a>
+                    </button>
+                </form>
             </div>
             @endif
         </div>

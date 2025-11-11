@@ -303,7 +303,17 @@ function leaveApplications() {
         },
 
         async withdrawApplication(applicationId) {
-            if (!confirm('Are you sure you want to withdraw this application?')) {
+            const message = 'Are you sure you want to withdraw this application?';
+            const confirmed = window.confirmDialog
+                ? await window.confirmDialog({
+                    title: 'Withdraw Application',
+                    message,
+                    confirmLabel: 'Withdraw',
+                    cancelLabel: 'Keep Submitted'
+                })
+                : window.confirm(message);
+
+            if (!confirmed) {
                 return;
             }
 

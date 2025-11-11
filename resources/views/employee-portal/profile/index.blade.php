@@ -585,7 +585,17 @@ function profileManagement() {
         },
 
         async deleteDocument(docId) {
-            if (!confirm('Are you sure you want to delete this document?')) {
+            const message = 'Are you sure you want to delete this document?';
+            const confirmed = window.confirmDialog
+                ? await window.confirmDialog({
+                    title: 'Delete Document',
+                    message,
+                    confirmLabel: 'Delete',
+                    cancelLabel: 'Cancel'
+                })
+                : window.confirm(message);
+
+            if (!confirmed) {
                 return;
             }
 

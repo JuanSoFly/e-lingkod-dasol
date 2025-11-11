@@ -521,7 +521,7 @@
             }
 
             // Form validation
-            document.getElementById('evaluation-form').addEventListener('submit', function(e) {
+            document.getElementById('evaluation-form').addEventListener('submit', async function(e) {
                 console.log('Form submission triggered, validating...');
                 let allRated = true;
                 let missingFields = [];
@@ -586,7 +586,20 @@
                     }
                 }
 
-                return confirm('Are you sure you want to submit this evaluation? This action cannot be undone.');
+                const message = 'Are you sure you want to submit this evaluation? This action cannot be undone.';
+                const confirmed = window.confirmDialog
+                    ? await window.confirmDialog({
+                        title: 'Submit Evaluation',
+                        message,
+                        confirmLabel: 'Submit',
+                        cancelLabel: 'Cancel'
+                    })
+                    : window.confirm(message);
+
+                if (!confirmed) {
+                    e.preventDefault();
+                    return false;
+                }
             });
         });
     </script>

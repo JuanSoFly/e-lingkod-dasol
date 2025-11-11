@@ -357,14 +357,12 @@
                         </x-dropdown-link>
 
                         <!-- Authentication -->
-                        <form method="POST" action="{{ route('logout') }}" id="logout-form-desktop">
+                        <form method="POST" action="{{ route('logout') }}" id="logout-form-desktop" data-confirm="Are you sure you want to log out?">
                             @csrf
 
-                            <x-dropdown-link href="#"
-                                    onclick="event.preventDefault();
-                                                this.closest('form').submit();">
+                            <button type="submit" class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
                                 {{ __('Log Out') }}
-                            </x-dropdown-link>
+                            </button>
                         </form>
                     </x-slot>
                 </x-dropdown>
@@ -575,14 +573,12 @@
                 </x-responsive-nav-link>
 
                 <!-- Authentication -->
-                <form method="POST" action="{{ route('logout') }}" id="logout-form-mobile">
+                <form method="POST" action="{{ route('logout') }}" id="logout-form-mobile" data-confirm="Are you sure you want to log out?">
                     @csrf
 
-                    <x-responsive-nav-link href="#"
-                            onclick="event.preventDefault();
-                                        this.closest('form').submit();">
+                    <button type="submit" class="block w-full px-4 py-3 border-l-4 border-transparent text-start text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 hover:border-gray-300 rounded-r-lg focus:outline-none focus:text-gray-900 focus:bg-gray-100 focus:border-gray-300 transition-all duration-200 ease-in-out">
                         {{ __('Log Out') }}
-                    </x-responsive-nav-link>
+                    </button>
                 </form>
             </div>
         </div>

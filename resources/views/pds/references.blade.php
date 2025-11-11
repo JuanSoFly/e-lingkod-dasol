@@ -482,8 +482,18 @@
 
     <!-- JavaScript for replacing references -->
     <script>
-        function confirmReplaceReferences() {
-            if (confirm('Are you sure you want to replace all existing character references? This will delete the current references and allow you to enter new ones.')) {
+        async function confirmReplaceReferences() {
+            const message = 'Are you sure you want to replace all existing character references? This will delete the current references and allow you to enter new ones.';
+            const confirmed = window.confirmDialog
+                ? await window.confirmDialog({
+                    title: 'Replace Character References',
+                    message,
+                    confirmLabel: 'Replace References',
+                    cancelLabel: 'Cancel'
+                })
+                : window.confirm(message);
+
+            if (confirmed) {
                 // Create a form to submit a DELETE request for all references
                 const form = document.createElement('form');
                 form.method = 'POST';

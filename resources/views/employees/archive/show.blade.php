@@ -1,10 +1,10 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Archived Employee Details') }}
             </h2>
-            <div class="flex space-x-2">
+            <div class="flex flex-wrap gap-3">
                 <a href="{{ route('employees.archive.index') }}"
                    class="inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition ease-in-out duration-150">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -309,4 +309,3 @@
         </div> --}}
     </div>
 </x-app-layout>
-

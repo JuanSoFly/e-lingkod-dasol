@@ -24,10 +24,10 @@
 
                             @can('opcr.delete')
                             @if($office->canBeDeleted())
-                            <form id="deleteOfficeForm" method="POST" action="{{ route('opcr.offices.destroy', $office) }}" class="inline">
+                            <form id="deleteOfficeForm" method="POST" action="{{ route('opcr.offices.destroy', $office) }}" class="inline" data-confirm="Are you sure you want to delete this office? This action cannot be undone.\n\nNote: This office cannot be deleted if it has employees, assignments, active MFOs, OPCR workflows, or child offices.">
                                 @csrf
                                 @method('DELETE')
-                                <button type="button" onclick="confirmOfficeDeletion()"
+                                <button type="submit"
                                         class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">
                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -138,11 +138,4 @@
         </div>
     </div>
 
-    <script>
-    function confirmOfficeDeletion() {
-        if (confirm('Are you sure you want to delete this office? This action cannot be undone.\n\nNote: This office cannot be deleted if it has employees, assignments, active MFOs, OPCR workflows, or child offices.')) {
-            document.getElementById('deleteOfficeForm').submit();
-        }
-    }
-    </script>
 </x-app-layout>

@@ -1,10 +1,10 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Educational Background') }} - {{ $employee->full_name }}
             </h2>
-            <div class="flex space-x-2">
+            <div class="flex flex-wrap gap-3">
                 <a href="{{ route('employees.education.create', $employee) }}">
                     <x-primary-button>
                         {{ __('Add Education') }}

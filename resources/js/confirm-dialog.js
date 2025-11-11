@@ -19,8 +19,42 @@ const registerConfirmInterceptors = () => {
     document.addEventListener('submit', handleSubmit, true);
 };
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', registerConfirmInterceptors);
-} else {
+const registerConfirmHelper = () => {
+    if (window.confirmDialog) {
+        return;
+    }
+
+    window.confirmDialog = (options = {}) => {
+        const {
+            message = '',
+            title,
+            confirmLabel,
+            cancelLabel,
+            icon,
+        } = options;
+
+        return new Promise((resolve) => {
+            window.dispatchEvent(new CustomEvent('confirm-dialog:open', {
+                detail: {
+                    message,
+                    title,
+                    confirmLabel,
+                    cancelLabel,
+                    icon,
+                    resolve,
+                },
+            }));
+        });
+    };
+};
+
+const boot = () => {
     registerConfirmInterceptors();
+    registerConfirmHelper();
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+} else {
+    boot();
 }
