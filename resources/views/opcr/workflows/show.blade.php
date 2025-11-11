@@ -67,7 +67,7 @@
                             @endif
 
                             @if(in_array($workflow->workflow_state, ['draft', 'returned']) && $canEdit)
-                                <form method="POST" action="{{ route('opcr.workflows.submit', $workflow) }}" class="inline" onsubmit="return confirm('Are you sure you want to submit this OPCR for evaluation?')">
+                                <form method="POST" action="{{ route('opcr.workflows.submit', $workflow) }}" class="inline" data-confirm="Are you sure you want to submit this OPCR for evaluation?">
                                     @csrf
                                     <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition ease-in-out duration-150">
                                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

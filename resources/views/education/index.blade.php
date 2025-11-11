@@ -161,7 +161,7 @@
                                                             Edit
                                                         </a>
                                                         <form method="POST" action="{{ route('employees.education.destroy', [$employee, $education]) }}" 
-                                                              onsubmit="return confirm('Are you sure you want to delete this education record?')" class="inline">
+                                                              data-confirm="Are you sure you want to delete this education record?" class="inline">
                                                             @csrf
                                                             @method('DELETE')
                                                             <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium">

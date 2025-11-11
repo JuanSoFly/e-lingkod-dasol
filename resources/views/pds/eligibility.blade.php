@@ -170,7 +170,7 @@
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 <form method="POST" action="{{ route('pds.destroy-eligibility', [$employee, $eligibility]) }}" 
-                                                      onsubmit="return confirm('Are you sure you want to delete this eligibility?')" class="inline">
+                                                      data-confirm="Are you sure you want to delete this eligibility?" class="inline">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="text-red-600 hover:text-red-900 text-sm font-medium">

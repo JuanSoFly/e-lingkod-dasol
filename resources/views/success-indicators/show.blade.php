@@ -13,7 +13,7 @@
                     <a href="{{ route('opcr.success-indicators.edit', $indicator) }}" class="inline-flex items-center px-3 py-2 bg-indigo-600 border border-transparent rounded-md text-xs font-semibold uppercase tracking-widest text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">Edit</a>
                 @endif
                 @if($canDelete)
-                    <form method="POST" action="{{ route('opcr.success-indicators.destroy', $indicator) }}" onsubmit="return confirm('Delete this success indicator?');">
+                    <form method="POST" action="{{ route('opcr.success-indicators.destroy', $indicator) }}" data-confirm="Delete this success indicator?">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="inline-flex items-center px-3 py-2 bg-red-600 border border-transparent rounded-md text-xs font-semibold uppercase tracking-widest text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition">Delete</button>

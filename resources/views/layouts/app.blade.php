@@ -54,6 +54,9 @@
             </main>
         </div>
 
+        <!-- Global Confirmation Modal -->
+        <x-confirm-dialog />
+
         <!-- Scripts Stack -->
         @stack('scripts')
     </body>

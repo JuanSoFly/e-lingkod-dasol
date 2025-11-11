@@ -247,7 +247,7 @@
                                                     @if($period->status === 'upcoming' && auth()->user()->can('performance-period.manage'))
                                                         <form action="{{ route('admin.performance-periods.activate', $period) }}"
                                                               method="POST"
-                                                              onsubmit="return confirm('Activate this performance period?')"
+                                                              data-confirm="Activate this performance period?"
                                                               class="inline">
                                                             @csrf
                                                             <button type="submit"
@@ -259,7 +259,7 @@
                                                     @if($period->status === 'active' && auth()->user()->can('performance-period.manage'))
                                                         <form action="{{ route('admin.performance-periods.close', $period) }}"
                                                               method="POST"
-                                                              onsubmit="return confirm('Close this performance period? This will prevent new submissions.')"
+                                                              data-confirm="Close this performance period? This will prevent new submissions."
                                                               class="inline">
                                                             @csrf
                                                             <button type="submit"

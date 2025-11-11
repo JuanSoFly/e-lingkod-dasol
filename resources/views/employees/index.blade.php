@@ -226,7 +226,7 @@
                                 </a>
                                 @endcan
                                 @can('employee.delete')
-                                <form action="{{ route('employees.destroy', $employee) }}" method="POST" class="flex-1" onsubmit="return confirm('Are you sure you want to archive this employee? Their data will be preserved and can be restored later. Do you want to continue?');">
+                                <form action="{{ route('employees.destroy', $employee) }}" method="POST" class="flex-1" data-confirm="Are you sure you want to archive this employee? Their data will be preserved and can be restored later. Do you want to continue?">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="w-full inline-flex items-center justify-center px-3 py-2 bg-red-100 text-red-700 text-xs font-medium rounded hover:bg-red-200 transition-colors duration-150">
@@ -316,7 +316,7 @@
                                         </a>
                                         @endcan
                                         @can('employee.delete')
-                                        <form action="{{ route('employees.destroy', $employee) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to archive this employee? Their data will be preserved and can be restored later. Do you want to continue?');">
+                                        <form action="{{ route('employees.destroy', $employee) }}" method="POST" class="inline-block" data-confirm="Are you sure you want to archive this employee? Their data will be preserved and can be restored later. Do you want to continue?">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="inline-flex items-center px-2 lg:px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors duration-150">

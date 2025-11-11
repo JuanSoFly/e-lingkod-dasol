@@ -170,7 +170,7 @@
                                             </a>
                                         @endif
                                         @if($canManageOffice && $workflow->workflow_state === 'draft')
-                                            <form method="POST" action="{{ route('opcr.workflows.destroy', $workflow) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this OPCR workflow?')">
+                                            <form method="POST" action="{{ route('opcr.workflows.destroy', $workflow) }}" class="inline" data-confirm="Are you sure you want to delete this OPCR workflow?">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="text-red-600 hover:text-red-900">

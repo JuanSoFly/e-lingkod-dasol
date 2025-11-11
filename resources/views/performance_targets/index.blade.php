@@ -102,7 +102,7 @@
                                             <a href="{{ route('performance-targets.edit', $target) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
                                             @endcan
                                             @can('delete', $target)
-                                            <form action="{{ route('performance-targets.destroy', $target) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure?');">
+                                            <form action="{{ route('performance-targets.destroy', $target) }}" method="POST" class="inline-block" data-confirm="Are you sure?">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="ml-4 text-red-600 hover:text-red-900">Delete</button>
                                             </form>

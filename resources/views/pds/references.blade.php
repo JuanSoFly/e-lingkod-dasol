@@ -279,7 +279,7 @@
                                         @if($ref1 = $references->where('reference_order', 1)->first())
                                             <div class="ml-4">
                                                 <form method="POST" action="{{ route('pds.destroy-reference', [$employee, $ref1]) }}"
-                                                      onsubmit="return confirm('Are you sure you want to delete this reference?')" class="inline">
+                                                      data-confirm="Are you sure you want to delete this reference?" class="inline">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="text-red-600 hover:text-red-900 text-sm font-medium">
@@ -349,7 +349,7 @@
                                         @if($ref2 = $references->where('reference_order', 2)->first())
                                             <div class="ml-4">
                                                 <form method="POST" action="{{ route('pds.destroy-reference', [$employee, $ref2]) }}"
-                                                      onsubmit="return confirm('Are you sure you want to delete this reference?')" class="inline">
+                                                      data-confirm="Are you sure you want to delete this reference?" class="inline">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="text-red-600 hover:text-red-900 text-sm font-medium">
@@ -419,7 +419,7 @@
                                         @if($ref3 = $references->where('reference_order', 3)->first())
                                             <div class="ml-4">
                                                 <form method="POST" action="{{ route('pds.destroy-reference', [$employee, $ref3]) }}"
-                                                      onsubmit="return confirm('Are you sure you want to delete this reference?')" class="inline">
+                                                      data-confirm="Are you sure you want to delete this reference?" class="inline">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="text-red-600 hover:text-red-900 text-sm font-medium">

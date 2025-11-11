@@ -75,7 +75,7 @@
                                 <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
                                     <span class="text-sm text-gray-800">{{ $skill->description }}</span>
                                     <form method="POST" action="{{ route('pds.destroy-other-information', [$employee, $skill]) }}" 
-                                          onsubmit="return confirm('Are you sure you want to delete this skill?')" class="inline">
+                                          data-confirm="Are you sure you want to delete this skill?" class="inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="text-red-600 hover:text-red-800 text-xs">
@@ -141,7 +141,7 @@
                                         <span class="text-sm text-gray-800">{{ $distinction->description }}</span>
                                     </div>
                                     <form method="POST" action="{{ route('pds.destroy-other-information', [$employee, $distinction]) }}" 
-                                          onsubmit="return confirm('Are you sure you want to delete this recognition?')" class="inline">
+                                          data-confirm="Are you sure you want to delete this recognition?" class="inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="text-red-600 hover:text-red-800 text-sm">
@@ -207,7 +207,7 @@
                                         <span class="text-sm text-gray-800">{{ $membership->description }}</span>
                                     </div>
                                     <form method="POST" action="{{ route('pds.destroy-other-information', [$employee, $membership]) }}" 
-                                          onsubmit="return confirm('Are you sure you want to delete this membership?')" class="inline">
+                                          data-confirm="Are you sure you want to delete this membership?" class="inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="text-red-600 hover:text-red-800 text-sm">

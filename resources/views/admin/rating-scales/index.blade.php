@@ -162,7 +162,7 @@
                                                 @if(!$ratingScale->is_default)
                                                     <form action="{{ route('admin.rating-scales.set-default', $ratingScale) }}"
                                                           method="POST"
-                                                          onsubmit="return confirm('Set this rating scale as the default?')">
+                                                          data-confirm="Set this rating scale as the default?">
                                                         @csrf
                                                         <button type="submit"
                                                                 class="text-yellow-600 hover:text-yellow-900 text-sm font-medium"
@@ -176,7 +176,7 @@
                                                 @if($ratingScale->canBeDeleted())
                                                     <form action="{{ route('admin.rating-scales.destroy', $ratingScale) }}"
                                                           method="POST"
-                                                          onsubmit="return confirm('Are you sure you want to delete this rating scale?')">
+                                                          data-confirm="Are you sure you want to delete this rating scale?">
                                                         @csrf
                                                         @method('DELETE')
                                                         <button type="submit"

@@ -330,7 +330,7 @@
                                             <a href="{{ route('documents.show', $document) }}" class="text-indigo-600 hover:text-indigo-900">View/Download</a>
                                             @endcan
                                             @can('delete', $document)
-                                            <form action="{{ route('documents.destroy', $document) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this document?');">
+                                            <form action="{{ route('documents.destroy', $document) }}" method="POST" class="inline-block" data-confirm="Are you sure you want to delete this document?">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="ml-4 text-red-600 hover:text-red-900">Delete</button>

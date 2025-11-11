@@ -51,7 +51,7 @@
                                 @if(!$ratingScale->is_default)
                                     <form action="{{ route('admin.rating-scales.set-default', $ratingScale) }}"
                                           method="POST"
-                                          onsubmit="return confirm('Set this rating scale as the default? This will unset the current default.')"
+                                          data-confirm="Set this rating scale as the default? This will unset the current default."
                                           class="inline">
                                         @csrf
                                         <button type="submit"

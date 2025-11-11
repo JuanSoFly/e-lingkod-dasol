@@ -207,7 +207,7 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             @if($assignment->is_active)
-                                                <form method="POST" action="{{ route('opcr.offices.assignments.update', $assignment) }}" class="inline" onsubmit="return confirm('Are you sure you want to deactivate this assignment?')">
+                                                <form method="POST" action="{{ route('opcr.offices.assignments.update', $assignment) }}" class="inline" data-confirm="Are you sure you want to deactivate this assignment?">
                                                     @csrf
                                                     @method('PATCH')
                                                     <input type="hidden" name="is_active" value="0">
