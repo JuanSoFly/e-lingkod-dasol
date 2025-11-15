@@ -318,8 +318,11 @@
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div class="mt-3">
                 <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Export Audit Trail</h3>
-                <form action="{{ route('admin.audit-trail.export') }}" method="POST">
-                    @csrf
+                <form id="audit-trail-export-form"
+                      action="{{ route('admin.audit-trail.export') }}"
+                      method="GET"
+                      target="_blank"
+                      onsubmit="hideExportModal()">
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Export Format</label>

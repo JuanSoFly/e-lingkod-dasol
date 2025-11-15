@@ -10,8 +10,14 @@ use App\Models\OfficeAssignment;
 use App\Models\Employee;
 use App\Models\EmployeeEducation;
 use App\Models\User;
+use App\Exports\AuditTrailExport;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Activitylog\Models\Activity;
 
 class AuditTrailService
@@ -852,6 +858,10 @@ class AuditTrailService
             $query->where('subject_type', 'like', '%' . $filters['subject_type'] . '%');
         }
 
+        if (!empty($filters['action_type'])) {
+            $query->where('properties->action_type', $filters['action_type']);
+        }
+
         if (!empty($filters['office_id'])) {
             $query->where(function ($q) use ($filters) {
                 $q->whereJsonContains('properties->office_id', $filters['office_id'])
@@ -1017,8 +1027,10 @@ class AuditTrailService
     /**
      * Export audit logs to various formats
      */
-    public function exportAuditLogs(array $options): string
+    public function exportAuditLogs(array $options): array
     {
+        $format = $this->normalizeFormat($options['format'] ?? 'csv');
+
         $filters = [
             'date_from' => $options['date_from'] ?? null,
             'date_to' => $options['date_to'] ?? null,
@@ -1026,78 +1038,283 @@ class AuditTrailService
             'action' => $options['action'] ?? null,
             'subject_type' => $options['subject_type'] ?? null,
             'office_id' => $options['office_id'] ?? null,
-            'per_page' => 10000 // Large number for export
+            'action_type' => $options['action_type'] ?? null,
+            'per_page' => 10000,
         ];
 
+        $includeOldValues = (bool) ($options['include_old_values'] ?? false);
+        $includeNewValues = (bool) ($options['include_new_values'] ?? false);
+
+        /** @var Collection $auditLogs */
         $auditLogs = $this->getFilteredAuditLogs($filters, false);
 
         $filename = 'audit-trail-' . now()->format('Y-m-d-H-i-s');
 
-        switch ($options['format']) {
-            case 'csv':
-                return $this->exportToCSV($auditLogs, $filename);
-            case 'excel':
-                return $this->exportToExcel($auditLogs, $filename);
-            case 'pdf':
-                return $this->exportToPDF($auditLogs, $filename, $options);
-            default:
-                throw new \InvalidArgumentException("Unsupported export format: {$options['format']}");
-        }
+        return match ($format) {
+            'xlsx' => $this->exportToExcel($auditLogs, $filename, $includeOldValues, $includeNewValues, $filters),
+            'pdf' => $this->exportToPDF($auditLogs, $filename, $includeOldValues, $includeNewValues, $filters),
+            default => $this->exportToCSV($auditLogs, $filename, $includeOldValues, $includeNewValues, $filters),
+        };
+    }
+
+    private function normalizeFormat(string $format): string
+    {
+        return match (strtolower($format)) {
+            'xlsx', 'excel', 'xls' => 'xlsx',
+            'pdf' => 'pdf',
+            default => 'csv',
+        };
     }
 
     /**
      * Export to CSV format
      */
-    private function exportToCSV($auditLogs, string $filename): string
+    private function exportToCSV(Collection $auditLogs, string $filename, bool $includeOldValues, bool $includeNewValues, array $filters): array
     {
-        $filePath = storage_path("app/exports/{$filename}.csv");
-        $directory = dirname($filePath);
-
-        if (!is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
+        $directory = $this->ensureExportDirectory();
+        $filePath = $directory . DIRECTORY_SEPARATOR . "{$filename}.csv";
 
         $handle = fopen($filePath, 'w');
-        fputcsv($handle, [
-            'Date', 'User', 'Action', 'Subject Type', 'Subject ID',
-            'IP Address', 'User Agent', 'Old Values', 'New Values'
-        ]);
+        // UTF-8 BOM for Excel compatibility with Filipino characters
+        fwrite($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        foreach ($this->buildCsvMetadataRows($auditLogs, $filters) as $row) {
+            fputcsv($handle, $row);
+        }
+
+        $headers = [
+            'Timestamp',
+            'User',
+            'Action',
+            'Action Category',
+            'Subject Type',
+            'Subject ID',
+            'Description',
+            'IP Address',
+            'User Agent',
+        ];
+
+        if ($includeOldValues) {
+            $headers[] = 'Old Values';
+        }
+
+        if ($includeNewValues) {
+            $headers[] = 'New Values';
+        }
+
+        fputcsv($handle, $headers);
 
         foreach ($auditLogs as $log) {
-            fputcsv($handle, [
-                $log->created_at->format('Y-m-d H:i:s'),
-                $log->causer ? $log->causer->name : 'System',
+            $row = [
+                optional($log->created_at)->timezone(config('app.timezone'))->format('Y-m-d H:i:s'),
+                optional($log->causer)->name ?? 'System',
+                $log->properties['action'] ?? $log->description,
+                Str::headline($log->properties['action_type'] ?? 'System'),
+                class_basename($log->subject_type) ?: '-',
+                $log->subject_id ?? '-',
                 $log->description,
-                $log->subject_type,
-                $log->subject_id,
-                $log->properties['user_ip'] ?? '',
-                $log->properties['user_agent'] ?? '',
-                isset($options['include_old_values']) && $options['include_old_values']
-                    ? json_encode($log->properties['old_values'] ?? []) : '',
-                isset($options['include_new_values']) && $options['include_new_values']
-                    ? json_encode($log->properties['new_values'] ?? []) : ''
-            ]);
+                $log->properties['user_ip'] ?? 'N/A',
+                $log->properties['user_agent'] ?? 'N/A',
+            ];
+
+            if ($includeOldValues) {
+                $row[] = $this->formatValuesList($log->properties['old_values'] ?? []);
+            }
+
+            if ($includeNewValues) {
+                $row[] = $this->formatValuesList($log->properties['new_values'] ?? []);
+            }
+
+            fputcsv($handle, $row);
         }
 
         fclose($handle);
-        return $filePath;
+
+        return [
+            'format' => 'csv',
+            'path' => $filePath,
+            'filename' => "{$filename}.csv",
+            'download_name' => "{$filename}.csv",
+            'mime' => 'text/csv',
+            'headers' => ['Content-Type' => 'text/csv; charset=UTF-8'],
+        ];
     }
 
     /**
      * Export to Excel format
      */
-    private function exportToExcel($auditLogs, string $filename): string
+    private function exportToExcel(Collection $auditLogs, string $filename, bool $includeOldValues, bool $includeNewValues, array $filters): array
     {
-        // For now, fallback to CSV as Excel export would require additional packages
-        return $this->exportToCSV($auditLogs, $filename);
+        Storage::disk('exports')->makeDirectory('audit-trail');
+        $relativePath = "audit-trail/{$filename}.xlsx";
+
+        Excel::store(
+            new AuditTrailExport($auditLogs, $includeOldValues, $includeNewValues, $this->cleanFilterContext($filters)),
+            $relativePath,
+            'exports'
+        );
+
+        return [
+            'format' => 'xlsx',
+            'path' => Storage::disk('exports')->path($relativePath),
+            'filename' => "{$filename}.xlsx",
+            'download_name' => "{$filename}.xlsx",
+            'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'headers' => [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ],
+        ];
     }
 
     /**
      * Export to PDF format
      */
-    private function exportToPDF($auditLogs, string $filename, array $options): string
+    private function exportToPDF(Collection $auditLogs, string $filename, bool $includeOldValues, bool $includeNewValues, array $filters): array
     {
-        // For now, fallback to CSV as PDF export would require additional packages
-        return $this->exportToCSV($auditLogs, $filename);
+        $directory = $this->ensureExportDirectory();
+        $filePath = $directory . DIRECTORY_SEPARATOR . "{$filename}.pdf";
+
+        $pdf = Pdf::loadView('admin.audit-trail.export-pdf', [
+            'logs' => $auditLogs,
+            'includeOldValues' => $includeOldValues,
+            'includeNewValues' => $includeNewValues,
+            'generatedAt' => now(),
+            'filters' => array_filter($filters),
+        ])->setPaper('a4', 'landscape');
+
+        file_put_contents($filePath, $pdf->output());
+
+        return [
+            'format' => 'pdf',
+            'path' => $filePath,
+            'filename' => "{$filename}.pdf",
+            'download_name' => "{$filename}.pdf",
+            'mime' => 'application/pdf',
+            'headers' => ['Content-Type' => 'application/pdf'],
+        ];
+    }
+
+    private function ensureExportDirectory(): string
+    {
+        $directory = storage_path('app/exports/audit-trail');
+
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        return $directory;
+    }
+
+    private function buildCsvMetadataRows(Collection $auditLogs, array $filters): array
+    {
+        $rows = [
+            ['E-Lingkod Dasol HRIS - Audit Trail Export'],
+            ['Generated At', now()->timezone(config('app.timezone'))->format('F d, Y g:i A')],
+            ['Total Records', $auditLogs->count()],
+        ];
+
+        $summary = $this->summarizeFilters($filters);
+
+        if (!empty($summary)) {
+            $rows[] = ['Filters Applied', ''];
+            foreach ($summary as $label => $value) {
+                $rows[] = [$label, $value];
+            }
+        }
+
+        $rows[] = []; // spacer before headings
+
+        return $rows;
+    }
+
+    private function summarizeFilters(array $filters): array
+    {
+        $filters = $this->cleanFilterContext($filters);
+        $summary = [];
+
+        if (!empty($filters['date_from']) || !empty($filters['date_to'])) {
+            $from = $filters['date_from'] ? date('M d, Y', strtotime($filters['date_from'])) : 'Start';
+            $to = $filters['date_to'] ? date('M d, Y', strtotime($filters['date_to'])) : 'Today';
+            $summary['Date Range'] = "{$from} - {$to}";
+        }
+
+        if (!empty($filters['action_type'])) {
+            $summary['Action Category'] = Str::headline($filters['action_type']);
+        }
+
+        if (!empty($filters['action'])) {
+            $summary['Action Contains'] = $filters['action'];
+        }
+
+        if (!empty($filters['user_id'])) {
+            $user = User::find($filters['user_id']);
+            $summary['User'] = $user ? $user->name . " (#{$user->id})" : 'User ID ' . $filters['user_id'];
+        }
+
+        if (!empty($filters['office_id'])) {
+            $office = Office::find($filters['office_id']);
+            $summary['Office'] = $office?->name ?? 'Office ID ' . $filters['office_id'];
+        }
+
+        if (!empty($filters['subject_type'])) {
+            $summary['Subject Type'] = class_basename($filters['subject_type']);
+        }
+
+        return $summary;
+    }
+
+    private function cleanFilterContext(array $filters): array
+    {
+        return collect($filters)
+            ->except(['per_page'])
+            ->filter(fn ($value) => filled($value))
+            ->all();
+    }
+
+    private function formatValuesList($values, string $separator = '; '): string
+    {
+        if (empty($values)) {
+            return '';
+        }
+
+        $flat = $this->flattenValueArray((array) $values);
+
+        return collect($flat)
+            ->map(fn ($value, $key) => sprintf('%s: %s', Str::headline($key), $this->stringifyValue($value)))
+            ->implode($separator);
+    }
+
+    private function flattenValueArray(array $values, string $prefix = ''): array
+    {
+        $result = [];
+
+        foreach ($values as $key => $value) {
+            $fullKey = $prefix === '' ? $key : $prefix . '.' . $key;
+
+            if (is_array($value)) {
+                $result += $this->flattenValueArray($value, $fullKey);
+            } else {
+                $result[$fullKey] = $value;
+            }
+        }
+
+        return $result;
+    }
+
+    private function stringifyValue($value): string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d H:i:s');
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
+        return (string) $value;
     }
 }

@@ -15,7 +15,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\GovernmentBenefitController;
 use App\Http\Controllers\BenefitContributionController;
 use App\Http\Controllers\EmployeeSelfServiceController;
-use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\PDSController;
 use App\Http\Controllers\PDSExportController;
 use App\Http\Controllers\EducationController;
@@ -58,35 +57,9 @@ Route::get('/health', function () {
 
 
 
-Route::get('/dashboard', function () {
-    $user = Auth::user();
-
-    // Check if user has active Department Head office assignment
-    $hasDepartmentHeadAssignment = \App\Models\OfficeAssignment::where('user_id', $user->id)
-        ->where('role', \App\Models\OfficeAssignment::ROLE_DEPARTMENT_HEAD)
-        ->where('is_active', true)
-        ->where(function ($query) {
-            $query->whereNull('ended_date')
-                  ->orWhere('ended_date', '>=', now());
-        })
-        ->exists();
-
-    // Sync user roles based on office assignments
-    if ($hasDepartmentHeadAssignment && !$user->hasRole('Department Head')) {
-        $user->assignRole('Department Head');
-        if ($user->hasRole('Employee')) {
-            $user->removeRole('Employee');
-        }
-    }
-
-    // Route Employee users directly to Employee Self-Service Portal (only if no Department Head assignment)
-    if ($user->hasRole('Employee') && !$user->hasAnyRole(['HR Admin', 'Super Admin', 'Department Head']) && !$hasDepartmentHeadAssignment) {
-        return app(EmployeeSelfServiceController::class)->dashboard();
-    }
-
-    // Route other roles to main dashboard
-    return app(DashboardController::class)->index();
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -528,8 +501,9 @@ Route::middleware('auth')->group(function () {
     // Audit Trail Management (moved outside OPCR admin group)
     Route::prefix('admin/audit-trail')->name('admin.audit-trail.')->middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [AuditTrailController::class, 'index'])->name('index');
+        Route::get('/export', [AuditTrailController::class, 'export'])->name('export');
+        Route::get('/downloads/{filename}', [AuditTrailController::class, 'download'])->name('download');
         Route::get('/{activity}', [AuditTrailController::class, 'show'])->name('show');
-        Route::post('/export', [AuditTrailController::class, 'export'])->name('export');
         Route::post('/cleanup', [AuditTrailController::class, 'cleanup'])->name('cleanup');
     });
 

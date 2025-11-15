@@ -5,8 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\AuditTrailService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Inertia\Inertia;
-use Inertia\Response;
+use Illuminate\Support\Facades\Log;
 
 class AuditTrailController extends Controller
 {
@@ -18,7 +17,7 @@ class AuditTrailController extends Controller
 
         // Apply OPCR-specific permissions
         $this->middleware('permission:audit.view')->only(['index', 'show']);
-        $this->middleware('permission:audit.export')->only(['export']);
+        $this->middleware('permission:audit.export')->only(['export', 'download']);
         $this->middleware('permission:audit.delete')->only(['destroy']);
     }
 
@@ -32,6 +31,7 @@ class AuditTrailController extends Controller
             'date_to' => 'nullable|date|after_or_equal:date_from',
             'user_id' => 'nullable|integer|exists:users,id',
             'action' => 'nullable|string|max:255',
+            'action_type' => 'nullable|string|max:255',
             'subject_type' => 'nullable|string|max:255',
             'office_id' => 'nullable|integer|exists:offices,id',
             'per_page' => 'nullable|integer|min:10|max:100'
@@ -73,10 +73,10 @@ class AuditTrailController extends Controller
     /**
      * Export audit trail data
      */
-    public function export(Request $request): JsonResponse
+    public function export(Request $request)
     {
         $validated = $request->validate([
-            'format' => 'required|in:pdf,excel,csv',
+            'format' => 'required|in:pdf,xlsx,csv,excel',
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date|after_or_equal:date_from',
             'user_id' => 'nullable|integer|exists:users,id',
@@ -84,23 +84,26 @@ class AuditTrailController extends Controller
             'subject_type' => 'nullable|string|max:255',
             'office_id' => 'nullable|integer|exists:offices,id',
             'include_old_values' => 'boolean',
-            'include_new_values' => 'boolean'
+            'include_new_values' => 'boolean',
+            'action_type' => 'nullable|string|max:255',
         ]);
 
         try {
-            $filePath = $this->auditTrailService->exportAuditLogs($validated);
+            $export = $this->auditTrailService->exportAuditLogs($validated);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Audit trail exported successfully',
-                'file_path' => $filePath,
-                'download_url' => route('audit.download', ['filename' => basename($filePath)])
+            return response()
+                ->download($export['path'], $export['download_name'], $export['headers'] ?? [])
+                ->deleteFileAfterSend(true);
+        } catch (\Throwable $e) {
+            Log::error('Audit trail export failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $request->user()?->id,
+                'format' => $validated['format'] ?? null,
+                'filters' => $validated,
             ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to export audit trail: ' . $e->getMessage()
-            ], 500);
+            return back()->withErrors([
+                'export' => 'Failed to export audit trail: ' . $e->getMessage()
+            ]);
         }
     }
 
@@ -115,7 +118,15 @@ class AuditTrailController extends Controller
             abort(404, 'Export file not found');
         }
 
-        return response()->download($filePath)->deleteFileAfterSend(true);
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $mime = match ($extension) {
+            'pdf' => 'application/pdf',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'csv' => 'text/csv; charset=UTF-8',
+            default => 'application/octet-stream',
+        };
+
+        return response()->download($filePath, $filename, ['Content-Type' => $mime])->deleteFileAfterSend(true);
     }
 
     /**

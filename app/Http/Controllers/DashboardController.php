@@ -75,8 +75,14 @@ class DashboardController extends Controller
             }
             // Continue to main dashboard (Department Head view)
         } else {
-            // Redirect Employee role users to their dedicated portal
-            if ($user->hasRole('Employee') && !$user->hasAnyRole(['HR Admin', 'Super Admin'])) {
+            // Redirect pure Employee role users (no OPCR assignments) to their portal
+            $canAccessOPCRDashboard = $user->hasAnyRole(['Assessor', 'Final Approver']);
+
+            if (
+                $user->hasRole('Employee') &&
+                !$user->hasAnyRole(['HR Admin', 'Super Admin']) &&
+                !$canAccessOPCRDashboard
+            ) {
                 return redirect()->route('employee-portal.dashboard');
             }
         }
