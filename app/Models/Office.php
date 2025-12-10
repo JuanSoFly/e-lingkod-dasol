@@ -465,13 +465,16 @@ class Office extends Model
      */
     public function assignUser($user, string $role, array $metadata = []): OfficeAssignment
     {
+        $userModel = $user instanceof User ? $user : User::find($user);
+
         return $this->assignments()->create([
-            'user_id' => $user->id ?? $user,
+            'user_id' => $userModel?->id ?? $user,
+            'employee_id' => $userModel?->employee?->id,
             'role' => $role,
             'is_active' => true,
-            'assigned_at' => now(),
+            'assigned_date' => now()->toDateString(),
             'assigned_by' => auth()->id(),
-            'metadata' => $metadata,
+            'remarks' => $metadata['remarks'] ?? null,
         ]);
     }
 
@@ -485,8 +488,7 @@ class Office extends Model
             ->where('role', $role)
             ->update([
                 'is_active' => false,
-                'removed_at' => now(),
-                'removed_by' => auth()->id(),
+                'ended_date' => now()->toDateString(),
             ]);
     }
 

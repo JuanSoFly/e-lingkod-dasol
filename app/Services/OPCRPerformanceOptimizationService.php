@@ -41,13 +41,13 @@ class OPCRPerformanceOptimizationService
             'period:id,name,start_date,end_date',
             'committedBy.employee:id,first_name,last_name',
             'targets' => function ($query) {
-                $query->select('id', 'opcr_workflow_id', 'mfo_id', 'success_indicator_id', 'target_quantity')
+                $query->select('id', 'opcr_workflow_id', 'mfo_id', 'success_indicator_id', 'target_quality')
                       ->with(['mfo:id,code,description', 'successIndicator:id,description']);
             },
             'targets.ratings' => function ($query) {
-                $query->select('id', 'target_id', 'final_rating', 'rating_quantity', 'rating_efficiency', 'rating_timeliness');
+                $query->select('id', 'target_id', 'final_rating', 'rating_quality', 'rating_efficiency', 'rating_timeliness');
             }
-        ]);
+        ])->withCount('targets');
 
         // Apply filters efficiently
         if (!empty($filters['period_id'])) {
@@ -126,7 +126,7 @@ class OPCRPerformanceOptimizationService
                 ->join('opcr_workflows as ow', 'pt.opcr_workflow_id', '=', 'ow.id')
                 ->select([
                     DB::raw('COUNT(pt.id) as total_targets'),
-                    DB::raw('SUM(CASE WHEN pt.accomplished_quantity IS NOT NULL AND pt.accomplished_quantity > 0 THEN 1 ELSE 0 END) as completed_targets'),
+                    DB::raw('SUM(CASE WHEN pt.accomplished_quality IS NOT NULL AND pt.accomplished_quality > 0 THEN 1 ELSE 0 END) as completed_targets'),
                 ])
                 ->where('ow.period_id', $periodId);
 

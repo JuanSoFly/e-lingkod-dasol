@@ -136,6 +136,7 @@ Route::middleware('auth')->group(function () {
         Route::get('{employee}/photo', [PDSController::class, 'photo'])->name('photo');
         Route::post('{employee}/photo', [PDSController::class, 'uploadPhoto'])->name('upload-photo');
         Route::post('{employee}/thumbmark', [PDSController::class, 'uploadThumbmark'])->name('upload-thumbmark');
+        Route::get('{employee}/pdf', [PDSExportController::class, 'exportPdf'])->name('export.pdf');
         // Panel 5: Work Experience
         Route::get('{employee}/work-experience', [PDSController::class, 'workExperience'])->name('work-experience');
         Route::post('{employee}/work-experience', [PDSController::class, 'storeWorkExperience'])->name('store-work-experience');
@@ -212,6 +213,7 @@ Route::middleware('auth')->group(function () {
 
     // Leave Card View Route
     Route::get('/leave-card-view/{employeeId?}', [LeaveApplicationController::class, 'showLeaveCard'])->name('leave-card.view')->middleware('can:leave.view');
+    Route::post('/leave-card-view/{employeeId}/update-credit', [LeaveApplicationController::class, 'updateLeaveCredit'])->name('leave-card.update-credit')->middleware('can:employee.manage');
 
     // Performance Management Routes
     Route::resource('performance-periods', PerformancePeriodController::class)->except(['show']);
@@ -291,6 +293,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/leave-applications', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'store'])->name('leave-applications.store')->middleware(\App\Http\Middleware\RateLimitLeaveApplications::class);
         Route::post('/leave-applications/calculate-days', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'calculateDays'])->name('leave-applications.calculate-days');
         Route::post('/leave-applications/draft', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'saveDraft'])->name('leave-applications.draft')->middleware(\App\Http\Middleware\RateLimitLeaveApplications::class);
+        Route::get('/leave-applications/{leave_application}/edit', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'edit'])->name('leave-applications.edit');
+        Route::post('/leave-applications/{leave_application}/update', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'update'])->name('leave-applications.update')->middleware(\App\Http\Middleware\RateLimitLeaveApplications::class);
         Route::delete('/leave-applications/{leave_application}/withdraw', [App\Http\Controllers\Employee\LeaveApplicationController::class, 'withdraw'])->name('leave-applications.withdraw');
 
         // Original Employee Portal Routes
@@ -337,6 +341,9 @@ Route::middleware('auth')->group(function () {
             Route::post('/{workflow}/evaluate', [OPCRController::class, 'submitEvaluation'])->name('submit.evaluation')->middleware(['can:opcr.assess']);
             Route::get('/{workflow}/review', [OPCRController::class, 'review'])->name('review')->middleware(['can:opcr.view']);
             Route::post('/{workflow}/approve', [OPCRController::class, 'finalApprove'])->name('approve')->middleware(['can:opcr.approve']);
+            Route::post('/{workflow}/planning-review', [OPCRController::class, 'planningReview'])->name('planning.review')->middleware(['permission:opcr.planning_review']);
+            Route::post('/{workflow}/pmt-review', [OPCRController::class, 'pmtReview'])->name('pmt.review')->middleware(['permission:opcr.pmt_review']);
+            Route::post('/{workflow}/cascade', [OPCRController::class, 'cascadeIpcr'])->name('cascade')->middleware(['permission:ipcr.cascade']);
             Route::post('/{workflow}/reject', [OPCRController::class, 'reject'])->name('reject')->middleware(['can:opcr.approve']);
             Route::post('/{workflow}/return', [OPCRController::class, 'returnForRevision'])->name('return')->middleware(['can:opcr.return']);
         });

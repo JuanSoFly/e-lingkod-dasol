@@ -18,13 +18,13 @@ class SuccessIndicator extends Model
         'code',
         'title',
         'description',
-        'target_quantity',
+        'target_quality',
         'target_efficiency',
         'target_timeliness',
-        'accomplished_quantity',
+        'accomplished_quality',
         'accomplished_efficiency',
         'accomplished_timeliness',
-        'rating_quantity',
+        'rating_quality',
         'rating_efficiency',
         'rating_timeliness',
         'average_rating',
@@ -36,9 +36,9 @@ class SuccessIndicator extends Model
     ];
 
     protected $casts = [
-        'target_quantity' => 'decimal:2',
-        'accomplished_quantity' => 'decimal:2',
-        'rating_quantity' => 'integer',
+        'target_quality' => 'decimal:2',
+        'accomplished_quality' => 'decimal:2',
+        'rating_quality' => 'integer',
         'rating_efficiency' => 'integer',
         'rating_timeliness' => 'integer',
         'average_rating' => 'decimal:2',
@@ -68,6 +68,14 @@ class SuccessIndicator extends Model
     public function performanceTargets(): HasMany
     {
         return $this->hasMany(PerformanceTarget::class, 'success_indicator_id');
+    }
+
+    /**
+     * Alias for performance targets to match legacy callers
+     */
+    public function targets(): HasMany
+    {
+        return $this->performanceTargets();
     }
 
     /**
@@ -131,7 +139,7 @@ class SuccessIndicator extends Model
     public function scopeNeedingRating($query)
     {
         return $query->whereNull('average_rating')
-                    ->whereNotNull('accomplished_quantity');
+                    ->whereNotNull('accomplished_quality');
     }
 
     /**
@@ -139,13 +147,13 @@ class SuccessIndicator extends Model
      */
     public function calculateQETRating(): ?float
     {
-        if ($this->rating_quantity === null ||
+        if ($this->rating_quality === null ||
             $this->rating_efficiency === null ||
             $this->rating_timeliness === null) {
             return null;
         }
 
-        return round(($this->rating_quantity + $this->rating_efficiency + $this->rating_timeliness) / 3, 2);
+        return round(($this->rating_quality + $this->rating_efficiency + $this->rating_timeliness) / 3, 2);
     }
 
     /**
@@ -173,14 +181,14 @@ class SuccessIndicator extends Model
      */
     public function updateQETRatings(array $ratings): bool
     {
-        $this->rating_quantity = $ratings['rating_quantity'] ?? null;
+        $this->rating_quality = $ratings['rating_quality'] ?? null;
         $this->rating_efficiency = $ratings['rating_efficiency'] ?? null;
         $this->rating_timeliness = $ratings['rating_timeliness'] ?? null;
         $this->remarks = $ratings['remarks'] ?? null;
         $this->evidence_documents = $ratings['evidence_documents'] ?? $this->evidence_documents;
 
         // Calculate average rating
-        if ($this->rating_quantity !== null &&
+        if ($this->rating_quality !== null &&
             $this->rating_efficiency !== null &&
             $this->rating_timeliness !== null) {
             $this->average_rating = $this->calculateQETRating();
@@ -196,7 +204,7 @@ class SuccessIndicator extends Model
     public function updateAccomplishments(array $accomplishments): bool
     {
         try {
-            $this->accomplished_quantity = $accomplishments['accomplished_quantity'] ?? null;
+            $this->accomplished_quality = $accomplishments['accomplished_quality'] ?? null;
             $this->accomplished_efficiency = $accomplishments['accomplished_efficiency'] ?? null;
             $this->accomplished_timeliness = $accomplishments['accomplished_timeliness'] ?? null;
             $this->remarks = $accomplishments['remarks'] ?? $this->remarks;
@@ -213,11 +221,11 @@ class SuccessIndicator extends Model
      */
     public function getPerformancePercentageAttribute(): ?float
     {
-        if ($this->target_quantity === null || $this->accomplished_quantity === null || $this->target_quantity == 0) {
+        if ($this->target_quality === null || $this->accomplished_quality === null || $this->target_quality == 0) {
             return null;
         }
 
-        return round(($this->accomplished_quantity / $this->target_quantity) * 100, 2);
+        return round(($this->accomplished_quality / $this->target_quality) * 100, 2);
     }
 
     /**
@@ -250,10 +258,10 @@ class SuccessIndicator extends Model
     public function getQETDetailsAttribute(): array
     {
         return [
-            'quantity' => [
-                'target' => $this->target_quantity,
-                'accomplished' => $this->accomplished_quantity,
-                'rating' => $this->rating_quantity,
+            'quality' => [
+                'target' => $this->target_quality,
+                'accomplished' => $this->accomplished_quality,
+                'rating' => $this->rating_quality,
                 'percentage' => $this->performance_percentage,
                 'is_met' => $this->is_target_met,
             ],
@@ -285,13 +293,13 @@ class SuccessIndicator extends Model
             'code' => 'required|string|max:50',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'target_quantity' => 'nullable|numeric|min:0',
+            'target_quality' => 'nullable|numeric|min:0',
             'target_efficiency' => 'nullable|string|max:100',
             'target_timeliness' => 'nullable|string|max:100',
-            'accomplished_quantity' => 'nullable|numeric|min:0',
+            'accomplished_quality' => 'nullable|numeric|min:0',
             'accomplished_efficiency' => 'nullable|string|max:100',
             'accomplished_timeliness' => 'nullable|string|max:100',
-            'rating_quantity' => 'nullable|integer|min:1|max:5',
+            'rating_quality' => 'nullable|integer|min:1|max:5',
             'rating_efficiency' => 'nullable|integer|min:1|max:5',
             'rating_timeliness' => 'nullable|integer|min:1|max:5',
             'remarks' => 'nullable|string',
@@ -310,8 +318,8 @@ class SuccessIndicator extends Model
             'mfo_id.exists' => 'The selected MFO is invalid.',
             'code.required' => 'The success indicator code is required.',
             'title.required' => 'The success indicator title is required.',
-            'rating_quantity.min' => 'Quantity rating must be at least 1.',
-            'rating_quantity.max' => 'Quantity rating must not exceed 5.',
+            'rating_quality.min' => 'Quality rating must be at least 1.',
+            'rating_quality.max' => 'Quality rating must not exceed 5.',
             'rating_efficiency.min' => 'Efficiency rating must be at least 1.',
             'rating_efficiency.max' => 'Efficiency rating must not exceed 5.',
             'rating_timeliness.min' => 'Timeliness rating must be at least 1.',

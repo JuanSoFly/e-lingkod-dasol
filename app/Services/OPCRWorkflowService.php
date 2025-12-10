@@ -35,7 +35,7 @@ class OPCRWorkflowService
             $workflow = $this->opcrManagementService->createOPCRWorkflow($data);
 
             // Notify relevant users
-            $this->notifyWorkflowInitiation($workflow, 'initialized');
+            $this->notifyWorkflowInitiation($workflow, 'opcr.initialized');
 
             Activity::log('OPCR workflow initialized', [
                 'opcr_workflow_id' => $workflow->id,
@@ -67,7 +67,7 @@ class OPCRWorkflowService
 
             if ($success) {
                 // Notify assessors
-                $this->notifyWorkflowStateChange($workflow, 'committed');
+                $this->notifyWorkflowStateChange($workflow, 'opcr.committed');
 
                 Activity::log('OPCR workflow committed', [
                     'opcr_workflow_id' => $workflow->id,
@@ -99,7 +99,7 @@ class OPCRWorkflowService
 
             if ($success) {
                 // Notify assessors
-                $this->notifyWorkflowStateChange($workflow, 'submitted_for_evaluation');
+                $this->notifyWorkflowStateChange($workflow, 'opcr.submitted');
 
                 Activity::log('OPCR workflow submitted for evaluation', [
                     'opcr_workflow_id' => $workflow->id,
@@ -206,10 +206,10 @@ class OPCRWorkflowService
 
         if (isset($evaluationData['evaluations'])) {
             foreach ($evaluationData['evaluations'] as $evaluation) {
-                if (isset($evaluation['quantity_rating'], $evaluation['efficiency_rating'], $evaluation['timeliness_rating'])) {
+                if (isset($evaluation['quality_rating'], $evaluation['efficiency_rating'], $evaluation['timeliness_rating'])) {
                     $averageRating = round(
                         (
-                            $evaluation['quantity_rating'] +
+                            $evaluation['quality_rating'] +
                             $evaluation['efficiency_rating'] +
                             $evaluation['timeliness_rating']
                         ) / 3,
@@ -313,10 +313,10 @@ class OPCRWorkflowService
 
             // Check if all required evaluation data is present
             if ($successIndicator &&
-                $successIndicator->accomplished_quantity !== null &&
+                $successIndicator->accomplished_quality !== null &&
                 $successIndicator->accomplished_efficiency !== null &&
                 $successIndicator->accomplished_timeliness !== null &&
-                $successIndicator->rating_quantity !== null &&
+                $successIndicator->rating_quality !== null &&
                 $successIndicator->rating_efficiency !== null &&
                 $successIndicator->rating_timeliness !== null &&
                 $successIndicator->average_rating !== null) {
@@ -334,12 +334,31 @@ class OPCRWorkflowService
     public function transitionState(OPCRWorkflow $workflow, string $newState, array $data = []): bool
     {
         return DB::transaction(function () use ($workflow, $newState, $data) {
-            // Validate state transition
-            if (!$this->isValidStateTransition($workflow->workflow_state, $newState)) {
-                throw new \InvalidArgumentException("Invalid state transition from {$workflow->workflow_state} to {$newState}");
+            $previousState = $workflow->workflow_state;
+
+            // Allow idempotent state transitions so the final approver can persist data
+            if ($previousState === $newState) {
+                $workflow->update(array_merge($data, ['workflow_state' => $newState]));
+
+                activity()
+                    ->performedOn($workflow)
+                    ->causedBy(Auth::user())
+                    ->withProperties([
+                        'from_state' => $previousState,
+                        'to_state' => $newState,
+                        'opcr_workflow_id' => $workflow->id,
+                        'data' => $data,
+                        'idempotent' => true,
+                    ])
+                    ->log('OPCR workflow state metadata updated');
+
+                return true;
             }
 
-            $previousState = $workflow->workflow_state;
+            // Validate state transition
+            if (!$this->isValidStateTransition($previousState, $newState)) {
+                throw new \InvalidArgumentException("Invalid state transition from {$previousState} to {$newState}");
+            }
 
             // Prepare state-specific data
             $stateData = $this->getStateSpecificData($newState);
@@ -362,8 +381,8 @@ class OPCRWorkflowService
                 ->log('OPCR workflow state transition');
 
             // Notify relevant users about the state change
-            if ($action = $this->mapStateToNotificationAction($newState)) {
-                $this->notifyWorkflowStateChange($workflow, $action);
+            if ($notificationType = $this->mapStateToNotificationType($newState)) {
+                $this->notifyWorkflowStateChange($workflow, $notificationType);
             }
 
             return true;
@@ -377,6 +396,14 @@ class OPCRWorkflowService
     {
         $validTransitions = [
             OPCRWorkflow::STATE_DRAFT => [
+                OPCRWorkflow::STATE_PLANNING_REVIEW,
+                OPCRWorkflow::STATE_RETURNED,
+            ],
+            OPCRWorkflow::STATE_PLANNING_REVIEW => [
+                OPCRWorkflow::STATE_PMT_REVIEW,
+                OPCRWorkflow::STATE_RETURNED,
+            ],
+            OPCRWorkflow::STATE_PMT_REVIEW => [
                 OPCRWorkflow::STATE_COMMITTED,
                 OPCRWorkflow::STATE_RETURNED,
             ],
@@ -393,7 +420,7 @@ class OPCRWorkflowService
                 OPCRWorkflow::STATE_RETURNED,
             ],
             OPCRWorkflow::STATE_RETURNED => [
-                OPCRWorkflow::STATE_COMMITTED,
+                OPCRWorkflow::STATE_PLANNING_REVIEW,
             ],
             OPCRWorkflow::STATE_FINAL_APPROVAL => [
                 // Terminal state - no transitions allowed
@@ -412,9 +439,15 @@ class OPCRWorkflowService
         $now = now();
 
         return match ($state) {
-            OPCRWorkflow::STATE_COMMITTED => [
+            OPCRWorkflow::STATE_PLANNING_REVIEW => [
                 'committed_by' => $userId,
                 'committed_at' => $now,
+            ],
+            OPCRWorkflow::STATE_PMT_REVIEW => [
+                // Planning reviewer details are attached by caller
+            ],
+            OPCRWorkflow::STATE_COMMITTED => [
+                // Commitment metadata set during planning submission to preserve Department Head as committer.
             ],
             OPCRWorkflow::STATE_IN_PROGRESS => [
                 'submitted_by' => $userId,
@@ -425,8 +458,7 @@ class OPCRWorkflowService
                 'assessed_at' => $now,
             ],
             OPCRWorkflow::STATE_FINAL_APPROVAL => [
-                'approved_by' => $userId,
-                'approved_at' => $now,
+                // Final approval metadata is captured when the Final Approver confirms the OPCR.
             ],
             OPCRWorkflow::STATE_RETURNED => [
                 'returned_by' => $userId,
@@ -439,14 +471,16 @@ class OPCRWorkflowService
     /**
      * Map workflow state to notification action keyword
      */
-    private function mapStateToNotificationAction(string $state): ?string
+    private function mapStateToNotificationType(string $state): ?string
     {
         return match ($state) {
-            OPCRWorkflow::STATE_COMMITTED => 'committed',
-            OPCRWorkflow::STATE_IN_PROGRESS => 'submitted_for_evaluation',
-            OPCRWorkflow::STATE_EVALUATION => 'evaluation_started',
-            OPCRWorkflow::STATE_FINAL_APPROVAL => 'ready_for_final_approval',
-            OPCRWorkflow::STATE_RETURNED => 'returned_for_revision',
+            OPCRWorkflow::STATE_PLANNING_REVIEW => 'opcr.planning_review',
+            OPCRWorkflow::STATE_PMT_REVIEW => 'opcr.pmt_review',
+            OPCRWorkflow::STATE_COMMITTED => 'opcr.committed',
+            OPCRWorkflow::STATE_IN_PROGRESS => 'opcr.submitted',
+            OPCRWorkflow::STATE_EVALUATION => 'opcr.evaluation_started',
+            OPCRWorkflow::STATE_FINAL_APPROVAL => 'opcr.ready_for_final_approval',
+            OPCRWorkflow::STATE_RETURNED => 'opcr.returned',
             default => null,
         };
     }
@@ -454,26 +488,45 @@ class OPCRWorkflowService
     /**
      * Notify workflow state change
      */
-    private function notifyWorkflowStateChange(OPCRWorkflow $workflow, string $action): void
+    private function notifyWorkflowStateChange(OPCRWorkflow $workflow, string $notificationType, array $context = []): void
     {
-        $users = $this->getUsersToNotify($workflow, $action);
+        $users = $this->getUsersToNotify($workflow, $notificationType);
 
-        if ($users->isNotEmpty()) {
-            Notification::send($users, new OPCRWorkflowNotification($workflow, $action));
+        if ($users->isEmpty()) {
+            return;
         }
+
+        $payload = $this->buildNotificationPayload($workflow, $notificationType, $context);
+
+        Notification::send($users, new OPCRWorkflowNotification($notificationType, $payload));
+    }
+
+    private function buildNotificationPayload(OPCRWorkflow $workflow, string $notificationType, array $context = []): array
+    {
+        return array_merge([
+            'workflow' => $workflow->loadMissing(['office', 'period', 'committedBy', 'returnedBy']),
+            'user' => Auth::user(),
+            'notification_type' => $notificationType,
+            'workflow_state' => $workflow->workflow_state,
+        ], $context);
     }
 
     /**
      * Get users to notify based on workflow state and action
      */
-    private function getUsersToNotify(OPCRWorkflow $workflow, string $action)
+    private function getUsersToNotify(OPCRWorkflow $workflow, string $notificationType)
     {
-        return match ($action) {
-            'committed' => User::role('Assessor')->get(),
-            'submitted_for_evaluation' => User::role('Assessor')->get(),
-            'evaluation_started' => User::role('Final Approver')->get(),
-            'ready_for_final_approval' => User::role('Final Approver')->get(),
-            'returned_for_revision' => $workflow->committedBy ? collect([$workflow->committedBy]) : collect(),
+        return match ($notificationType) {
+            'opcr.planning_review' => ($users = User::permission('opcr.planning_review')->get())->isNotEmpty()
+                ? $users
+                : User::role('HR Admin')->get(),
+            'opcr.pmt_review' => ($users = User::permission('opcr.pmt_review')->get())->isNotEmpty()
+                ? $users
+                : User::role('HR Admin')->get(),
+            'opcr.committed', 'opcr.submitted' => User::role('Assessor')->get(),
+            'opcr.evaluation_started', 'opcr.ready_for_final_approval' => User::role('Final Approver')->get(),
+            'opcr.returned' => $workflow->committedBy ? collect([$workflow->committedBy]) : collect(),
+            'opcr.initialized' => User::role('HR Admin')->get(),
             default => collect(),
         };
     }
@@ -653,8 +706,8 @@ class OPCRWorkflowService
     /**
      * Notify workflow initiation
      */
-    private function notifyWorkflowInitiation(OPCRWorkflow $workflow, string $action): void
+    private function notifyWorkflowInitiation(OPCRWorkflow $workflow, string $notificationType): void
     {
-        $this->notifyWorkflowStateChange($workflow, $action);
+        $this->notifyWorkflowStateChange($workflow, $notificationType);
     }
 }

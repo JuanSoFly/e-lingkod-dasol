@@ -38,6 +38,7 @@ class OPCROfficeAssignmentController extends Controller
         // Base query for all assignments with search and role filters
         $query = OfficeAssignment::with(['user.employee', 'assignedBy'])
             ->where('office_id', $office->id)
+            ->withoutArchivedPersonnel()
             ->distinct('office_assignments.id');
 
         // Filter by search term
@@ -191,13 +192,20 @@ class OPCROfficeAssignmentController extends Controller
                 ->with('error', 'This user already has an active assignment in this office. Each user can only have one active assignment per office.');
         }
 
+        $isActiveAssignment = $validated['is_active'] ?? true;
+        $shouldAssignDepartmentHead = $validated['role'] === OfficeAssignment::ROLE_DEPARTMENT_HEAD && $isActiveAssignment;
+
         // If assigning as Department Head, deactivate existing department heads for this office
-        if ($validated['role'] === 'Department Head') {
+        if ($shouldAssignDepartmentHead) {
             $this->demoteOldDepartmentHeads($office, $user);
         }
 
         try {
-            DB::transaction(function () use ($validated, $office, $employee, $user) {
+            DB::transaction(function () use ($validated, $office, $employee, $user, $shouldAssignDepartmentHead) {
+                if ($shouldAssignDepartmentHead) {
+                    $this->persistOfficeDepartmentHead($office, $employee->id);
+                }
+
                 $assignment = OfficeAssignment::create([
                     'employee_id' => $validated['employee_id'],
                     'user_id' => $user->id,
@@ -210,7 +218,12 @@ class OPCROfficeAssignmentController extends Controller
                     'assigned_by' => Auth::id(),
                 ]);
 
-                $this->syncOfficeDepartmentHead($office);
+                if ($shouldAssignDepartmentHead) {
+                    $office->refresh();
+                    $this->syncOfficeDepartmentHead($office, $assignment->id);
+                } else {
+                    $this->syncOfficeDepartmentHead($office);
+                }
 
                 // Sync department information
                 $this->departmentSyncService->syncOnAssignmentCreate($assignment);
@@ -382,10 +395,22 @@ class OPCROfficeAssignmentController extends Controller
                 ->with('error', 'This user already has another active assignment in this office. Each user can only have one active assignment per office.');
         }
 
+        $isActiveAssignment = $validated['is_active'] ?? true;
+        $shouldBecomeDepartmentHead = $validated['role'] === OfficeAssignment::ROLE_DEPARTMENT_HEAD && $isActiveAssignment;
+        $shouldClearDepartmentHead = !$shouldBecomeDepartmentHead
+            && $assignment->role === OfficeAssignment::ROLE_DEPARTMENT_HEAD
+            && $office->department_head_id === $assignment->employee_id;
+
         try {
-            DB::transaction(function () use ($validated, $office, $assignment, $employee, $user) {
-                if ($validated['role'] === OfficeAssignment::ROLE_DEPARTMENT_HEAD && ($validated['is_active'] ?? true) && $assignment->role !== OfficeAssignment::ROLE_DEPARTMENT_HEAD) {
+            DB::transaction(function () use ($validated, $office, $assignment, $employee, $user, $shouldBecomeDepartmentHead, $shouldClearDepartmentHead) {
+                if ($shouldBecomeDepartmentHead && $assignment->role !== OfficeAssignment::ROLE_DEPARTMENT_HEAD) {
                     $this->demoteOldDepartmentHeads($office, $user, $assignment->id);
+                }
+
+                if ($shouldBecomeDepartmentHead) {
+                    $this->persistOfficeDepartmentHead($office, $employee->id);
+                } elseif ($shouldClearDepartmentHead) {
+                    $this->persistOfficeDepartmentHead($office, null);
                 }
 
                 $assignment->update([
@@ -398,9 +423,9 @@ class OPCROfficeAssignmentController extends Controller
                     'remarks' => $validated['remarks'] ?? null,
                 ]);
 
-                // Only sync department head if the new role is Department Head
-                if ($validated['role'] === OfficeAssignment::ROLE_DEPARTMENT_HEAD) {
-                    $this->syncOfficeDepartmentHead($office, $assignment->id);
+                if ($shouldBecomeDepartmentHead || $shouldClearDepartmentHead) {
+                    $office->refresh();
+                    $this->syncOfficeDepartmentHead($office, $shouldBecomeDepartmentHead ? $assignment->id : null);
                 }
 
                 // Sync department information
@@ -449,11 +474,19 @@ class OPCROfficeAssignmentController extends Controller
             abort(404);
         }
 
+        $shouldClearDepartmentHead = $assignment->role === OfficeAssignment::ROLE_DEPARTMENT_HEAD
+            && $office->department_head_id === $assignment->employee_id;
+
         try {
-            DB::transaction(function () use ($assignment, $office) {
+            DB::transaction(function () use ($assignment, $office, $shouldClearDepartmentHead) {
+                if ($shouldClearDepartmentHead) {
+                    $this->persistOfficeDepartmentHead($office, null);
+                }
+
                 // Soft delete the assignment
                 $assignment->delete();
 
+                $office->refresh();
                 $this->syncOfficeDepartmentHead($office);
 
                 // Sync department information after deletion
@@ -730,6 +763,19 @@ class OPCROfficeAssignmentController extends Controller
                 ]);
             }
         }
+    }
+
+    /**
+     * Persist the authoritative Department Head for an office.
+     */
+    private function persistOfficeDepartmentHead(Office $office, ?int $employeeId): void
+    {
+        if ($office->department_head_id === $employeeId) {
+            return;
+        }
+
+        $office->department_head_id = $employeeId;
+        $office->save();
     }
 
     /**

@@ -43,7 +43,7 @@ class EvaluateOPCRRequest extends FormRequest
                     }
                 },
             ],
-            'evaluations.*.accomplished_quantity' => [
+            'evaluations.*.accomplished_quality' => [
                 'required',
                 'numeric',
                 'min:0',
@@ -64,8 +64,8 @@ class EvaluateOPCRRequest extends FormRequest
 
                     $target = \App\Models\PerformanceTarget::find($targetId);
 
-                    if ($target && $target->target_quantity && $value > ($target->target_quantity * 5)) {
-                        $fail('Accomplished quantity cannot exceed 5 times the target quantity.');
+                    if ($target && $target->target_quality && $value > ($target->target_quality * 5)) {
+                        $fail('Accomplished quality cannot exceed 5 times the target quality.');
                     }
                 },
             ],
@@ -81,7 +81,7 @@ class EvaluateOPCRRequest extends FormRequest
                 'max:100',
                 'regex:/^[a-zA-Z0-9\s\-\.,%]+$/',
             ],
-            'evaluations.*.quantity_rating' => [
+            'evaluations.*.quality_rating' => [
                 'required',
                 'numeric',
                 'min:0',
@@ -142,14 +142,14 @@ class EvaluateOPCRRequest extends FormRequest
         return [
             'evaluations.required' => 'At least one evaluation is required.',
             'evaluations.*.target_id.required' => 'Target ID is required for each evaluation.',
-            'evaluations.*.accomplished_quantity.required' => 'Accomplished quantity is required.',
-            'evaluations.*.accomplished_quantity.numeric' => 'Accomplished quantity must be a number.',
-            'evaluations.*.accomplished_quantity.min' => 'Accomplished quantity cannot be negative.',
+            'evaluations.*.accomplished_quality.required' => 'Accomplished quality is required.',
+            'evaluations.*.accomplished_quality.numeric' => 'Accomplished quality must be a number.',
+            'evaluations.*.accomplished_quality.min' => 'Accomplished quality cannot be negative.',
             'evaluations.*.accomplished_efficiency.required' => 'Accomplished efficiency description is required.',
             'evaluations.*.accomplished_timeliness.required' => 'Accomplished timeliness description is required.',
-            'evaluations.*.quantity_rating.required' => 'Quantity rating is required.',
-            'evaluations.*.quantity_rating.min' => 'Quantity rating must be at least 0.',
-            'evaluations.*.quantity_rating.max' => 'Quantity rating cannot exceed 5.',
+            'evaluations.*.quality_rating.required' => 'Quality rating is required.',
+            'evaluations.*.quality_rating.min' => 'Quality rating must be at least 0.',
+            'evaluations.*.quality_rating.max' => 'Quality rating cannot exceed 5.',
             'evaluations.*.efficiency_rating.required' => 'Efficiency rating is required.',
             'evaluations.*.efficiency_rating.min' => 'Efficiency rating must be at least 0.',
             'evaluations.*.efficiency_rating.max' => 'Efficiency rating cannot exceed 5.',
@@ -198,19 +198,19 @@ class EvaluateOPCRRequest extends FormRequest
 
         // Validate rating consistency - Handle both numeric indices and target_id keys
         foreach ($evaluations as $targetKey => $evaluation) {
-            $quantityRating = $evaluation['quantity_rating'] ?? 0;
+            $qualityRating = $evaluation['quality_rating'] ?? 0;
             $efficiencyRating = $evaluation['efficiency_rating'] ?? 0;
             $timelinessRating = $evaluation['timeliness_rating'] ?? 0;
 
             // Check for extremely low ratings without justification
-            $averageRating = ($quantityRating + $efficiencyRating + $timelinessRating) / 3;
+            $averageRating = ($qualityRating + $efficiencyRating + $timelinessRating) / 3;
             if ($averageRating < 1.5 && empty(trim($evaluation['remarks'] ?? ''))) {
                 $validator->errors()->add("evaluations.{$targetKey}.remarks_required",
                     'Remarks are required for ratings below 1.5.');
             }
 
             // Validate rating ranges are reasonable
-            if ($quantityRating > 5 || $efficiencyRating > 5 || $timelinessRating > 5) {
+            if ($qualityRating > 5 || $efficiencyRating > 5 || $timelinessRating > 5) {
                 $validator->errors()->add("evaluations.{$targetKey}.invalid_rating",
                     'Individual ratings cannot exceed 5.0.');
             }
@@ -245,10 +245,10 @@ class EvaluateOPCRRequest extends FormRequest
     {
         return [
             'evaluations.*.target_id' => 'Target',
-            'evaluations.*.accomplished_quantity' => 'Accomplished Quantity',
+            'evaluations.*.accomplished_quality' => 'Accomplished Quality',
             'evaluations.*.accomplished_efficiency' => 'Accomplished Efficiency',
             'evaluations.*.accomplished_timeliness' => 'Accomplished Timeliness',
-            'evaluations.*.quantity_rating' => 'Quantity Rating',
+            'evaluations.*.quality_rating' => 'Quality Rating',
             'evaluations.*.efficiency_rating' => 'Efficiency Rating',
             'evaluations.*.timeliness_rating' => 'Timeliness Rating',
             'evaluations.*.remarks' => 'Target Remarks',

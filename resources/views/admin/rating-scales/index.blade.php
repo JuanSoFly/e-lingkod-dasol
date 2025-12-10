@@ -101,8 +101,8 @@
                                         <h5 class="text-sm font-medium text-gray-700 mb-2">QET Weights</h5>
                                         <div class="grid grid-cols-3 gap-2 text-xs">
                                             <div class="bg-gray-50 rounded p-2">
-                                                <span class="font-medium">Quantity:</span>
-                                                <span class="float-right">{{ $ratingScale->getQETWeights()['quantity'] * 100 }}%</span>
+                                                <span class="font-medium">Quality:</span>
+                                                <span class="float-right">{{ $ratingScale->getQETWeights()['quality'] * 100 }}%</span>
                                             </div>
                                             <div class="bg-gray-50 rounded p-2">
                                                 <span class="font-medium">Efficiency:</span>

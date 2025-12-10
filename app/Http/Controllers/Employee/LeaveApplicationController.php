@@ -377,6 +377,143 @@ class LeaveApplicationController extends Controller
     }
 
     /**
+     * Load a draft application for editing
+     */
+    public function edit(LeaveApplication $leaveApplication): JsonResponse
+    {
+        $employee = auth()->user()->employee;
+
+        if ($leaveApplication->employee_id !== $employee->id) {
+            return response()->json([
+                'message' => 'Unauthorized action',
+            ], 403);
+        }
+
+        if ($leaveApplication->status !== 'draft') {
+            return response()->json([
+                'message' => 'Only draft applications can be edited.',
+            ], 422);
+        }
+
+        $documents = $leaveApplication->getSupportingDocuments()->map(function ($doc) {
+            return [
+                'id' => $doc->id,
+                'filename' => $doc->filename,
+                'download_url' => route('employee-portal.documents.download', $doc->id),
+            ];
+        });
+
+        return response()->json([
+            'id' => $leaveApplication->id,
+            'leave_type_id' => $leaveApplication->leave_type_id,
+            'start_date' => optional($leaveApplication->start_date)->format('Y-m-d'),
+            'end_date' => optional($leaveApplication->end_date)->format('Y-m-d'),
+            'reason' => $leaveApplication->reason,
+            'days_requested' => $leaveApplication->days_requested,
+            'dept_head_informed' => (bool) $leaveApplication->dept_head_informed,
+            'documents' => $documents,
+        ]);
+    }
+
+    /**
+     * Update or submit a draft application
+     */
+    public function update(StoreEmployeeLeaveApplicationRequest $request, LeaveApplication $leaveApplication): JsonResponse
+    {
+        $employee = auth()->user()->employee;
+
+        if ($leaveApplication->employee_id !== $employee->id) {
+            return response()->json([
+                'message' => 'Unauthorized action',
+            ], 403);
+        }
+
+        if ($leaveApplication->status !== 'draft') {
+            return response()->json([
+                'message' => 'Only draft applications can be updated.',
+            ], 422);
+        }
+
+        $validated = $request->validated();
+        $isDraft = filter_var($request->input('is_draft', false), FILTER_VALIDATE_BOOLEAN);
+
+        try {
+            $daysRequested = $leaveApplication->days_requested;
+            if (!empty($validated['start_date']) && !empty($validated['end_date'])) {
+                $daysRequested = $this->calculateDaysRequested(
+                    $employee,
+                    $validated['start_date'],
+                    $validated['end_date']
+                );
+            }
+
+            if (!$isDraft) {
+                $this->validateNoOverlap($employee, $validated['start_date'], $validated['end_date']);
+                $this->validateNoPendingApplications($employee);
+                $this->validateLeaveCredits($employee, $validated['leave_type_id']);
+            }
+
+            $deptHeadInput = $validated['dept_head_informed'] ?? ($leaveApplication->dept_head_informed ? '1' : '0');
+            $deptHeadInformed = $deptHeadInput === '1';
+
+            $payload = [
+                'leave_type_id' => $validated['leave_type_id'],
+                'start_date' => $validated['start_date'] ?? optional($leaveApplication->start_date)?->format('Y-m-d') ?? now()->format('Y-m-d'),
+                'end_date' => $validated['end_date'] ?? optional($leaveApplication->end_date)?->format('Y-m-d') ?? ($validated['start_date'] ?? now()->format('Y-m-d')),
+                'days_requested' => $daysRequested,
+                'reason' => $validated['reason'] ?? $leaveApplication->reason,
+                'dept_head_informed' => $deptHeadInformed,
+                'dept_head_informed_date' => $deptHeadInformed
+                    ? ($leaveApplication->dept_head_informed_date ?? now())
+                    : null,
+            ];
+
+            if ($isDraft) {
+                $payload['status'] = 'draft';
+            } else {
+                $payload['status'] = 'pending';
+                $payload['applied_date'] = now();
+            }
+
+            $leaveApplication->update($payload);
+
+            if (!empty($validated['documents'])) {
+                foreach ($validated['documents'] as $document) {
+                    $this->leaveApplicationService->attachDocument(
+                        $leaveApplication,
+                        $document,
+                        auth()->user()
+                    );
+                }
+            }
+
+            $leaveApplication->refresh()->load('leaveType');
+
+            return response()->json([
+                'message' => $isDraft
+                    ? 'Draft updated successfully'
+                    : 'Leave application submitted successfully',
+                'application' => [
+                    'id' => $leaveApplication->id,
+                    'status' => $leaveApplication->status,
+                    'leave_type' => $leaveApplication->leaveType->name,
+                    'start_date' => $leaveApplication->start_date->format('Y-m-d'),
+                    'end_date' => $leaveApplication->end_date->format('Y-m-d'),
+                    'days_requested' => $leaveApplication->days_requested,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $isDraft
+                    ? 'Failed to update draft'
+                    : 'Failed to submit leave application',
+                'error' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
      * Validate no overlapping leave applications
      */
     private function validateNoOverlap(Employee $employee, string $startDate, string $endDate): void

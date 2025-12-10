@@ -86,8 +86,8 @@
                                     <h4 class="font-semibold text-gray-700">Target Metrics</h4>
                                     <dl class="mt-2 space-y-2">
                                         <div>
-                                            <dt class="text-gray-500">Quantity</dt>
-                                            <dd class="text-gray-900">{{ $indicator->target_quantity ?? 'N/A' }}</dd>
+                                            <dt class="text-gray-500">Quality</dt>
+                                            <dd class="text-gray-900">{{ $indicator->target_quality ?? 'N/A' }}</dd>
                                         </div>
                                         <div>
                                             <dt class="text-gray-500">Efficiency</dt>
@@ -103,8 +103,8 @@
                                     <h4 class="font-semibold text-gray-700">Reported Accomplishments</h4>
                                     <dl class="mt-2 space-y-2">
                                         <div>
-                                            <dt class="text-gray-500">Quantity</dt>
-                                            <dd class="text-gray-900">{{ $indicator->accomplished_quantity ?? 'Pending' }}</dd>
+                                            <dt class="text-gray-500">Quality</dt>
+                                            <dd class="text-gray-900">{{ $indicator->accomplished_quality ?? 'Pending' }}</dd>
                                         </div>
                                         <div>
                                             <dt class="text-gray-500">Efficiency</dt>

@@ -11,7 +11,7 @@
                 <div class="p-6 flex items-center justify-between">
                     <div>
                         <h3 class="text-lg font-medium text-gray-900">Indicator Management</h3>
-                        <p class="mt-1 text-sm text-gray-600">Monitor quantity, efficiency, and timeliness targets across offices.</p>
+                        <p class="mt-1 text-sm text-gray-600">Monitor quality, efficiency, and timeliness targets across offices.</p>
                     </div>
                     @can('si.create')
                         <a href="{{ route('opcr.success-indicators.create') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">New Indicator</a>
@@ -88,7 +88,7 @@
                                         <div class="text-xs text-gray-500 mt-1">{{ $indicator->mfo->office->name }}</div>
                                     </td>
                                     <td class="px-6 py-4 text-sm text-gray-700">
-                                        <div><span class="font-semibold">Q:</span> {{ $indicator->target_quantity ?? 'N/A' }}</div>
+                                        <div><span class="font-semibold">Q:</span> {{ $indicator->target_quality ?? 'N/A' }}</div>
                                         <div><span class="font-semibold">E:</span> {{ $indicator->target_efficiency ?? 'N/A' }}</div>
                                         <div><span class="font-semibold">T:</span> {{ $indicator->target_timeliness ?? 'N/A' }}</div>
                                     </td>

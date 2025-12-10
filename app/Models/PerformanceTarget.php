@@ -25,11 +25,11 @@ class PerformanceTarget extends Model
         'mfo_code',
         'si_code',
         'office_id',
-        'target_quantity',
+        'target_quality',
         'target_efficiency',
         'target_timeliness',
         'is_legacy_ipcr',
-        'accomplished_quantity',
+        'accomplished_quality',
         'accomplished_efficiency',
         'accomplished_timeliness',
         'performance_percentage',
@@ -39,8 +39,8 @@ class PerformanceTarget extends Model
     ];
 
     protected $casts = [
-        'target_quantity' => 'decimal:2',
-        'accomplished_quantity' => 'decimal:2',
+        'target_quality' => 'decimal:2',
+        'accomplished_quality' => 'decimal:2',
         'performance_percentage' => 'decimal:2',
         'is_legacy_ipcr' => 'boolean',
         'is_target_met' => 'boolean',

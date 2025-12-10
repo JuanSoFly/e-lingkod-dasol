@@ -23,6 +23,19 @@ class LeaveCalculationService
         $balances = [];
 
         $applicablePolicies = $employee->getApplicableLeavePolicies();
+        
+        if ($applicablePolicies->isEmpty()) {
+            return $balances;
+        }
+
+        // Batch load leave application data for all applicable leave types
+        $leaveTypeIds = $applicablePolicies->pluck('leave_type_id')->toArray();
+        
+        // Batch load used days data
+        $usedDaysData = $this->batchLoadUsedDays($employee, $leaveTypeIds, $year);
+        
+        // Batch load pending days data
+        $pendingDaysData = $this->batchLoadPendingDays($employee, $leaveTypeIds, $year);
 
         foreach ($applicablePolicies as $policy) {
             $leaveTypeId = $policy->leave_type_id;
@@ -32,8 +45,8 @@ class LeaveCalculationService
                 'leave_type_name' => $policy->leaveType->name,
                 'policy_name' => $policy->name,
                 'entitled_days' => $this->calculateAnnualEntitlement($employee, $policy, $year),
-                'used_days' => $this->calculateUsedDays($employee, $leaveTypeId, $year),
-                'pending_days' => $this->calculatePendingDays($employee, $leaveTypeId, $year),
+                'used_days' => $usedDaysData[$leaveTypeId] ?? 0,
+                'pending_days' => $pendingDaysData[$leaveTypeId] ?? 0,
                 'remaining_days' => 0, // Will be calculated below
                 'carryover_days' => $this->calculateCarryoverDays($employee, $policy, $year),
                 'accrued_days' => $this->calculateAccruedDays($employee, $policy, $year),
@@ -57,48 +70,60 @@ class LeaveCalculationService
     }
 
     /**
+     * Batch load used days for multiple leave types
+     */
+    protected function batchLoadUsedDays(Employee $employee, array $leaveTypeIds, int $year): array
+    {
+        return LeaveApplication::where('employee_id', $employee->id)
+            ->whereIn('leave_type_id', $leaveTypeIds)
+            ->where('status', 'approved')
+            ->whereYear('start_date', $year)
+            ->select('leave_type_id', DB::raw('SUM(days_requested) as used_days'))
+            ->groupBy('leave_type_id')
+            ->pluck('used_days', 'leave_type_id')
+            ->toArray();
+    }
+
+    /**
+     * Batch load pending days for multiple leave types
+     */
+    protected function batchLoadPendingDays(Employee $employee, array $leaveTypeIds, int $year): array
+    {
+        return LeaveApplication::where('employee_id', $employee->id)
+            ->whereIn('leave_type_id', $leaveTypeIds)
+            ->where('status', 'pending')
+            ->whereYear('start_date', $year)
+            ->select('leave_type_id', DB::raw('SUM(days_requested) as pending_days'))
+            ->groupBy('leave_type_id')
+            ->pluck('pending_days', 'leave_type_id')
+            ->toArray();
+    }
+
+    /**
      * Calculate annual entitlement with pro-rating for first year
      */
     public function calculateAnnualEntitlement(Employee $employee, LeavePolicy $policy, int $year): float
     {
-        $baseEntitlement = $policy->max_days_per_year ?? 0;
-
-        // Check if this is the employee's first year and pro-rating is allowed
-        if ($policy->allow_prorated_first_year && $employee->date_hired) {
-            $hireYear = $employee->date_hired->year;
-            
-            if ($hireYear == $year) {
-                // Pro-rate based on months worked
-                $monthsWorked = 12 - $employee->date_hired->month + 1;
-                $baseEntitlement = ($baseEntitlement / 12) * $monthsWorked;
-            }
-        }
-
-        return round($baseEntitlement, 2);
+        $proRationCalculator = new ProRationCalculator();
+        return $proRationCalculator->calculateFirstYearEntitlement($employee, $policy, $year);
     }
 
     /**
      * Calculate used days for a specific leave type and year
+     * @deprecated Use batchLoadUsedDays() for multiple leave types
      */
     public function calculateUsedDays(Employee $employee, int $leaveTypeId, int $year): float
     {
-        return LeaveApplication::where('employee_id', $employee->id)
-            ->where('leave_type_id', $leaveTypeId)
-            ->where('status', 'approved')
-            ->whereYear('start_date', $year)
-            ->sum('days_requested') ?? 0;
+        return $this->batchLoadUsedDays($employee, [$leaveTypeId], $year)[$leaveTypeId] ?? 0;
     }
 
     /**
      * Calculate pending days for a specific leave type and year
+     * @deprecated Use batchLoadPendingDays() for multiple leave types
      */
     public function calculatePendingDays(Employee $employee, int $leaveTypeId, int $year): float
     {
-        return LeaveApplication::where('employee_id', $employee->id)
-            ->where('leave_type_id', $leaveTypeId)
-            ->where('status', 'pending')
-            ->whereYear('start_date', $year)
-            ->sum('days_requested') ?? 0;
+        return $this->batchLoadPendingDays($employee, [$leaveTypeId], $year)[$leaveTypeId] ?? 0;
     }
 
     /**

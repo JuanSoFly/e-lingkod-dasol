@@ -47,7 +47,7 @@ class MFOHierarchyService
     /**
      * Create a single MFO
      */
-    private function createMFO(Office $office, array $data): MajorFinalOutput
+    public function createMFO(Office $office, array $data): MajorFinalOutput
     {
         return MajorFinalOutput::create([
             'code' => $data['code'],
@@ -93,7 +93,7 @@ class MFOHierarchyService
                 'code' => $indicatorData['code'],
                 'title' => $indicatorData['title'],
                 'description' => $indicatorData['description'] ?? null,
-                'target_quantity' => $indicatorData['target_quantity'] ?? null,
+                'target_quality' => $indicatorData['target_quality'] ?? null,
                 'target_efficiency' => $indicatorData['target_efficiency'] ?? null,
                 'target_timeliness' => $indicatorData['target_timeliness'] ?? null,
                 'created_by' => auth()->id(),
@@ -153,10 +153,10 @@ class MFOHierarchyService
                         'code' => $si->code,
                         'title' => $si->title,
                         'description' => $si->description,
-                        'target_quantity' => $si->target_quantity,
+                        'target_quality' => $si->target_quality,
                         'target_efficiency' => $si->target_efficiency,
                         'target_timeliness' => $si->target_timeliness,
-                        'accomplished_quantity' => $si->accomplished_quantity,
+                        'accomplished_quality' => $si->accomplished_quality,
                         'accomplished_efficiency' => $si->accomplished_efficiency,
                         'accomplished_timeliness' => $si->accomplished_timeliness,
                         'average_rating' => $si->average_rating,

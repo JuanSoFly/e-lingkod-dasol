@@ -19,7 +19,6 @@ Thumbs.db
 /.claude
 /.github
 /security-implementation
-/PRPs
 /screenshots
 /sessions
 PDS.md
@@ -34,7 +33,7 @@ DEBUG.md
 /.specify
 /storage
 /leave-management-tasks
-/markdown/
+/markdown-deprecated/
 /OPCR/
 /openspec/
 AGENTS.md
@@ -67,3 +66,13 @@ CLAUDE.md
 weekends.md
 opcrIpcr
 .env
+.agent
+opcr
+PRPs
+debug_auth.php
+mysql_redis_server.md
+nixpacks.toml.backupss
+config\database.php
+config\filesystems.php
+config\mail.php
+config\redis.php

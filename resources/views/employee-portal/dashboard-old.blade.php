@@ -41,7 +41,7 @@
                            class="group relative bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-blue-200">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0">
-                                    <i class="fas fa-calendar-alt text-blue-600 text-2xl"></i>
+                                    <i class="fas fa-calendar-check text-blue-600 text-2xl"></i>
                                 </div>
                                 <div class="ml-3">
                                     <h3 class="text-sm font-medium text-blue-900 group-hover:text-blue-800">Leave Dashboard</h3>
@@ -55,7 +55,7 @@
                                class="group relative bg-gradient-to-r from-emerald-50 to-emerald-100 hover:from-emerald-100 hover:to-emerald-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-emerald-200">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0">
-                                        <i class="fas fa-file-alt text-emerald-600 text-2xl"></i>
+                                        <i class="fas fa-file-contract text-emerald-600 text-2xl"></i>
                                     </div>
                                     <div class="ml-3">
                                         <h3 class="text-sm font-medium text-emerald-900 group-hover:text-emerald-800">Request Documents</h3>
@@ -69,7 +69,7 @@
                            class="group relative bg-gradient-to-r from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-amber-200">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0">
-                                    <i class="fas fa-id-card text-amber-600 text-2xl"></i>
+                                    <i class="fas fa-user-cog text-amber-600 text-2xl"></i>
                                 </div>
                                 <div class="ml-3">
                                     <h3 class="text-sm font-medium text-amber-900 group-hover:text-amber-800">Update Personal Data Sheet</h3>
@@ -82,7 +82,7 @@
                            class="group relative bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-purple-200">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0">
-                                    <i class="fas fa-history text-purple-600 text-2xl"></i>
+                                    <i class="fas fa-scroll text-purple-600 text-2xl"></i>
                                 </div>
                                 <div class="ml-3">
                                     <h3 class="text-sm font-medium text-purple-900 group-hover:text-purple-800">View Service Record</h3>
@@ -92,14 +92,14 @@
                         </a>
 
                         <a href="{{ route('employee-portal.my-201-file') }}"
-                           class="group relative bg-gradient-to-r from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-indigo-200">
+                           class="group relative bg-gradient-to-r from-rose-50 to-rose-100 hover:from-rose-100 hover:to-rose-200 rounded-lg p-6 transition-all duration-200 hover:shadow-md border border-rose-200">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0">
-                                    <i class="fas fa-folder-open text-indigo-600 text-2xl"></i>
+                                    <i class="fas fa-folder text-rose-600 text-2xl"></i>
                                 </div>
                                 <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-indigo-900 group-hover:text-indigo-800">View 201 File</h3>
-                                    <p class="text-xs text-indigo-700 mt-1">Complete employee record</p>
+                                    <h3 class="text-sm font-medium text-rose-900 group-hover:text-rose-800">View 201 File</h3>
+                                    <p class="text-xs text-rose-700 mt-1">Complete employee record</p>
                                 </div>
                             </div>
                         </a>

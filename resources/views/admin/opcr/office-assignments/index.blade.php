@@ -198,7 +198,7 @@
                                             {{ $assignment->assignedBy->employee->full_name ?? $assignment->assignedBy->name }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {{ $assignment->assigned_at->format('M d, Y') }}
+                                            {{ optional($assignment->assigned_date)->format('M d, Y') ?? '—' }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $assignment->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">

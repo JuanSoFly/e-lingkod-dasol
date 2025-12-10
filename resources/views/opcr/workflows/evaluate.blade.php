@@ -54,7 +54,7 @@
                             <h4 class="text-sm font-medium text-blue-900 mb-2">Evaluation Instructions</h4>
                             <ul class="text-sm text-blue-800 space-y-1">
                                 <li>• Review each target's accomplishments against the set targets</li>
-                                <li>• Rate each QET component (Quantity, Efficiency, Timeliness) on a scale of 1-5</li>
+                                <li>• Rate each QET component (Quality, Efficiency, Timeliness) on a scale of 1-5</li>
                                 <li>• Provide constructive remarks for each rating</li>
                                 <li>• The system will automatically calculate the average and adjectival rating</li>
                                 <li>• Rating Scale: 5 = Outstanding, 4 = Very Satisfactory, 3 = Satisfactory, 2 = Unsatisfactory, 1 = Poor</li>
@@ -70,9 +70,9 @@
                                     $existingRating = $target->ratings->first();
                                     $oldEvaluation = old('evaluations.'.$target->id, []);
 
-                                    $resolvedAccomplishedQuantity = $oldEvaluation['accomplished_quantity']
-                                        ?? $target->accomplished_quantity
-                                        ?? $target->successIndicator->accomplished_quantity;
+                                    $resolvedAccomplishedQuality = $oldEvaluation['accomplished_quality']
+                                        ?? $target->accomplished_quality
+                                        ?? $target->successIndicator->accomplished_quality;
 
                                     $resolvedAccomplishedEfficiency = $oldEvaluation['accomplished_efficiency']
                                         ?? $target->accomplished_efficiency
@@ -82,8 +82,8 @@
                                         ?? $target->accomplished_timeliness
                                         ?? $target->successIndicator->accomplished_timeliness;
 
-                                    $quantityRatingValue = $oldEvaluation['quantity_rating']
-                                        ?? $existingRating?->rating_quantity;
+                                    $qualityRatingValue = $oldEvaluation['quality_rating']
+                                        ?? $existingRating?->rating_quality;
 
                                     $efficiencyRatingValue = $oldEvaluation['efficiency_rating']
                                         ?? $existingRating?->rating_efficiency;
@@ -111,18 +111,18 @@
 
                                     <!-- Target vs Accomplishment Comparison -->
                                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                                        <!-- Quantity Comparison -->
+                                        <!-- Quality Comparison -->
                                         <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                            <h5 class="text-sm font-medium text-gray-900 mb-3">Quantity</h5>
+                                            <h5 class="text-sm font-medium text-gray-900 mb-3">Quality</h5>
                                             <div class="space-y-2">
                                                 <div class="flex justify-between">
                                                     <span class="text-sm text-gray-600">Target:</span>
-                                                    <span class="text-sm font-medium">{{ $target->target_quantity ?? 'Not Set' }}</span>
+                                                    <span class="text-sm font-medium">{{ $target->target_quality ?? 'Not Set' }}</span>
                                                 </div>
                                                 <div class="flex justify-between">
                                                     <span class="text-sm text-gray-600">Accomplished:</span>
                                                     <span class="text-sm font-medium {{ $resolvedTargetMet ? 'text-green-600' : 'text-red-600' }}">
-                                                        {{ $resolvedAccomplishedQuantity ?? 'Not Reported' }}
+                                                        {{ $resolvedAccomplishedQuality ?? 'Not Reported' }}
                                                     </span>
                                                 </div>
                                                 @if(!is_null($resolvedPerformancePercentage))
@@ -169,21 +169,21 @@
 
                                     <!-- Accomplished Values Input -->
                                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                                        <!-- Accomplished Quantity -->
+                                        <!-- Accomplished Quality -->
                                         <div>
-                                            <x-input-label for="accomplished_quantity_{{ $index }}" value="Accomplished Quantity" />
+                                            <x-input-label for="accomplished_quality_{{ $index }}" value="Accomplished Quality" />
                                             <input
                                                 type="number"
-                                                id="accomplished_quantity_{{ $index }}"
-                                                name="evaluations[{{ $target->id }}][accomplished_quantity]"
+                                                id="accomplished_quality_{{ $index }}"
+                                                name="evaluations[{{ $target->id }}][accomplished_quality]"
                                                 step="0.01"
                                                 min="0"
                                                 class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-                                                placeholder="{{ $target->target_quantity }}"
-                                                value="{{ is_null($resolvedAccomplishedQuantity) ? '' : $resolvedAccomplishedQuantity }}"
+                                                placeholder="{{ $target->target_quality }}"
+                                                value="{{ is_null($resolvedAccomplishedQuality) ? '' : $resolvedAccomplishedQuality }}"
                                                 required
                                             >
-                                            <x-input-error :messages="$errors->get('evaluations.'.$target->id.'.accomplished_quantity')" class="mt-2" />
+                                            <x-input-error :messages="$errors->get('evaluations.'.$target->id.'.accomplished_quality')" class="mt-2" />
                                         </div>
 
                                         <!-- Accomplished Efficiency -->
@@ -219,18 +219,18 @@
 
                                     <!-- QET Rating Inputs -->
                                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                                        <!-- Quantity Rating -->
+                                        <!-- Quality Rating -->
                                         <div>
-                                            <x-input-label for="rating_quantity_{{ $index }}" value="Quantity Rating (1-5)" />
-                                            <select id="rating_quantity_{{ $index }}" name="evaluations[{{ $target->id }}][quantity_rating]" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+                                            <x-input-label for="rating_quality_{{ $index }}" value="Quality Rating (1-5)" />
+                                            <select id="rating_quality_{{ $index }}" name="evaluations[{{ $target->id }}][quality_rating]" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
                                                 <option value="">Select Rating</option>
-                                                <option value="5" {{ (string)$quantityRatingValue === '5' ? 'selected' : '' }}>5 - Outstanding</option>
-                                                <option value="4" {{ (string)$quantityRatingValue === '4' ? 'selected' : '' }}>4 - Very Satisfactory</option>
-                                                <option value="3" {{ (string)$quantityRatingValue === '3' ? 'selected' : '' }}>3 - Satisfactory</option>
-                                                <option value="2" {{ (string)$quantityRatingValue === '2' ? 'selected' : '' }}>2 - Unsatisfactory</option>
-                                                <option value="1" {{ (string)$quantityRatingValue === '1' ? 'selected' : '' }}>1 - Poor</option>
+                                                <option value="5" {{ (string)$qualityRatingValue === '5' ? 'selected' : '' }}>5 - Outstanding</option>
+                                                <option value="4" {{ (string)$qualityRatingValue === '4' ? 'selected' : '' }}>4 - Very Satisfactory</option>
+                                                <option value="3" {{ (string)$qualityRatingValue === '3' ? 'selected' : '' }}>3 - Satisfactory</option>
+                                                <option value="2" {{ (string)$qualityRatingValue === '2' ? 'selected' : '' }}>2 - Unsatisfactory</option>
+                                                <option value="1" {{ (string)$qualityRatingValue === '1' ? 'selected' : '' }}>1 - Poor</option>
                                             </select>
-                                            <x-input-error :messages="$errors->get('evaluations.'.$target->id.'.quantity_rating')" class="mt-2" />
+                                            <x-input-error :messages="$errors->get('evaluations.'.$target->id.'.quality_rating')" class="mt-2" />
                                         </div>
 
                                         <!-- Efficiency Rating -->
@@ -278,8 +278,8 @@
                                                 <div class="text-xs text-gray-600">Adjectival Rating</div>
                                             </div>
                                             <div class="text-center">
-                                                <div class="text-lg font-medium text-indigo-600" id="quantity-rating-display-{{ $index }}">--</div>
-                                                <div class="text-xs text-gray-600">Quantity</div>
+                                                <div class="text-lg font-medium text-indigo-600" id="quality-rating-display-{{ $index }}">--</div>
+                                                <div class="text-xs text-gray-600">Quality</div>
                                             </div>
                                             <div class="text-center">
                                                 <div class="text-lg font-medium text-indigo-600" id="qet-summary-{{ $index }}">--</div>
@@ -401,12 +401,12 @@
 
             // Rating calculation function
             function calculateRating(targetIndex) {
-                const quantityRating = document.getElementById(`rating_quantity_${targetIndex}`);
+                const qualityRating = document.getElementById(`rating_quality_${targetIndex}`);
                 const efficiencyRating = document.getElementById(`rating_efficiency_${targetIndex}`);
                 const timelinessRating = document.getElementById(`rating_timeliness_${targetIndex}`);
 
-                if (quantityRating.value && efficiencyRating.value && timelinessRating.value) {
-                    const q = parseFloat(quantityRating.value);
+                if (qualityRating.value && efficiencyRating.value && timelinessRating.value) {
+                    const q = parseFloat(qualityRating.value);
                     const e = parseFloat(efficiencyRating.value);
                     const t = parseFloat(timelinessRating.value);
 
@@ -423,7 +423,7 @@
                     // Update display
                     document.getElementById(`average-rating-${targetIndex}`).textContent = average;
                     document.getElementById(`adjectival-rating-${targetIndex}`).textContent = adjectival;
-                    document.getElementById(`quantity-rating-display-${targetIndex}`).textContent = `${q}/5`;
+                    document.getElementById(`quality-rating-display-${targetIndex}`).textContent = `${q}/5`;
                     document.getElementById(`qet-summary-${targetIndex}`).textContent = `Q:${q} E:${e} T:${t}`;
 
                     // Update color based on rating
@@ -439,7 +439,7 @@
                     // Reset display
                     document.getElementById(`average-rating-${targetIndex}`).textContent = '--';
                     document.getElementById(`adjectival-rating-${targetIndex}`).textContent = '--';
-                    document.getElementById(`quantity-rating-display-${targetIndex}`).textContent = '--';
+                    document.getElementById(`quality-rating-display-${targetIndex}`).textContent = '--';
                     document.getElementById(`qet-summary-${targetIndex}`).textContent = '--';
 
                     const ratingDisplay = document.getElementById(`rating-display-${targetIndex}`);
@@ -450,11 +450,11 @@
 
             // Setup event listeners for all rating inputs
             for (let i = 0; i < targets; i++) {
-                const quantityRating = document.getElementById(`rating_quantity_${i}`);
+                const qualityRating = document.getElementById(`rating_quality_${i}`);
                 const efficiencyRating = document.getElementById(`rating_efficiency_${i}`);
                 const timelinessRating = document.getElementById(`rating_timeliness_${i}`);
 
-                if (quantityRating) quantityRating.addEventListener('change', () => calculateRating(i));
+                if (qualityRating) qualityRating.addEventListener('change', () => calculateRating(i));
                 if (efficiencyRating) efficiencyRating.addEventListener('change', () => calculateRating(i));
                 if (timelinessRating) timelinessRating.addEventListener('change', () => calculateRating(i));
 
@@ -527,26 +527,26 @@
                 let missingFields = [];
 
                 for (let i = 0; i < targets; i++) {
-                    const quantityRating = document.getElementById(`rating_quantity_${i}`);
+                    const qualityRating = document.getElementById(`rating_quality_${i}`);
                     const efficiencyRating = document.getElementById(`rating_efficiency_${i}`);
                     const timelinessRating = document.getElementById(`rating_timeliness_${i}`);
-                    const accomplishedQuantity = document.getElementById(`accomplished_quantity_${i}`);
+                    const accomplishedQuality = document.getElementById(`accomplished_quality_${i}`);
                     const accomplishedEfficiency = document.getElementById(`accomplished_efficiency_${i}`);
                     const accomplishedTimeliness = document.getElementById(`accomplished_timeliness_${i}`);
 
                     console.log(`Target ${i} field check:`, {
-                        quantityRating: quantityRating?.value,
+                        qualityRating: qualityRating?.value,
                         efficiencyRating: efficiencyRating?.value,
                         timelinessRating: timelinessRating?.value,
-                        accomplishedQuantity: accomplishedQuantity?.value,
+                        accomplishedQuality: accomplishedQuality?.value,
                         accomplishedEfficiency: accomplishedEfficiency?.value,
                         accomplishedTimeliness: accomplishedTimeliness?.value,
                     });
 
-                    if (!quantityRating || !quantityRating.value ||
+                    if (!qualityRating || !qualityRating.value ||
                         !efficiencyRating || !efficiencyRating.value ||
                         !timelinessRating || !timelinessRating.value ||
-                        !accomplishedQuantity || !accomplishedQuantity.value ||
+                        !accomplishedQuality || !accomplishedQuality.value ||
                         !accomplishedEfficiency || !accomplishedEfficiency.value ||
                         !accomplishedTimeliness || !accomplishedTimeliness.value) {
                         allRated = false;
@@ -559,7 +559,7 @@
 
                 if (!allRated) {
                     e.preventDefault();
-                    alert('Please provide ratings and accomplished values for all QET components (Quantity, Efficiency, Timeliness) for each target. Missing: ' + missingFields.join(', '));
+                    alert('Please provide ratings and accomplished values for all QET components (Quality, Efficiency, Timeliness) for each target. Missing: ' + missingFields.join(', '));
                     return false;
                 }
 

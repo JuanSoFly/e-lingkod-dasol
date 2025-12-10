@@ -122,18 +122,14 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td class="border border-gray-300 px-4 py-2 font-medium">Vacation Leave</td>
-                        <td class="border border-gray-300 px-4 py-2 text-center">15.00</td>
-                        <td class="border border-gray-300 px-4 py-2 text-center">{{ number_format(15 - $currentBalances['vl_balance'], 2) }}</td>
-                        <td class="border border-gray-300 px-4 py-2 text-center font-semibold">{{ number_format($currentBalances['vl_balance'], 2) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="border border-gray-300 px-4 py-2 font-medium">Sick Leave</td>
-                        <td class="border border-gray-300 px-4 py-2 text-center">15.00</td>
-                        <td class="border border-gray-300 px-4 py-2 text-center">{{ number_format(15 - $currentBalances['sl_balance'], 2) }}</td>
-                        <td class="border border-gray-300 px-4 py-2 text-center font-semibold">{{ number_format($currentBalances['sl_balance'], 2) }}</td>
-                    </tr>
+                    @foreach($summary as $row)
+                        <tr>
+                            <td class="border border-gray-300 px-4 py-2 font-medium">{{ $row['name'] }} ({{ $row['code'] }})</td>
+                            <td class="border border-gray-300 px-4 py-2 text-center">{{ number_format($row['earned'], 2) }}</td>
+                            <td class="border border-gray-300 px-4 py-2 text-center">{{ number_format($row['used'], 2) }}</td>
+                            <td class="border border-gray-300 px-4 py-2 text-center font-semibold">{{ number_format($row['balance'], 2) }}</td>
+                        </tr>
+                    @endforeach
                 </tbody>
             </table>
 

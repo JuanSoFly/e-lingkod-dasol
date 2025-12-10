@@ -134,6 +134,27 @@ class OfficeAssignment extends Model
     }
 
     /**
+     * Scope assignments to those whose linked user/employee records remain active
+     */
+    public function scopeWithoutArchivedPersonnel($query)
+    {
+        return $query
+            ->where(function ($relationQuery) {
+                $relationQuery->whereNull('user_id')
+                    ->orWhereHas('user', function ($userQuery) {
+                        $userQuery->whereNull('deleted_at');
+                    });
+            })
+            ->where(function ($relationQuery) {
+                $relationQuery->whereNull('employee_id')
+                    ->orWhereHas('employee', function ($employeeQuery) {
+                        $employeeQuery->whereNull('deleted_at')
+                            ->whereNull('archived_at');
+                    });
+            });
+    }
+
+    /**
      * Check if this assignment has complete data
      */
     public function hasCompleteData(): bool

@@ -12,6 +12,7 @@ use App\Models\EmployeeEducation;
 use App\Models\User;
 use App\Exports\AuditTrailExport;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -100,7 +101,7 @@ class AuditTrailService
                 'si_code' => $successIndicator->code,
                 'si_title' => $successIndicator->title,
                 'ratings_before' => [
-                    'quantity' => $successIndicator->rating_quantity,
+                    'quality' => $successIndicator->rating_quality,
                     'efficiency' => $successIndicator->rating_efficiency,
                     'timeliness' => $successIndicator->rating_timeliness,
                     'average' => $successIndicator->average_rating,
@@ -192,7 +193,7 @@ class AuditTrailService
                 'old_ratings' => $oldRatings,
                 'new_ratings' => $newRatings,
                 'rating_differences' => [
-                    'quantity_change' => ($newRatings['rating_quantity'] ?? null) - ($oldRatings['rating_quantity'] ?? null),
+                    'quality_change' => ($newRatings['rating_quality'] ?? null) - ($oldRatings['rating_quality'] ?? null),
                     'efficiency_change' => ($newRatings['rating_efficiency'] ?? null) - ($oldRatings['rating_efficiency'] ?? null),
                     'timeliness_change' => ($newRatings['rating_timeliness'] ?? null) - ($oldRatings['rating_timeliness'] ?? null),
                     'average_change' => ($newRatings['average_rating'] ?? null) - ($oldRatings['average_rating'] ?? null),
@@ -510,59 +511,36 @@ class AuditTrailService
      */
     public function getDashboardAuditStatistics(array $filters = []): array
     {
-        $query = Activity::with(['causer']);
-
-        // Apply filters if provided
-        if (!empty($filters['date_from'])) {
-            $query->where('created_at', '>=', $filters['date_from']);
-        }
-        if (!empty($filters['date_to'])) {
-            $query->where('created_at', '<=', $filters['date_to'] . ' 23:59:59');
-        }
-        if (!empty($filters['office_id'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->whereJsonContains('properties->office_id', $filters['office_id'])
-                  ->orWhereHas('causer', function ($userQuery) use ($filters) {
-                      $userQuery->whereHas('officeAssignments', function ($officeQuery) use ($filters) {
-                          $officeQuery->where('office_id', $filters['office_id']);
-                      });
-                  });
-            });
-        }
+        $baseQuery = Activity::query();
+        $this->applyAuditFilters($baseQuery, $filters);
 
         // Total activities
-        $totalActivities = $query->count();
+        $totalActivities = (clone $baseQuery)->count();
 
         // Today's activities
-        $todayActivities = $query->whereDate('created_at', today())->count();
+        $todayActivities = (clone $baseQuery)
+            ->whereDate('created_at', today())
+            ->count();
 
         // This week's activities
-        $thisWeekActivities = $query->whereBetween('created_at', [
-            now()->startOfWeek(),
-            now()->endOfWeek()
-        ])->count();
+        $thisWeekActivities = (clone $baseQuery)
+            ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
+            ->count();
 
         // This month's activities
-        $thisMonthActivities = $query->whereMonth('created_at', now()->month)
+        $thisMonthActivities = (clone $baseQuery)
+            ->whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
             ->count();
 
         // Unique users
-        $uniqueUsers = $query->whereNotNull('causer_id')
-            ->distinct('causer_id')
-            ->count();
+        $uniqueUsers = (clone $baseQuery)
+            ->whereNotNull('causer_id')
+            ->distinct()
+            ->count('causer_id');
 
         // Top action types (for the chart section)
-        $topActionTypes = Activity::selectRaw("JSON_EXTRACT(properties, '$.action_type') as action_type, COUNT(*) as count")
-            ->whereRaw("JSON_EXTRACT(properties, '$.action_type') IS NOT NULL")
-            ->groupBy('action_type')
-            ->orderBy('count', 'desc')
-            ->limit(5)
-            ->get()
-            ->map(function ($item) {
-                $item->action_type = json_decode($item->action_type);
-                return $item;
-            });
+        $topActionTypes = $this->calculateTopActionTypes($filters);
 
         return [
             'total_activities' => $totalActivities,
@@ -837,7 +815,67 @@ class AuditTrailService
         $query = Activity::with(['causer', 'subject'])
             ->orderBy('created_at', 'desc');
 
-        // Apply filters
+        $this->applyAuditFilters($query, $filters);
+
+        $results = $paginate ? $query->paginate($filters['per_page'] ?? 25) : $query->get();
+
+        // Normalize action_type for legacy entries
+        $collection = $paginate ? $results->getCollection() : $results;
+        $collection->transform(function ($activity) {
+            if (!isset($activity->properties['action_type'])) {
+                // Set default action_type based on existing properties or description
+                $properties = $activity->properties;
+                $properties['action_type'] = $this->inferActionType($activity);
+                $activity->properties = $properties;
+            }
+            return $activity;
+        });
+
+        if ($paginate) {
+            $results->setCollection($collection);
+        } else {
+            $results = $collection;
+        }
+
+        return $results;
+    }
+
+    private function calculateTopActionTypes(array $filters): Collection
+    {
+        $counts = [];
+
+        $query = Activity::query()
+            ->select(['id', 'description', 'subject_type', 'properties'])
+            ->orderBy('id');
+
+        $this->applyAuditFilters($query, $filters);
+
+        $query->chunkById(500, function ($activities) use (&$counts) {
+            foreach ($activities as $activity) {
+                $properties = $activity->properties ?? [];
+                $actionType = $properties['action_type'] ?? null;
+
+                if (empty($actionType)) {
+                    $actionType = $this->inferActionType($activity);
+                }
+
+                $actionType = $actionType ?: 'system';
+                $counts[$actionType] = ($counts[$actionType] ?? 0) + 1;
+            }
+        });
+
+        return collect($counts)
+            ->map(fn ($count, $actionType) => (object) [
+                'action_type' => $actionType,
+                'count' => $count,
+            ])
+            ->sortByDesc('count')
+            ->values()
+            ->take(5);
+    }
+
+    private function applyAuditFilters(Builder $query, array $filters): Builder
+    {
         if (!empty($filters['date_from'])) {
             $query->where('created_at', '>=', $filters['date_from']);
         }
@@ -873,27 +911,7 @@ class AuditTrailService
             });
         }
 
-        $results = $paginate ? $query->paginate($filters['per_page'] ?? 25) : $query->get();
-
-        // Normalize action_type for legacy entries
-        $collection = $paginate ? $results->getCollection() : $results;
-        $collection->transform(function ($activity) {
-            if (!isset($activity->properties['action_type'])) {
-                // Set default action_type based on existing properties or description
-                $properties = $activity->properties;
-                $properties['action_type'] = $this->inferActionType($activity);
-                $activity->properties = $properties;
-            }
-            return $activity;
-        });
-
-        if ($paginate) {
-            $results->setCollection($collection);
-        } else {
-            $results = $collection;
-        }
-
-        return $results;
+        return $query;
     }
 
     /**

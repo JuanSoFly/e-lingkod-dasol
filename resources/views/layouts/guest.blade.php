@@ -24,7 +24,7 @@
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0" style="background-image: image-set(url('/images/background/salt-making-process.webp') type('image/webp'), url('/images/background/salt-making-process.jpeg') type('image/jpeg')); background-size: cover; background-position: center; background-attachment: scroll;">
             <div>
                 <a href="/">
-                    <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
+                    <x-application-logo class="w-60 h-50 fill-current text-gray-500" />
                 </a>
             </div>
 

@@ -17,13 +17,13 @@ return new class extends Migration
             $table->string('code', 50); // SI code like SI-001
             $table->string('title'); // Success Indicator title
             $table->text('description')->nullable(); // Description
-            $table->decimal('target_quantity', 10, 2)->nullable(); // Target quantity
+            $table->decimal('target_quality', 10, 2)->nullable(); // Target quality
             $table->string('target_efficiency', 100)->nullable(); // Target efficiency (e.g., "100%", "Excellent")
             $table->string('target_timeliness', 100)->nullable(); // Target timeliness (e.g., "On time", "Within deadline")
-            $table->decimal('accomplished_quantity', 10, 2)->nullable(); // Accomplished quantity
+            $table->decimal('accomplished_quality', 10, 2)->nullable(); // Accomplished quality
             $table->string('accomplished_efficiency', 100)->nullable(); // Accomplished efficiency
             $table->string('accomplished_timeliness', 100)->nullable(); // Accomplished timeliness
-            $table->integer('rating_quantity')->nullable(); // QET rating (1-5)
+            $table->integer('rating_quality')->nullable(); // QET rating (1-5)
             $table->integer('rating_efficiency')->nullable(); // EET rating (1-5)
             $table->integer('rating_timeliness')->nullable(); // TET rating (1-5)
             $table->decimal('average_rating', 3, 2)->nullable(); // Average QET rating

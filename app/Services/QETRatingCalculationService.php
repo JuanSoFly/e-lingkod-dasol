@@ -25,9 +25,9 @@ class QETRatingCalculationService
         }
 
         $ratings = [
-            'quantity_rating' => $this->calculateQuantityRating(
-                $indicator->target_quantity,
-                $accomplishments['quantity'] ?? null,
+            'quality_rating' => $this->calculateQualityRating(
+                $indicator->target_quality,
+                $accomplishments['quality'] ?? null,
                 $ratingScale
             ),
             'efficiency_rating' => $this->calculateEfficiencyRating(
@@ -56,9 +56,9 @@ class QETRatingCalculationService
     }
 
     /**
-     * Calculate quantity rating (1-5 scale)
+     * Calculate quality rating (1-5 scale)
      */
-    private function calculateQuantityRating(?float $target, ?float $accomplished, RatingScale $ratingScale): int
+    private function calculateQualityRating(?float $target, ?float $accomplished, RatingScale $ratingScale): int
     {
         if (!$target || $target <= 0) {
             return 3; // Default to satisfactory if no target
@@ -236,10 +236,10 @@ class QETRatingCalculationService
 
         // Update the rating record
         $rating->update([
-            'accomplished_quantity' => $accomplishments['quantity'] ?? null,
+            'accomplished_quality' => $accomplishments['quality'] ?? null,
             'accomplished_efficiency' => $accomplishments['efficiency'] ?? null,
             'accomplished_timeliness' => $accomplishments['timeliness'] ?? null,
-            'rating_quantity' => $qetRatings['ratings']['quantity_rating'],
+            'rating_quality' => $qetRatings['ratings']['quality_rating'],
             'rating_efficiency' => $qetRatings['ratings']['efficiency_rating'],
             'rating_timeliness' => $qetRatings['ratings']['timeliness_rating'],
             'average_qet_rating' => $qetRatings['average_rating'],
@@ -249,10 +249,10 @@ class QETRatingCalculationService
 
         // Also update the success indicator
         $indicator->update([
-            'accomplished_quantity' => $accomplishments['quantity'] ?? null,
+            'accomplished_quality' => $accomplishments['quality'] ?? null,
             'accomplished_efficiency' => $accomplishments['efficiency'] ?? null,
             'accomplished_timeliness' => $accomplishments['timeliness'] ?? null,
-            'rating_quantity' => $qetRatings['ratings']['quantity_rating'],
+            'rating_quality' => $qetRatings['ratings']['quality_rating'],
             'rating_efficiency' => $qetRatings['ratings']['efficiency_rating'],
             'rating_timeliness' => $qetRatings['ratings']['timeliness_rating'],
             'average_rating' => $qetRatings['average_rating'],
@@ -262,7 +262,7 @@ class QETRatingCalculationService
         return $rating;
     }
 
-    
+
     /**
      * Calculate overall OPCR rating from multiple success indicators
      */
@@ -310,7 +310,7 @@ class QETRatingCalculationService
             'rated_indicators' => $count,
             'rating_distribution' => $ratingDistribution->toArray(),
             'qet_averages' => [
-                'quantity' => round($ratings->avg('rating_quantity'), 2),
+                'quality' => round($ratings->avg('rating_quality'), 2),
                 'efficiency' => round($ratings->avg('rating_efficiency'), 2),
                 'timeliness' => round($ratings->avg('rating_timeliness'), 2),
             ],
@@ -325,8 +325,8 @@ class QETRatingCalculationService
     {
         $errors = [];
 
-        if (isset($accomplishments['quantity']) && !is_numeric($accomplishments['quantity'])) {
-            $errors['quantity'] = 'Quantity must be a valid number';
+        if (isset($accomplishments['quality']) && !is_numeric($accomplishments['quality'])) {
+            $errors['quality'] = 'Quality must be a valid number';
         }
 
         if (isset($accomplishments['efficiency']) && !is_string($accomplishments['efficiency'])) {
@@ -356,7 +356,7 @@ class QETRatingCalculationService
     {
         $ratingScale = $ratingScale ?? $this->getDefaultRatingScale();
         return $ratingScale ? $ratingScale->getQETWeights() : [
-            'quantity' => 0.4,
+            'quality' => 0.4,
             'efficiency' => 0.3,
             'timeliness' => 0.3,
         ];
@@ -373,13 +373,13 @@ class QETRatingCalculationService
                 'mfo_title' => $si->mfo->title ?? 'N/A',
                 'si_code' => $si->code,
                 'si_title' => $si->title,
-                'target_quantity' => $si->target_quantity,
+                'target_quality' => $si->target_quality,
                 'target_efficiency' => $si->target_efficiency,
                 'target_timeliness' => $si->target_timeliness,
-                'accomplished_quantity' => $si->accomplished_quantity,
+                'accomplished_quality' => $si->accomplished_quality,
                 'accomplished_efficiency' => $si->accomplished_efficiency,
                 'accomplished_timeliness' => $si->accomplished_timeliness,
-                'quantity_rating' => $si->rating_quantity,
+                'quality_rating' => $si->rating_quality,
                 'efficiency_rating' => $si->rating_efficiency,
                 'timeliness_rating' => $si->rating_timeliness,
                 'average_rating' => $si->average_rating,

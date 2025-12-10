@@ -10,6 +10,7 @@ use App\Models\LeaveApplication;
 use App\Models\User;
 use App\Models\Employee;
 use App\Models\LeaveApprovalDelegate;
+use App\Models\OfficeAssignment;
 
 class LeaveWorkflowStep extends Model
 {
@@ -24,12 +25,16 @@ class LeaveWorkflowStep extends Model
         'required_all',
         'escalation_hours',
         'escalation_to',
+        'sla_working_days',
+        'is_recommendation',
     ];
 
     protected $casts = [
         'approvers' => 'array',
         'escalation_to' => 'array',
         'required_all' => 'boolean',
+        'sla_working_days' => 'integer',
+        'is_recommendation' => 'boolean',
     ];
 
     public function workflow(): BelongsTo
@@ -112,6 +117,13 @@ class LeaveWorkflowStep extends Model
                 return $this->getHRAdmins();
             case 'direct_supervisor':
                 return $this->getDirectSupervisor($application->employee);
+            case 'final_approver':
+                return $this->getFinalApprover($application);
+            case 'super_admin':
+                return $this->getSuperAdmins();
+            case 'lce':
+            case 'local_chief_executive':
+                return $this->getLocalChiefExecutive();
             default:
                 return [];
         }
@@ -166,7 +178,15 @@ class LeaveWorkflowStep extends Model
      */
     private function getHRAdmins(): array
     {
-        return User::role('hr_admin')->get()->all();
+        return User::role('HR Admin')->get()->all();
+    }
+
+    /**
+     * Get Super Admin users
+     */
+    private function getSuperAdmins(): array
+    {
+        return User::role('Super Admin')->get()->all();
     }
 
     /**
@@ -174,9 +194,38 @@ class LeaveWorkflowStep extends Model
      */
     private function getDirectSupervisor(Employee $employee): array
     {
-        // Implementation depends on your organizational structure
-        $supervisor = $employee->supervisor;
-        return $supervisor ? [$supervisor->user] : [];
+        // Prefer an active office assignment tagged as Supervisor for the employee's office
+        $officeId = $employee->office_id;
+
+        if ($officeId) {
+            $supervisorAssignment = OfficeAssignment::query()
+                ->current()
+                ->forOffice($officeId)
+                ->byRole(OfficeAssignment::ROLE_SUPERVISOR)
+                ->with('user')
+                ->first();
+
+            if ($supervisorAssignment && $supervisorAssignment->user && $this->isUserAvailable($supervisorAssignment->user)) {
+                return [$supervisorAssignment->user];
+            }
+        }
+
+        // Fallback: any active Supervisor assignment within the employee's department
+        $departmentSupervisor = OfficeAssignment::query()
+            ->current()
+            ->byRole(OfficeAssignment::ROLE_SUPERVISOR)
+            ->whereHas('employee', function ($query) use ($employee) {
+                $query->where('department', $employee->department);
+            })
+            ->with('user')
+            ->first();
+
+        if ($departmentSupervisor && $departmentSupervisor->user && $this->isUserAvailable($departmentSupervisor->user)) {
+            return [$departmentSupervisor->user];
+        }
+
+        // Final fallback: use department head to avoid blocking workflow
+        return $this->getDepartmentHead($employee);
     }
 
     /**
@@ -198,8 +247,68 @@ class LeaveWorkflowStep extends Model
                         ->orWhere('position', 'like', '%manager%')
                         ->orWhere('position', 'like', '%director%');
                 })->first();
+            case 'local_chief_executive':
+            case 'lce':
+                $lces = $this->getLocalChiefExecutive();
+                return $lces ? $lces[0] : null;
             default:
                 return null;
         }
+    }
+
+    /**
+     * Get Final Approver (Mayor) – single user with 'Final Approver' role.
+     */
+    private function getFinalApprover(LeaveApplication $application): array
+    {
+        // Prefer role-based resolution
+        $finalApprover = User::role('Final Approver')->first();
+        if ($finalApprover) {
+            return [$finalApprover];
+        }
+
+        // Fallback: office assignment for Office of the Municipal Mayor marked as Final Approver
+        $assignment = \App\Models\OfficeAssignment::with('employee.user')
+            ->where('role', 'Final Approver')
+            ->orderBy('created_at')
+            ->first();
+
+        if ($assignment && $assignment->employee && $assignment->employee->user) {
+            return [$assignment->employee->user];
+        }
+
+        // Last resort: Super Admin to avoid blocking workflow in seed/demo data
+        $superAdmin = User::role('Super Admin')->first();
+        return $superAdmin ? [$superAdmin] : [];
+    }
+
+    /**
+     * Get Local Chief Executive user(s)
+     */
+    private function getLocalChiefExecutive(): array
+    {
+        // Primary: dedicated LCE role
+        $lceUsers = User::role('Local Chief Executive')->get();
+
+        if ($lceUsers->isNotEmpty()) {
+            return $lceUsers->all();
+        }
+
+        // Fallback: users tagged as chief executive positions
+        $fallback = User::whereHas('employee', function ($query) {
+            $query->where(function ($q) {
+                $q->where('position', 'like', '%mayor%')
+                  ->orWhere('position', 'like', '%governor%')
+                  ->orWhere('position', 'like', '%chief executive%');
+            });
+        })->get();
+
+        if ($fallback->isNotEmpty()) {
+            return $fallback->all();
+        }
+
+        // Last resort: Super Admin (ensures workflow can continue in seed/demo data)
+        $superAdmin = User::role('Super Admin')->first();
+        return $superAdmin ? [$superAdmin] : [];
     }
 }

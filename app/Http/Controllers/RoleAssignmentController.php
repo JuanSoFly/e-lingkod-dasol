@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -157,16 +158,25 @@ class RoleAssignmentController extends Controller
             }
 
             DB::transaction(function () use ($request) {
+                $assignedDate = $request->effective_date
+                    ? Carbon::parse($request->effective_date)->toDateString()
+                    : now()->toDateString();
+                $endedDate = $request->expiry_date
+                    ? Carbon::parse($request->expiry_date)->toDateString()
+                    : null;
+
+                $employeeId = User::find($request->user_id)?->employee?->id;
+
                 $assignment = OfficeAssignment::create([
                     'user_id' => $request->user_id,
+                    'employee_id' => $employeeId,
                     'office_id' => $request->office_id,
                     'role' => $request->role,
                     'is_active' => $request->boolean('is_active', true),
-                    'notes' => $request->notes,
-                    'effective_date' => $request->effective_date ?? now(),
-                    'expiry_date' => $request->expiry_date,
+                    'remarks' => $request->notes,
+                    'assigned_date' => $assignedDate,
+                    'ended_date' => $endedDate,
                     'assigned_by' => Auth::id(),
-                    'assigned_at' => now(),
                 ]);
 
                 // Assign corresponding Laravel permissions
@@ -282,15 +292,21 @@ class RoleAssignmentController extends Controller
             $oldUserId = $assignment->user_id;
 
             DB::transaction(function () use ($request, $assignment, $oldRole, $oldUserId) {
+                $assignedDate = $request->effective_date
+                    ? Carbon::parse($request->effective_date)->toDateString()
+                    : ($assignment->assigned_date?->toDateString() ?? now()->toDateString());
+                $endedDate = $request->expiry_date
+                    ? Carbon::parse($request->expiry_date)->toDateString()
+                    : $assignment->ended_date?->toDateString();
+
                 $assignment->update([
                     'user_id' => $request->user_id,
                     'office_id' => $request->office_id,
                     'role' => $request->role,
                     'is_active' => $request->boolean('is_active', $assignment->is_active),
-                    'notes' => $request->notes ?? $assignment->notes,
-                    'effective_date' => $request->effective_date ?? $assignment->effective_date,
-                    'expiry_date' => $request->expiry_date,
-                    'updated_by' => Auth::id(),
+                    'remarks' => $request->notes ?? $assignment->remarks,
+                    'assigned_date' => $assignedDate,
+                    'ended_date' => $endedDate,
                 ]);
 
                 // If role or user changed, update permissions
@@ -374,7 +390,7 @@ class RoleAssignmentController extends Controller
     {
         $assignments = $user->officeAssignments()
             ->with(['office', 'assignedByUser'])
-            ->orderBy('assigned_at', 'desc')
+            ->orderBy('assigned_date', 'desc')
             ->get()
             ->map(function ($assignment) {
                 return [
@@ -386,10 +402,10 @@ class RoleAssignmentController extends Controller
                     ],
                     'role' => $assignment->role,
                     'is_active' => $assignment->is_active,
-                    'effective_date' => $assignment->effective_date->format('Y-m-d'),
-                    'expiry_date' => $assignment->expiry_date?->format('Y-m-d'),
+                    'effective_date' => $assignment->assigned_date?->format('Y-m-d'),
+                    'expiry_date' => $assignment->ended_date?->format('Y-m-d'),
                     'assigned_by' => $assignment->assignedByUser?->name ?? 'System',
-                    'assigned_at' => $assignment->assigned_at->format('Y-m-d H:i:s'),
+                    'assigned_at' => $assignment->assigned_date?->format('Y-m-d'),
                 ];
             });
 
@@ -407,7 +423,7 @@ class RoleAssignmentController extends Controller
         $assignments = $office->assignments()
             ->with(['user.employee', 'assignedByUser'])
             ->orderBy('role')
-            ->orderBy('assigned_at', 'desc')
+            ->orderBy('assigned_date', 'desc')
             ->get()
             ->map(function ($assignment) {
                 return [
@@ -420,10 +436,10 @@ class RoleAssignmentController extends Controller
                     ],
                     'role' => $assignment->role,
                     'is_active' => $assignment->is_active,
-                    'effective_date' => $assignment->effective_date->format('Y-m-d'),
-                    'expiry_date' => $assignment->expiry_date?->format('Y-m-d'),
+                    'effective_date' => $assignment->assigned_date?->format('Y-m-d'),
+                    'expiry_date' => $assignment->ended_date?->format('Y-m-d'),
                     'assigned_by' => $assignment->assignedByUser?->name ?? 'System',
-                    'assigned_at' => $assignment->assigned_at->format('Y-m-d H:i:s'),
+                    'assigned_at' => $assignment->assigned_date?->format('Y-m-d'),
                 ];
             });
 
@@ -444,7 +460,6 @@ class RoleAssignmentController extends Controller
             DB::transaction(function () use ($assignment, $newStatus) {
                 $assignment->update([
                     'is_active' => $newStatus,
-                    'updated_by' => Auth::id(),
                 ]);
 
                 // Update Laravel permissions based on status
@@ -536,13 +551,16 @@ class RoleAssignmentController extends Controller
                             continue;
                         }
 
+                        $employeeId = User::find($assignmentData['user_id'])?->employee?->id;
+
                         $assignment = OfficeAssignment::create([
                             'user_id' => $assignmentData['user_id'],
+                            'employee_id' => $employeeId,
                             'office_id' => $assignmentData['office_id'],
                             'role' => $assignmentData['role'],
                             'is_active' => true,
                             'assigned_by' => Auth::id(),
-                            'assigned_at' => now(),
+                            'assigned_date' => now()->toDateString(),
                         ]);
 
                         // Assign Laravel permissions

@@ -29,6 +29,8 @@ class RoleAndPermissionSeeder extends Seeder
             'reports.view', 'reports.generate', 'reports.export',
             'document-approval.view', 'document-approval.create', 'document-approval.edit', 'document-approval.delete', 'document-approval.approve',
             'opcr.view', 'opcr.create', 'opcr.edit', 'opcr.delete', 'opcr.commit', 'opcr.submit', 'opcr.assess', 'opcr.approve', 'opcr.manage', 'opcr.return',
+            // New multi-stage approvals
+            'opcr.planning_review', 'opcr.pmt_review',
             'opcr.export', 'opcr.analytics', 'opcr.settings', 'opcr.admin',
             // Office Assignment permissions
             'opcr.assignments.view', 'opcr.assignments.create', 'opcr.assignments.edit', 'opcr.assignments.delete',
@@ -114,6 +116,7 @@ class RoleAndPermissionSeeder extends Seeder
             'opcr.assignments.edit-own',
         ]);
 
+
         $hrAdminRole = Role::firstOrCreate(['name' => 'HR Admin']);
         $hrAdminRole->syncPermissions([
             'user.manage',
@@ -126,6 +129,7 @@ class RoleAndPermissionSeeder extends Seeder
             'reports.view', 'reports.generate', 'reports.export',
             'document-approval.view', 'document-approval.create', 'document-approval.edit', 'document-approval.delete', 'document-approval.approve',
             'opcr.view', 'opcr.create', 'opcr.edit', 'opcr.delete', 'opcr.submit', 'opcr.assess', 'opcr.approve', 'opcr.manage',
+            'opcr.planning_review', 'opcr.pmt_review',
             'opcr.export', 'opcr.analytics', 'opcr.settings', 'opcr.admin',
             'si.view', 'si.create', 'si.edit', 'si.delete',
             'ipcr.view', 'ipcr.create', 'ipcr.edit', 'ipcr.submit', 'ipcr.review', 'ipcr.approve', 'ipcr.validate',
@@ -148,12 +152,30 @@ class RoleAndPermissionSeeder extends Seeder
 
         $finalApproverRole = Role::firstOrCreate(['name' => 'Final Approver']);
         $finalApproverRole->syncPermissions([
+            'leave.view',
+            'leave.approve',
+            'leave.reject',
             'opcr.view',
             'opcr.approve',
             'opcr.return',
             'ipcr.view',
             'ipcr.finalize',
             'ipcr.manage',
+        ]);
+
+        $planningReviewerRole = Role::firstOrCreate(['name' => 'Planning Reviewer']);
+        $planningReviewerRole->syncPermissions([
+            'opcr.view',
+            'opcr.planning_review',
+            'opcr.return',
+        ]);
+
+        $pmtReviewerRole = Role::firstOrCreate(['name' => 'PMT Reviewer']);
+        $pmtReviewerRole->syncPermissions([
+            'opcr.view',
+            'opcr.pmt_review',
+            'opcr.return',
+            'opcr.analytics',
         ]);
 
         $ipcrEmployeeRole = Role::firstOrCreate(['name' => 'IPCR Employee']);
@@ -180,6 +202,15 @@ class RoleAndPermissionSeeder extends Seeder
             'ipcr.approve',
             'ipcr.attachments.manage',
             'ipcr.adjustments.manage',
+        ]);
+
+        $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor']);
+        $supervisorRole->syncPermissions([
+            'leave.view',
+            'leave.approve',
+            'leave.reject',
+            'employee.view',
+            'ipcr.review',
         ]);
 
         $pmtMemberRole = Role::firstOrCreate(['name' => 'PMT Member']);

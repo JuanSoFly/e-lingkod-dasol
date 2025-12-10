@@ -38,11 +38,15 @@ class OfficeAssignmentSeeder extends Seeder
         $superAdmin = User::where('email', 'admin@example.com')->first();
         $hrAdmin = User::where('email', 'hr@example.com')->first();
         $employee = User::where('email', 'employee@example.com')->first();
+        $supervisorUser = User::where('email', 'supervisor@example.com')->first();
 
         // Get OPCR users
         $mayorDepartmentHead = User::where('email', 'depthead.mayor@dasol.gov.ph')->first();
         $assessor = User::where('email', 'assessor.pmt@dasol.gov.ph')->first();
-        $finalApprover = User::where('email', 'administrator@dasol.gov.ph')->first();
+        // Mayor is the sole Final Approver
+        $finalApprover = User::where('email', 'mayor@dasol.gov.ph')->first() ?? User::role('Final Approver')->first();
+        $planningReviewer = User::where('email', 'hr@example.com')->first();
+        $pmtReviewer = User::where('email', 'hr@example.com')->first();
 
         // Create office assignments
         $assignments = [];
@@ -90,6 +94,38 @@ class OfficeAssignmentSeeder extends Seeder
             }
         }
 
+        // Planning reviewer (HR Admin) assigned to all active offices for planning_review state
+        if ($planningReviewer) {
+            $allOffices = Office::where('is_active', true)->get();
+            foreach ($allOffices as $office) {
+                $assignments[] = [
+                    'user_id' => $planningReviewer->id,
+                    'office_id' => $office->id,
+                    'role' => 'Assessor', // reuse evaluator role for access; permission handles planning review
+                    'is_active' => true,
+                    'assigned_date' => now()->toDateString(),
+                    'assigned_by' => $superAdmin->id ?? 1,
+                    'remarks' => 'Planning reviewer access for OPCR planning stage',
+                ];
+            }
+        }
+
+        // PMT reviewer (HR Admin) cross-office
+        if ($pmtReviewer) {
+            $allOffices = Office::where('is_active', true)->get();
+            foreach ($allOffices as $office) {
+                $assignments[] = [
+                    'user_id' => $pmtReviewer->id,
+                    'office_id' => $office->id,
+                    'role' => 'Assessor',
+                    'is_active' => true,
+                    'assigned_date' => now()->toDateString(),
+                    'assigned_by' => $superAdmin->id ?? 1,
+                    'remarks' => 'PMT reviewer access for OPCR PMT stage',
+                ];
+            }
+        }
+
         // Employee gets assignment to HRMO (for demo purposes)
         if ($employee) {
             $assignments[] = [
@@ -100,6 +136,19 @@ class OfficeAssignmentSeeder extends Seeder
                 'assigned_date' => now()->toDateString(),
                 'assigned_by' => $hrAdmin->id ?? 1,
                 'remarks' => 'Regular employee assignment to HRMO',
+            ];
+        }
+
+        // Supervisor for HRMO as immediate approver
+        if ($supervisorUser) {
+            $assignments[] = [
+                'user_id' => $supervisorUser->id,
+                'office_id' => $hrmoOffice->id,
+                'role' => 'Supervisor',
+                'is_active' => true,
+                'assigned_date' => now()->toDateString(),
+                'assigned_by' => $hrAdmin->id ?? $superAdmin->id ?? 1,
+                'remarks' => 'Immediate supervisor for HRMO leave workflows',
             ];
         }
 
@@ -146,15 +195,25 @@ class OfficeAssignmentSeeder extends Seeder
         if ($assessor) {
             $allOffices = Office::where('is_active', true)->get();
             foreach ($allOffices as $office) {
-                $assignments[] = [
-                    'user_id' => $assessor->id,
-                    'office_id' => $office->id,
-                    'role' => 'Assessor',
-                    'is_active' => true,
-                    'assigned_date' => now()->toDateString(),
-                    'assigned_by' => $superAdmin->id ?? 1,
-                    'remarks' => 'Assessor with cross-office evaluation authority',
-                ];
+                // Check if this user already has an assignment to this office
+                $hasExistingAssignment = collect($assignments)->contains(function ($existing) use ($assessor, $office) {
+                    return $existing['user_id'] === $assessor->id &&
+                           $existing['office_id'] === $office->id &&
+                           $existing['is_active'] === true;
+                });
+                
+                // Only add Assessor assignment if no existing assignment exists
+                if (!$hasExistingAssignment) {
+                    $assignments[] = [
+                        'user_id' => $assessor->id,
+                        'office_id' => $office->id,
+                        'role' => 'Assessor',
+                        'is_active' => true,
+                        'assigned_date' => now()->toDateString(),
+                        'assigned_by' => $superAdmin->id ?? 1,
+                        'remarks' => 'Assessor with cross-office evaluation authority',
+                    ];
+                }
             }
         }
 
@@ -162,15 +221,25 @@ class OfficeAssignmentSeeder extends Seeder
         if ($finalApprover) {
             $allOffices = Office::where('is_active', true)->get();
             foreach ($allOffices as $office) {
-                $assignments[] = [
-                    'user_id' => $finalApprover->id,
-                    'office_id' => $office->id,
-                    'role' => 'Final Approver',
-                    'is_active' => true,
-                    'assigned_date' => now()->toDateString(),
-                    'assigned_by' => $superAdmin->id ?? 1,
-                    'remarks' => 'Final Approver with organization-wide approval authority',
-                ];
+                // Check if this user already has an assignment to this office
+                $hasExistingAssignment = collect($assignments)->contains(function ($existing) use ($finalApprover, $office) {
+                    return $existing['user_id'] === $finalApprover->id &&
+                           $existing['office_id'] === $office->id &&
+                           $existing['is_active'] === true;
+                });
+                
+                // Only add Final Approver assignment if no existing assignment exists
+                if (!$hasExistingAssignment) {
+                    $assignments[] = [
+                        'user_id' => $finalApprover->id,
+                        'office_id' => $office->id,
+                        'role' => 'Final Approver',
+                        'is_active' => true,
+                        'assigned_date' => now()->toDateString(),
+                        'assigned_by' => $superAdmin->id ?? 1,
+                        'remarks' => 'Final Approver with organization-wide approval authority',
+                    ];
+                }
             }
         }
 
@@ -205,18 +274,18 @@ class OfficeAssignmentSeeder extends Seeder
         // Insert all assignments with duplicate prevention
         $createdCount = 0;
         foreach ($assignments as $assignment) {
-            $created = OfficeAssignment::updateOrCreate(
-                [
-                    'user_id' => $assignment['user_id'],
-                    'office_id' => $assignment['office_id'],
-                    'role' => $assignment['role'],
-                    'is_active' => $assignment['is_active'],
-                    'ended_date' => null, // Active assignments have no end date
-                ],
-                $assignment
-            );
-            if ($created->wasRecentlyCreated) {
-                $createdCount++;
+            // Check if an assignment already exists for this user and office
+            $existingAssignment = OfficeAssignment::where('user_id', $assignment['user_id'])
+                ->where('office_id', $assignment['office_id'])
+                ->where('is_active', $assignment['is_active'])
+                ->first();
+            
+            if (!$existingAssignment) {
+                // Only create if no existing active assignment exists
+                $created = OfficeAssignment::create($assignment);
+                if ($created->wasRecentlyCreated) {
+                    $createdCount++;
+                }
             }
         }
 

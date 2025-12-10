@@ -80,7 +80,7 @@ class SampleOPCRPerformanceSeeder extends Seeder
                     'objective' => $indicator->mfo->title ?? 'Objective for ' . $workflow->title,
                     'target' => $indicator->description ?? 'Target aligned with OPCR goals',
                     'weight' => round((100 / $targetCount), 2), // Distribute weight evenly
-                    'target_quantity' => $indicator->target_quantity ?? rand(80, 95),
+                    'target_quality' => $indicator->target_quality ?? rand(80, 95),
                     'target_efficiency' => $indicator->target_efficiency ?? 'High',
                     'target_timeliness' => $indicator->target_timeliness ?? 'On Schedule',
                     'success_indicator' => $indicator->description,
@@ -91,10 +91,10 @@ class SampleOPCRPerformanceSeeder extends Seeder
                 ]);
 
                 // Create performance rating for this target
-                $ratingQuantity = rand(3, 5);
+                $ratingQuality = rand(3, 5);
                 $ratingEfficiency = rand(3, 5);
                 $ratingTimeliness = rand(3, 5);
-                $averageRating = ($ratingQuantity + $ratingEfficiency + $ratingTimeliness) / 3;
+                $averageRating = ($ratingQuality + $ratingEfficiency + $ratingTimeliness) / 3;
 
                 $adjectivalRating = $this->getAdjectivalRating($averageRating);
 
@@ -105,11 +105,11 @@ class SampleOPCRPerformanceSeeder extends Seeder
                     'supervisor_rating' => $averageRating,
                     'final_rating' => $averageRating,
                     'average_rating' => $averageRating,
-                    'accomplished_quantity' => rand(75, 100),
+                    'accomplished_quality' => rand(75, 100),
                     'accomplished_efficiency' => $averageRating >= 4 ? 'Excellent' : ($averageRating >= 3 ? 'Good' : 'Needs Improvement'),
                     'accomplished_timeliness' => $averageRating >= 4 ? 'On Time' : ($averageRating >= 3 ? 'Slightly Delayed' : 'Delayed'),
                     'remarks' => 'Performance target completed with ' . $adjectivalRating . ' rating',
-                    'rating_quantity' => $ratingQuantity,
+                    'rating_quality' => $ratingQuality,
                     'rating_efficiency' => $ratingEfficiency,
                     'rating_timeliness' => $ratingTimeliness,
                     'average_qet_rating' => $averageRating,

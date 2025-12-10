@@ -5,10 +5,10 @@
         </h2>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-12 bg-slate-50">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
             <!-- Analytics Overview -->
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="bg-gradient-to-r from-slate-100 via-white to-slate-100 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="flex items-center justify-between">
                         <div>
@@ -28,87 +28,78 @@
             </div>
 
             <!-- Analytics Navigation -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <!-- Main Dashboard -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="p-6">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <div class="w-8 h-8 bg-indigo-100 rounded-md flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                                    </svg>
-                                </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Performance Analytics -->
+                <a href="{{ route('opcr.analytics.performance') }}" class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 text-white shadow-lg ring-1 ring-emerald-200/60 transition transform hover:-translate-y-1 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80">
+                    <div class="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/15 blur-3xl"></div>
+                    <div class="p-6 space-y-4">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-white/80">Performance</p>
+                                <h4 class="mt-1 text-2xl font-bold">Performance Analytics</h4>
+                                <p class="mt-2 text-sm text-white/80">Trend lines, ratings, and completion scores for all offices.</p>
                             </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 truncate">Main Dashboard</dt>
-                                    <dd class="text-lg font-medium text-gray-900">Overview</dd>
-                                </dl>
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15 shadow-inner">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 13h4l3 7 4-14 3 7h4" />
+                                </svg>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Performance Analytics -->
-                <a href="{{ route('opcr.analytics.performance') }}" class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-md transition-shadow">
-                    <div class="p-6">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <div class="w-8 h-8 bg-green-100 rounded-md flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 truncate">Performance</dt>
-                                    <dd class="text-lg font-medium text-gray-900">Analytics</dd>
-                                </dl>
-                            </div>
+                        <div class="flex items-center gap-2 text-sm font-semibold">
+                            <span>View analytics</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
                         </div>
                     </div>
                 </a>
 
                 <!-- Workflow Analytics -->
-                <a href="{{ route('opcr.analytics.workflow') }}" class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-md transition-shadow">
-                    <div class="p-6">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <div class="w-8 h-8 bg-purple-100 rounded-md flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                    </svg>
-                                </div>
+                <a href="{{ route('opcr.analytics.workflow') }}" class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 text-white shadow-lg ring-1 ring-indigo-200/60 transition transform hover:-translate-y-1 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80">
+                    <div class="absolute -left-12 -bottom-12 h-32 w-32 rounded-full bg-white/10 blur-3xl"></div>
+                    <div class="p-6 space-y-4">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-white/80">Workflow</p>
+                                <h4 class="mt-1 text-2xl font-bold">Workflow Analytics</h4>
+                                <p class="mt-2 text-sm text-white/80">Bottlenecks, cycle times, and pending actions across stages.</p>
                             </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 truncate">Workflow</dt>
-                                    <dd class="text-lg font-medium text-gray-900">Analytics</dd>
-                                </dl>
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15 shadow-inner">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
                             </div>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm font-semibold">
+                            <span>Track workflows</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
                         </div>
                     </div>
                 </a>
 
                 <!-- Compliance Analytics -->
-                <a href="{{ route('opcr.analytics.compliance') }}" class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-md transition-shadow">
-                    <div class="p-6">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <div class="w-8 h-8 bg-yellow-100 rounded-md flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                    </svg>
-                                </div>
+                <a href="{{ route('opcr.analytics.compliance') }}" class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 via-amber-600 to-orange-600 text-white shadow-lg ring-1 ring-amber-200/60 transition transform hover:-translate-y-1 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80">
+                    <div class="absolute right-[-3rem] top-[-3rem] h-28 w-28 rounded-full bg-white/10 blur-3xl"></div>
+                    <div class="p-6 space-y-4">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-white/80">Compliance</p>
+                                <h4 class="mt-1 text-2xl font-bold">Compliance Reports</h4>
+                                <p class="mt-2 text-sm text-white/80">On-time submissions, overdue items, and readiness for CSC audits.</p>
                             </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 truncate">Compliance</dt>
-                                    <dd class="text-lg font-medium text-gray-900">Reports</dd>
-                                </dl>
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15 shadow-inner">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
                             </div>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm font-semibold">
+                            <span>Review compliance</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
                         </div>
                     </div>
                 </a>

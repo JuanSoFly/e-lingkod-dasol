@@ -116,7 +116,7 @@
                                     {{ $assignment->assignedByUser->email ?? 'System' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $assignment->assigned_at->format('M d, Y') }}
+                                    {{ optional($assignment->assigned_date)->format('M d, Y') ?? '—' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div class="flex space-x-2">

@@ -3,11 +3,13 @@
 namespace App\Providers;
 
 use App\Contracts\DashboardServiceInterface;
-use App\Services\DashboardService;
 use App\Models\Employee;
+use App\Models\User;
 use App\Observers\EmployeeObserver;
-use Illuminate\Support\ServiceProvider;
+use App\Observers\UserObserver;
+use App\Services\DashboardService;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,15 +27,16 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Employee::observe(EmployeeObserver::class);
+        User::observe(UserObserver::class);
 
         if (app()->environment('production')) {
-        // Make all generated URLs use https://
-        URL::forceScheme('https');
+            // Make all generated URLs use https://
+            URL::forceScheme('https');
 
-        // Create storage link for Railway deployment
-        if (app()->environment('production') && !file_exists(public_path('storage'))) {
-            app('files')->link(storage_path('app/public'), public_path('storage'));
+            // Create storage link for Railway deployment
+            if (!file_exists(public_path('storage'))) {
+                app('files')->link(storage_path('app/public'), public_path('storage'));
+            }
         }
     }
-}
 }

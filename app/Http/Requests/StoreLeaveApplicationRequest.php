@@ -4,9 +4,14 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use App\Models\LeaveType;
+use Carbon\Carbon;
 
 class StoreLeaveApplicationRequest extends FormRequest
 {
+    private const SICK_LEAVE_CODE = 'SL';
+    private const SICK_BACKDATE_WINDOW_DAYS = 30;
+    private const SICK_ADVANCE_WINDOW_DAYS = 30;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -22,10 +27,28 @@ class StoreLeaveApplicationRequest extends FormRequest
      */
     public function rules(): array
     {
+        $leaveType = $this->input('leave_type_id')
+            ? LeaveType::find($this->input('leave_type_id'))
+            : null;
+
+        $isSickLeave = $leaveType?->code === self::SICK_LEAVE_CODE;
+        $minSickDate = Carbon::now()->subDays(self::SICK_BACKDATE_WINDOW_DAYS)->toDateString();
+        $maxSickDate = Carbon::now()->addDays(self::SICK_ADVANCE_WINDOW_DAYS)->toDateString();
+
         return [
             'leave_type_id' => ['required', 'exists:leave_types,id'],
-            'start_date' => ['required', 'date', 'after_or_equal:today'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'start_date' => array_filter([
+                'required',
+                'date',
+                $isSickLeave ? "after_or_equal:{$minSickDate}" : 'after_or_equal:today',
+                $isSickLeave ? "before_or_equal:{$maxSickDate}" : null,
+            ]),
+            'end_date' => array_filter([
+                'required',
+                'date',
+                'after_or_equal:start_date',
+                $isSickLeave ? "before_or_equal:{$maxSickDate}" : null,
+            ]),
             'days_requested' => ['required', 'numeric', 'min:0.5'],
             'reason' => ['required', 'string', 'max:1000'],
         ];

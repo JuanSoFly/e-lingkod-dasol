@@ -99,7 +99,7 @@
                                 <div class="relative">
                                     <div class="overflow-hidden h-8 text-xs flex rounded bg-gray-200">
                                         @foreach($ratingScale->getQETWeights() as $component => $weight)
-                                            <div class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center {{ $component === 'quantity' ? 'bg-blue-500' : ($component === 'efficiency' ? 'bg-green-500' : 'bg-yellow-500') }}"
+                                            <div class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center {{ $component === 'quality' ? 'bg-blue-500' : ($component === 'efficiency' ? 'bg-green-500' : 'bg-yellow-500') }}"
                                                  style="width: {{ $weight * 100 }}%">
                                                 {{ round($weight * 100) }}%
                                             </div>
@@ -107,7 +107,7 @@
                                     </div>
                                 </div>
                                 <div class="flex justify-between mt-2 text-xs text-gray-600">
-                                    <span>Quantity</span>
+                                    <span>Quality</span>
                                     <span>Efficiency</span>
                                     <span>Timeliness</span>
                                 </div>

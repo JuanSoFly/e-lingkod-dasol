@@ -1,14 +1,15 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Personal Data Sheet (PDS)') }} - {{ $employee->full_name }}
             </h2>
-            <div class="flex space-x-2">
-                <a href="{{ route('employee-portal.my-201-file') }}">
-                    <x-secondary-button>
-                        {{ __('Back to 201 File') }}
-                    </x-secondary-button>
+            <div class="flex flex-wrap gap-3">
+                <a
+                    href="{{ route('employee-portal.my-201-file') }}"
+                    class="inline-flex items-center justify-center px-4 py-2.5 bg-white border border-gray-300 rounded-lg font-medium text-sm text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out"
+                >
+                    {{ __('Back to 201 File') }}
                 </a>
             </div>
         </div>

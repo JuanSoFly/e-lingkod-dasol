@@ -56,10 +56,10 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->decimal('weight', 5, 2)->default(0);
             $table->string('measure', 150)->nullable();
-            $table->decimal('target_quantity', 10, 2)->nullable();
+            $table->decimal('target_quality', 10, 2)->nullable();
             $table->string('target_efficiency', 150)->nullable();
             $table->string('target_timeliness', 150)->nullable();
-            $table->decimal('accomplished_quantity', 10, 2)->nullable();
+            $table->decimal('accomplished_quality', 10, 2)->nullable();
             $table->string('accomplished_efficiency', 150)->nullable();
             $table->string('accomplished_timeliness', 150)->nullable();
             $table->decimal('self_rating', 4, 2)->nullable();

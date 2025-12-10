@@ -26,10 +26,14 @@ use Spatie\Activitylog\Facades\Activity;
 class ArchiveService
 {
     private AuditTrailService $auditTrailService;
+    private OfficeAssignmentService $officeAssignmentService;
 
-    public function __construct(AuditTrailService $auditTrailService)
-    {
+    public function __construct(
+        AuditTrailService $auditTrailService,
+        OfficeAssignmentService $officeAssignmentService
+    ) {
         $this->auditTrailService = $auditTrailService;
+        $this->officeAssignmentService = $officeAssignmentService;
     }
 
     /**
@@ -49,6 +53,12 @@ class ArchiveService
                     'updated_at' => now(),
                 ]);
 
+                // Turn off any lingering office assignments before soft delete
+                $assignmentCleanup = $this->officeAssignmentService->deactivateAssignmentsForEmployee(
+                    $employee,
+                    'employee archive'
+                );
+
                 // Soft delete the employee
                 $employee->delete();
 
@@ -61,6 +71,7 @@ class ArchiveService
                 $this->auditTrailService->logEmployeeArchive($employee, $archivedBy, [
                     'reason' => 'Employee archive operation',
                     'pending_applications_handled' => $pendingApplicationsResult,
+                    'office_assignments_deactivated' => $assignmentCleanup,
                 ]);
 
                 Log::info('Employee archived successfully', [
@@ -69,6 +80,7 @@ class ArchiveService
                     'archived_by' => $archivedBy?->id,
                     'name' => $employee->first_name . ' ' . $employee->last_name,
                     'pending_applications' => $pendingApplicationsResult,
+                    'office_assignments_deactivated' => $assignmentCleanup,
                 ]);
 
                 return $employee;
@@ -92,6 +104,9 @@ class ArchiveService
      */
     public function restoreEmployee(Employee $employee, ?User $restoredBy = null): Employee
     {
+        // Ensure we have a linked user before running validations
+        $this->ensureUserLinkage($employee);
+
         // Pre-restoration validation
         $validation = $this->validateUserAccount($employee);
         if (!$validation['can_restore']) {
@@ -103,10 +118,8 @@ class ArchiveService
 
         return DB::transaction(function () use ($employee, $restoredBy, $validation, $restorationDetails) {
             try {
-                // Load user relationship including soft-deleted records
-                $employee->load(['user' => function($query) {
-                    $query->withTrashed();
-                }]);
+                // Ensure we are working with the latest linked user (including trashed)
+                $this->ensureUserLinkage($employee);
 
                 // Restore the employee record
                 $employee->restore();
@@ -400,6 +413,8 @@ class ArchiveService
             'user_id' => null,
             'message' => '',
         ];
+
+        $this->ensureUserLinkage($employee);
 
         if (!$employee->user) {
             $result['message'] = 'No user account associated with employee';
@@ -902,12 +917,43 @@ class ArchiveService
     }
 
     /**
+     * Ensure employee has a linked user record (including soft-deleted users)
+     */
+    private function ensureUserLinkage(Employee $employee): void
+    {
+        if (!$employee->relationLoaded('user') || !$employee->user) {
+            $employee->load(['user' => function ($query) {
+                $query->withTrashed();
+            }]);
+        }
+
+        if ($employee->user && $employee->user->employee_id === $employee->id) {
+            return;
+        }
+
+        if (!$employee->email) {
+            return;
+        }
+
+        $user = User::withTrashed()
+            ->where('email', $employee->email)
+            ->first();
+
+        if ($user) {
+            app(IdentityLinker::class)->link($user, $employee);
+            $employee->setRelation('user', $user);
+        }
+    }
+
+    /**
      * Validate user account before restoration
      */
     public function validateUserAccount(Employee $employee): array
     {
         $issues = [];
         $warnings = [];
+
+        $this->ensureUserLinkage($employee);
 
         // Load user relationship including soft-deleted records
         $employee->load(['user' => function($query) {
@@ -960,6 +1006,8 @@ class ArchiveService
      */
     public function getRestorationDetails(Employee $employee): array
     {
+        $this->ensureUserLinkage($employee);
+
         $employee->load(['user' => function($query) {
             $query->withTrashed();
         }]);

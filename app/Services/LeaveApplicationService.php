@@ -7,18 +7,19 @@ use App\Models\EmployeeDocument;
 use App\Models\User;
 use App\Notifications\LeaveApplicationActioned;
 use App\Notifications\LeaveApplicationSubmitted;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LeaveApplicationService
 {
-    public function getApplicationsForUser(User $user, ?string $status = null)
+    public function getApplicationsForUser(User $user, ?string $status = null, Request $request = null)
     {
         $query = LeaveApplication::with(['employee', 'leaveType']);
 
         if ($user->can('leave.approve') && $status === 'pending') {
-            // Approvers see all pending applications
+            // Get all pending applications
             $query->where('status', 'pending');
         } else {
             // Employees see only their own applications
@@ -27,7 +28,29 @@ class LeaveApplicationService
             }
         }
 
-        return $query->latest()->paginate(10);
+        $applications = $query->latest()->get();
+
+        // Filter applications based on workflow access for approvers
+        if ($user->can('leave.approve') && $status === 'pending') {
+            $workflowService = app(\App\Services\LeaveWorkflowService::class);
+            $applications = $applications->filter(function ($application) use ($user, $workflowService) {
+                return $workflowService->canUserApproveApplication($application, $user);
+            });
+        }
+
+        // Convert to paginator for consistent UI
+        if ($request) {
+            return new \Illuminate\Pagination\LengthAwarePaginator(
+                $applications->forPage($request->get('page', 1), 10),
+                $applications->count(),
+                10,
+                $request->get('page', 1),
+                ['path' => $request->url()]
+            );
+        }
+        
+        // Fallback for non-request contexts
+        return $applications->take(10);
     }
 
     public function createApplication(array $data, User $user): LeaveApplication

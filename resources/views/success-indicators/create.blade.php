@@ -55,9 +55,9 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <x-input-label for="target_quantity" value="Target Quantity" />
-                                <input id="target_quantity" name="target_quantity" type="number" step="0.01" min="0" value="{{ old('target_quantity') }}" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" placeholder="e.g., 120" />
-                                <x-input-error :messages="$errors->get('target_quantity')" class="mt-2" />
+                                <x-input-label for="target_quality" value="Target Quality" />
+                                <input id="target_quality" name="target_quality" type="number" step="0.01" min="0" value="{{ old('target_quality') }}" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" placeholder="e.g., 120" />
+                                <x-input-error :messages="$errors->get('target_quality')" class="mt-2" />
                             </div>
 
                             <div>

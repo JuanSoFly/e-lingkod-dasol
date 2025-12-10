@@ -97,9 +97,9 @@
 
                                             <!-- QET Targets -->
                                             <div>
-                                                <x-input-label for="target_quantity_{{ $index }}" value="Target Quantity" />
-                                                <input type="number" id="target_quantity_{{ $index }}" name="targets[{{ $index }}][target_quantity]" step="0.01" min="0" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" value="{{ $target->target_quantity }}" placeholder="e.g., 100">
-                                                <x-input-error :messages="$errors->get('targets.'.$index.'.target_quantity')" class="mt-2" />
+                                                <x-input-label for="target_quality_{{ $index }}" value="Target Quality" />
+                                                <input type="number" id="target_quality_{{ $index }}" name="targets[{{ $index }}][target_quality]" step="0.01" min="0" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" value="{{ $target->target_quality }}" placeholder="e.g., 100">
+                                                <x-input-error :messages="$errors->get('targets.'.$index.'.target_quality')" class="mt-2" />
                                             </div>
 
                                             <div>
@@ -184,9 +184,9 @@
 
                 <!-- QET Targets -->
                 <div>
-                    <x-input-label for="target_quantity___INDEX__" value="Target Quantity" />
-                    <input type="number" id="target_quantity___INDEX__" name="targets[__INDEX__][target_quantity]" step="0.01" min="0" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" placeholder="e.g., 100">
-                    <x-input-error :messages="$errors->get('targets.__INDEX__.target_quantity')" class="mt-2" />
+                    <x-input-label for="target_quality___INDEX__" value="Target Quality" />
+                    <input type="number" id="target_quality___INDEX__" name="targets[__INDEX__][target_quality]" step="0.01" min="0" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" placeholder="e.g., 100">
+                    <x-input-error :messages="$errors->get('targets.__INDEX__.target_quality')" class="mt-2" />
                 </div>
 
                 <div>

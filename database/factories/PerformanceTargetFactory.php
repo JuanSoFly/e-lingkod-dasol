@@ -30,7 +30,7 @@ class PerformanceTargetFactory extends Factory
             'objective' => $this->faker->sentence(),
             'target' => $this->faker->sentence(),
             'weight' => $this->faker->randomElement([25, 30, 40]),
-            'target_quantity' => $this->faker->randomFloat(2, 10, 100),
+            'target_quality' => $this->faker->randomFloat(2, 10, 100),
             'target_efficiency' => '100%',
             'target_timeliness' => 'Within period',
             'success_indicator' => $this->faker->sentence(),

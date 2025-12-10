@@ -22,10 +22,10 @@ class IpcrItem extends Model
         'description',
         'weight',
         'measure',
-        'target_quantity',
+        'target_quality',
         'target_efficiency',
         'target_timeliness',
-        'accomplished_quantity',
+        'accomplished_quality',
         'accomplished_efficiency',
         'accomplished_timeliness',
         'self_rating',
@@ -45,8 +45,8 @@ class IpcrItem extends Model
 
     protected $casts = [
         'weight' => 'decimal:2',
-        'target_quantity' => 'decimal:2',
-        'accomplished_quantity' => 'decimal:2',
+        'target_quality' => 'decimal:2',
+        'accomplished_quality' => 'decimal:2',
         'self_rating' => 'decimal:2',
         'supervisor_rating' => 'decimal:2',
         'head_rating' => 'decimal:2',

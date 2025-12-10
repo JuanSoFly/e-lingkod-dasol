@@ -16,7 +16,6 @@ class OfficeAssignmentSynchronizationService
      */
     public function synchronizeEmployee(Employee $employee, ?int $newOfficeId = null, ?string $explicitRole = null): array
     {
-        $officeId = $newOfficeId ?? $employee->office_id;
         $results = [
             'deactivated' => [],
             'created' => [],
@@ -24,11 +23,26 @@ class OfficeAssignmentSynchronizationService
             'errors' => []
         ];
 
+        $officeId = $newOfficeId ?? $employee->office_id;
+        if (!$officeId) {
+            $results['errors'][] = 'Cannot synchronize without a target office ID.';
+            return $results;
+        }
+
+        $userId = $employee->user?->id;
+        if (!$userId) {
+            $results['errors'][] = 'Employee does not have an associated user account.';
+            return $results;
+        }
+
         DB::beginTransaction();
         try {
-            // Get current active assignments for this employee
-            $activeAssignments = OfficeAssignment::where('employee_id', $employee->id)
-                ->where('is_active', true)
+            // Get current active assignments tied to this employee or user
+            $activeAssignments = OfficeAssignment::where('is_active', true)
+                ->where(function ($query) use ($employee, $userId) {
+                    $query->where('employee_id', $employee->id)
+                        ->orWhere('user_id', $userId);
+                })
                 ->get();
 
             // Deactivate assignments in different offices
@@ -37,8 +51,7 @@ class OfficeAssignmentSynchronizationService
                     try {
                         $assignment->update([
                             'is_active' => false,
-                            'end_date' => now(),
-                            'updated_by' => auth()->id()
+                            'ended_date' => now()->toDateString(),
                         ]);
                         $results['deactivated'][] = $assignment->id;
 
@@ -72,35 +85,37 @@ class OfficeAssignmentSynchronizationService
             }
 
             // Check if employee already has an active assignment in the target office
-            $existingAssignment = OfficeAssignment::where('employee_id', $employee->id)
+            $existingAssignment = OfficeAssignment::where('user_id', $userId)
                 ->where('office_id', $officeId)
-                ->where('is_active', true)
                 ->first();
 
-            if (!$existingAssignment) {
-                // Create new assignment in the target office
-                $office = Office::findOrFail($officeId);
+            // Determine role - explicit role takes priority over automatic assignment
+            $role = 'Member';
+            if ($explicitRole !== null) {
+                $role = $explicitRole;
+            } elseif ($employee->is_department_head) {
+                $role = 'Department Head';
+            }
 
-                // Determine role - explicit role takes priority over automatic assignment
-                $role = 'Member'; // Default role
-                if ($explicitRole !== null) {
-                    // Explicit role from form input always takes priority
-                    $role = $explicitRole;
-                } elseif ($employee->is_department_head) {
-                    // Fall back to current employee status only if no explicit role provided
-                    $role = 'Department Head';
-                }
+            if ($existingAssignment) {
+                $existingAssignment->update([
+                    'employee_id' => $employee->id,
+                    'role' => $role,
+                    'is_active' => true,
+                    'assigned_date' => now()->toDateString(),
+                    'ended_date' => null,
+                ]);
 
+                $results['updated'][] = $existingAssignment->id;
+            } else {
                 $newAssignment = OfficeAssignment::create([
-                    'user_id' => $employee->user?->id ?? null,
+                    'user_id' => $userId,
                     'employee_id' => $employee->id,
                     'office_id' => $officeId,
                     'role' => $role,
                     'is_active' => true,
                     'assigned_date' => now()->toDateString(),
-                    'start_date' => now(),
-                    'created_by' => auth()->id(),
-                    'updated_by' => auth()->id()
+                    'assigned_by' => auth()->id(),
                 ]);
 
                 $results['created'][] = $newAssignment->id;
@@ -111,8 +126,6 @@ class OfficeAssignmentSynchronizationService
                     'office_id' => $officeId,
                     'role' => $role
                 ]);
-            } else {
-                $results['updated'][] = $existingAssignment->id;
             }
 
             // Update user's office if exists

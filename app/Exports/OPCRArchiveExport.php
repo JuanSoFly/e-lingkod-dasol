@@ -74,8 +74,8 @@ class OPCRArchiveExport implements FromCollection, WithHeadings, WithMapping, Wi
             'MFO Code',
             'MFO Description',
             'Success Indicator',
-            'Target Quantity',
-            'Accomplished Quantity',
+            'Target Quality',
+            'Accomplished Quality',
             'Target Efficiency',
             'Accomplished Efficiency',
             'Target Timeliness',
@@ -110,8 +110,8 @@ class OPCRArchiveExport implements FromCollection, WithHeadings, WithMapping, Wi
                 $target->mfo->code ?? '',
                 $target->mfo->description ?? '',
                 $target->successIndicator->description ?? '',
-                $target->target_quantity ?? '',
-                $rating?->accomplished_quantity ?? '',
+                $target->target_quality ?? '',
+                $rating?->accomplished_quality ?? '',
                 $target->target_efficiency ?? '',
                 $rating?->accomplished_efficiency ?? '',
                 $target->target_timeliness ?? '',
@@ -162,8 +162,8 @@ class OPCRArchiveExport implements FromCollection, WithHeadings, WithMapping, Wi
     protected function getColumnFormats(): array
     {
         return [
-            'H' => NumberFormat::FORMAT_NUMBER,        // Target Quantity
-            'I' => NumberFormat::FORMAT_NUMBER,        // Accomplished Quantity
+            'H' => NumberFormat::FORMAT_NUMBER,        // Target Quality
+            'I' => NumberFormat::FORMAT_NUMBER,        // Accomplished Quality
             'N' => NumberFormat::FORMAT_NUMBER_00,     // QET Rating
             'Q' => 'YYYY-MM-DD HH:MM:SS',             // Date Approved
             'R' => 'YYYY-MM-DD HH:MM:SS',             // Created At
@@ -183,8 +183,8 @@ class OPCRArchiveExport implements FromCollection, WithHeadings, WithMapping, Wi
             'E' => 18, // MFO Code - increased from 12
             'F' => 25, // MFO Description - increased from 20
             'G' => 35, // Success Indicator - increased from 30
-            'H' => 15, // Target Quantity - increased from 12
-            'I' => 18, // Accomplished Quantity - increased from 15
+            'H' => 15, // Target Quality - increased from 12
+            'I' => 18, // Accomplished Quality - increased from 15
             'J' => 18, // Target Efficiency - increased from 12
             'K' => 20, // Accomplished Efficiency - increased from 15
             'L' => 18, // Target Timeliness - increased from 12

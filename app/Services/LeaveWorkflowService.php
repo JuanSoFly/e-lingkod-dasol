@@ -7,6 +7,7 @@ use App\Models\LeaveWorkflow;
 use App\Models\LeaveWorkflowStep;
 use App\Models\LeaveApplicationWorkflowStep;
 use App\Models\LeaveApprovalDelegate;
+use App\Services\HolidayService;
 use App\Models\User;
 use App\Notifications\LeaveApprovalRequired;
 use App\Notifications\LeaveApprovalEscalated;
@@ -121,6 +122,7 @@ class LeaveWorkflowService
     public function checkEscalations(): int
     {
         $escalatedCount = 0;
+        $deemedApprovedCount = 0;
 
         // Find pending steps that need escalation - use step-specific escalation hours
         $pendingSteps = LeaveApplicationWorkflowStep::with(['leaveApplication', 'leaveWorkflowStep'])
@@ -138,7 +140,10 @@ class LeaveWorkflowService
             }
         }
 
-        return $escalatedCount;
+        // Process deemed approvals based on working-day SLA (CSC deemed-approved rule)
+        $deemedApprovedCount = $this->processDeemedApprovals();
+
+        return $escalatedCount + $deemedApprovedCount;
     }
 
     /**
@@ -176,7 +181,7 @@ class LeaveWorkflowService
     {
         $totalSteps = LeaveApplicationWorkflowStep::where('leave_application_id', $application->id)->count();
         $completedSteps = LeaveApplicationWorkflowStep::where('leave_application_id', $application->id)
-            ->whereIn('status', ['approved', 'rejected'])
+            ->whereIn('status', ['approved', 'rejected', 'deemed_approved'])
             ->count();
 
         return $totalSteps === $completedSteps;
@@ -288,8 +293,32 @@ class LeaveWorkflowService
      */
     private function createDefaultWorkflow(LeaveApplication $application): LeaveWorkflow
     {
-        // This would be pre-configured in the database
-        return LeaveWorkflow::where('name', 'Default Single Approval')->firstOrFail();
+        // CSC-standard chain seeded via LeaveWorkflowSeeder
+        return LeaveWorkflow::where('name', 'CSC Standard Leave Approval')->firstOrFail();
+    }
+
+    /**
+     * Check if user can approve the given application based on current workflow step
+     */
+    public function canUserApproveApplication(LeaveApplication $application, User $user): bool
+    {
+        // Get the first pending workflow step
+        $pendingStep = LeaveApplicationWorkflowStep::where('leave_application_id', $application->id)
+            ->where('status', 'pending')
+            ->orderBy('step_order')
+            ->first();
+
+        if (!$pendingStep) {
+            return false; // No pending steps, application is complete
+        }
+
+        // Get current approvers for this step
+        $approvers = $pendingStep->leaveWorkflowStep->getCurrentApprovers($application);
+
+        // Check if user is in the approvers list
+        return collect($approvers)->contains(function ($approver) use ($user) {
+            return $approver->id === $user->id;
+        });
     }
 
     /**
@@ -432,6 +461,84 @@ class LeaveWorkflowService
                 'error' => $e->getMessage(),
             ]);
             throw $e;
+        }
+    }
+
+    /**
+     * Apply deemed-approved rule based on working-day SLA
+     */
+    private function processDeemedApprovals(): int
+    {
+        $holidayService = app(HolidayService::class);
+        $processed = 0;
+
+        $pendingSteps = LeaveApplicationWorkflowStep::with(['leaveApplication', 'leaveWorkflowStep'])
+            ->where('status', 'pending')
+            ->whereHas('leaveWorkflowStep', function ($query) {
+                $query->whereNotNull('sla_working_days')
+                    ->where('sla_working_days', '>', 0);
+            })
+            ->get();
+
+        foreach ($pendingSteps as $step) {
+            if ($this->shouldDeemApprove($step, $holidayService)) {
+                $this->deemApproveStep($step);
+                $processed++;
+            }
+        }
+
+        return $processed;
+    }
+
+    private function shouldDeemApprove(LeaveApplicationWorkflowStep $step, HolidayService $holidayService): bool
+    {
+        $workflowStep = $step->leaveWorkflowStep;
+
+        if (!$workflowStep->sla_working_days) {
+            return false;
+        }
+
+        $application = $step->leaveApplication;
+        $employee = $application?->employee;
+
+        $start = $step->created_at?->copy()->startOfDay();
+        $end = now()->startOfDay();
+
+        if (!$start) {
+            return false;
+        }
+
+        $workWeek = $employee?->workCalendar?->work_week;
+        $businessDays = $holidayService->businessDaysBetween($start, $end, $employee, $workWeek);
+
+        return $businessDays >= $workflowStep->sla_working_days;
+    }
+
+    private function deemApproveStep(LeaveApplicationWorkflowStep $step): void
+    {
+        $application = $step->leaveApplication;
+        $step->update([
+            'status' => 'deemed_approved',
+            'approved_by' => null,
+            'approved_at' => now(),
+            'remarks' => ($step->remarks ? $step->remarks . "\n" : '') . 'Auto-approved after 5 working days (CSC deemed-approved rule)',
+        ]);
+
+        Log::info('Leave step deemed approved due to SLA breach', [
+            'application_id' => $application->id,
+            'step_id' => $step->id,
+            'workflow_step_id' => $step->leave_workflow_step_id,
+            'sla_working_days' => $step->leaveWorkflowStep->sla_working_days,
+        ]);
+
+        if ($this->isWorkflowComplete($application)) {
+            $this->completeWorkflow($application, true);
+            return;
+        }
+
+        $nextStep = $this->getNextStep($application, $step);
+        if ($nextStep) {
+            $this->routeToApprovers($application, $nextStep);
         }
     }
 

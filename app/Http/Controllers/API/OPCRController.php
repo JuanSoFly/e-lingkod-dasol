@@ -190,7 +190,7 @@ class OPCRController extends Controller
                     'code',
                     'title',
                     'description',
-                    'target_quantity',
+                    'target_quality',
                     'target_efficiency',
                     'target_timeliness',
                     'is_active',
@@ -224,7 +224,7 @@ class OPCRController extends Controller
                             'code' => $indicator->code,
                             'title' => $indicator->title,
                             'description' => $indicator->description,
-                            'target_quantity' => $indicator->target_quantity,
+                            'target_quality' => $indicator->target_quality,
                             'target_efficiency' => $indicator->target_efficiency,
                             'target_timeliness' => $indicator->target_timeliness,
                         ];
@@ -330,7 +330,7 @@ class OPCRController extends Controller
             'mfo_data.*.description' => 'nullable|string|max:1000',
             'mfo_data.*.targets' => 'required|array',
             'mfo_data.*.targets.*.description' => 'required|string|max:500',
-            'mfo_data.*.targets.*.quantity_target' => 'required|integer|min:1',
+            'mfo_data.*.targets.*.quality_target' => 'required|integer|min:1',
             'mfo_data.*.targets.*.efficiency_target' => 'required|integer|min:1',
             'mfo_data.*.targets.*.timeliness_target' => 'required|integer|min:1',
             'save_as_draft' => 'boolean'
@@ -392,10 +392,10 @@ class OPCRController extends Controller
     {
         $validated = $request->validate([
             'target_id' => 'required|exists:performance_targets,id',
-            'quantity_rating' => 'required|integer|min:1|max:5',
+            'quality_rating' => 'required|integer|min:1|max:5',
             'efficiency_rating' => 'required|integer|min:1|max:5',
             'timeliness_rating' => 'required|integer|min:1|max:5',
-            'quantity_remarks' => 'nullable|string|max:1000',
+            'quality_remarks' => 'nullable|string|max:1000',
             'efficiency_remarks' => 'nullable|string|max:1000',
             'timeliness_remarks' => 'nullable|string|max:1000',
             'evidence_photos' => 'nullable|array',

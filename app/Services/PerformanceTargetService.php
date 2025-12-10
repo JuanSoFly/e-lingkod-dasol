@@ -168,7 +168,7 @@ class PerformanceTargetService
                 'code' => $this->mfoHierarchyService->generateSuccessIndicatorCode($mfo),
                 'title' => $data['target_description'],
                 'description' => $data['target_description'],
-                'target_quantity' => $data['target_quantity'] ?? null,
+                'target_quality' => $data['target_quality'] ?? null,
                 'target_efficiency' => $data['target_efficiency'] ?? null,
                 'target_timeliness' => $data['target_timeliness'] ?? null,
                 'created_by' => auth()->id(),
@@ -277,7 +277,7 @@ class PerformanceTargetService
                         'period_id' => $workflow->period_id,
                         'mfo_id' => $mfo->id,
                         'success_indicator_id' => $successIndicator->id,
-                        'target_quantity' => $successIndicator->target_quantity,
+                        'target_quality' => $successIndicator->target_quality,
                         'target_efficiency' => $successIndicator->target_efficiency,
                         'target_timeliness' => $successIndicator->target_timeliness,
                         'opcr_workflow_id' => $workflow->id,
@@ -326,7 +326,7 @@ class PerformanceTargetService
         $successIndicator = $target->successIndicator;
 
         return $target->update([
-            'accomplished_quantity' => $successIndicator->accomplished_quantity,
+            'accomplished_quality' => $successIndicator->accomplished_quality,
             'accomplished_efficiency' => $successIndicator->accomplished_efficiency,
             'accomplished_timeliness' => $successIndicator->accomplished_timeliness,
             'performance_percentage' => $successIndicator->performance_percentage,
@@ -356,17 +356,17 @@ class PerformanceTargetService
             'performance_percentage' => $successIndicator->performance_percentage ?? 0,
             'is_target_met' => $successIndicator->is_target_met ?? false,
             'qet_ratings' => [
-                'quantity' => $successIndicator->rating_quantity,
+                'quality' => $successIndicator->rating_quality,
                 'efficiency' => $successIndicator->rating_efficiency,
                 'timeliness' => $successIndicator->rating_timeliness,
             ],
             'accomplishments' => [
-                'quantity' => $successIndicator->accomplished_quantity,
+                'quality' => $successIndicator->accomplished_quality,
                 'efficiency' => $successIndicator->accomplished_efficiency,
                 'timeliness' => $successIndicator->accomplished_timeliness,
             ],
             'targets' => [
-                'quantity' => $successIndicator->target_quantity,
+                'quality' => $successIndicator->target_quality,
                 'efficiency' => $successIndicator->target_efficiency,
                 'timeliness' => $successIndicator->target_timeliness,
             ],
@@ -467,12 +467,12 @@ class PerformanceTargetService
         }
 
         // Numeric validation
-        if (!empty($data['target_quantity']) && !is_numeric($data['target_quantity'])) {
-            $errors['target_quantity'] = 'Target quantity must be numeric';
+        if (!empty($data['target_quality']) && !is_numeric($data['target_quality'])) {
+            $errors['target_quality'] = 'Target quality must be numeric';
         }
 
-        if (!empty($data['accomplished_quantity']) && !is_numeric($data['accomplished_quantity'])) {
-            $errors['accomplished_quantity'] = 'Accomplished quantity must be numeric';
+        if (!empty($data['accomplished_quality']) && !is_numeric($data['accomplished_quality'])) {
+            $errors['accomplished_quality'] = 'Accomplished quality must be numeric';
         }
 
         // Check for duplicates (excluding current target if updating)
@@ -506,10 +506,10 @@ class PerformanceTargetService
             'success_indicator_id' => 'nullable|exists:success_indicators,id',
             'target_category' => 'required_without:mfo_id,success_indicator_id|string|max:255',
             'target_description' => 'required_without:mfo_id,success_indicator_id|string',
-            'target_quantity' => 'nullable|numeric|min:0',
+            'target_quality' => 'nullable|numeric|min:0',
             'target_efficiency' => 'nullable|string|max:100',
             'target_timeliness' => 'nullable|string|max:100',
-            'accomplished_quantity' => 'nullable|numeric|min:0',
+            'accomplished_quality' => 'nullable|numeric|min:0',
             'accomplished_efficiency' => 'nullable|string|max:100',
             'accomplished_timeliness' => 'nullable|string|max:100',
         ];
@@ -529,10 +529,10 @@ class PerformanceTargetService
             'success_indicator_id.exists' => 'Selected success indicator is invalid',
             'target_category.required_without' => 'Target category is required when no MFO or success indicator is specified',
             'target_description.required_without' => 'Target description is required when no MFO or success indicator is specified',
-            'target_quantity.numeric' => 'Target quantity must be a number',
-            'target_quantity.min' => 'Target quantity must be at least 0',
-            'accomplished_quantity.numeric' => 'Accomplished quantity must be a number',
-            'accomplished_quantity.min' => 'Accomplished quantity must be at least 0',
+            'target_quality.numeric' => 'Target quality must be a number',
+            'target_quality.min' => 'Target quality must be at least 0',
+            'accomplished_quality.numeric' => 'Accomplished quality must be a number',
+            'accomplished_quality.min' => 'Accomplished quality must be at least 0',
         ];
     }
 

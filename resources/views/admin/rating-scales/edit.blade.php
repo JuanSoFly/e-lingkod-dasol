@@ -57,24 +57,24 @@
 
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div>
-                                    <x-input-label for="qet_weights_quantity" :value="__('Quantity Weight (%)')" />
+                                    <x-input-label for="qet_weights_quality" :value="__('Quality Weight (%)')" />
                                     <div class="mt-1 relative rounded-md shadow-sm">
                                         <input type="number"
-                                               id="qet_weights_quantity"
-                                               name="qet_weights[quantity]"
+                                               id="qet_weights_quality"
+                                               name="qet_weights[quality]"
                                                min="0"
                                                max="1"
                                                step="0.01"
-                                               value="{{ old('qet_weights.quantity', $ratingScale->getQETWeights()['quantity']) }}"
-                                               x-model="qetWeights.quantity"
+                                               value="{{ old('qet_weights.quality', $ratingScale->getQETWeights()['quality']) }}"
+                                               x-model="qetWeights.quality"
                                                @input="calculateTotal()"
                                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pr-12"
                                                required>
                                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                            <span class="text-gray-500 sm:text-sm" x-text="Math.round(qetWeights.quantity * 100) + '%'"></span>
+                                            <span class="text-gray-500 sm:text-sm" x-text="Math.round(qetWeights.quality * 100) + '%'"></span>
                                         </div>
                                     </div>
-                                    <x-input-error :messages="$errors->get('qet_weights.quantity')" class="mt-2" />
+                                    <x-input-error :messages="$errors->get('qet_weights.quality')" class="mt-2" />
                                 </div>
 
                                 <div>
@@ -288,7 +288,7 @@
         function ratingScaleForm() {
             return {
                 qetWeights: {
-                    quantity: {{ $ratingScale->getQETWeights()['quantity'] }},
+                    quality: {{ $ratingScale->getQETWeights()['quality'] }},
                     efficiency: {{ $ratingScale->getQETWeights()['efficiency'] }},
                     timeliness: {{ $ratingScale->getQETWeights()['timeliness'] }}
                 },
@@ -310,7 +310,7 @@
 
                 calculateTotal() {
                     this.totalWeight = Math.round(
-                        (this.qetWeights.quantity + this.qetWeights.efficiency + this.qetWeights.timeliness) * 100
+                        (this.qetWeights.quality + this.qetWeights.efficiency + this.qetWeights.timeliness) * 100
                     );
                 },
 

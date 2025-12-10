@@ -5,10 +5,10 @@
                 {{ __('Leave Policy Details') }}
             </h2>
             <div class="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:items-center">
-                <a href="{{ route('leave-policies.edit', $leavePolicy) }}" class="inline-flex justify-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full sm:w-auto">
+                <a href="{{ route('leave-policies.edit', $leavePolicy) }}" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 w-full sm:w-auto">
                     Edit Policy
                 </a>
-                <a href="{{ route('leave-policies.index') }}" class="inline-flex justify-center bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded w-full sm:w-auto">
+                <a href="{{ route('leave-policies.index') }}" class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 w-full sm:w-auto">
                     Back to Policies
                 </a>
             </div>

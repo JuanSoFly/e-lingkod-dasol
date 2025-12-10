@@ -16,11 +16,17 @@ class PerformancePeriod extends Model
         'start_date',
         'end_date',
         'status',
+        'planning_deadline',
+        'pmt_deadline',
+        'lce_deadline',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'planning_deadline' => 'date',
+        'pmt_deadline' => 'date',
+        'lce_deadline' => 'date',
     ];
 
     public function targets(): HasMany

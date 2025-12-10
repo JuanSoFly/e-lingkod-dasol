@@ -25,26 +25,26 @@ class SampleLeaveCreditsSeeder extends Seeder
 
         // Create sample leave credits for each employee
         foreach ($employees as $employeeNumber => $employeeId) {
-            // Vacation Leave Credits
+            // Vacation Leave Credits - start at zero; monthly accrual will build balances
             DB::table('leave_credits')->insert([
                 'employee_id' => $employeeId,
                 'leave_type_id' => $leaveTypes['Vacation Leave'],
                 'year' => $currentYear,
-                'earned_credits' => 15.0,
-                'used_credits' => rand(0, 8),
-                'remaining_credits' => 0, // Will be calculated
+                'earned_credits' => 0.0,
+                'used_credits' => 0.0,
+                'remaining_credits' => 0.0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
-            // Sick Leave Credits
+            // Sick Leave Credits - start at zero
             DB::table('leave_credits')->insert([
                 'employee_id' => $employeeId,
                 'leave_type_id' => $leaveTypes['Sick Leave'],
                 'year' => $currentYear,
-                'earned_credits' => 15.0,
-                'used_credits' => rand(0, 5),
-                'remaining_credits' => 0, // Will be calculated
+                'earned_credits' => 0.0,
+                'used_credits' => 0.0,
+                'remaining_credits' => 0.0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -55,16 +55,16 @@ class SampleLeaveCreditsSeeder extends Seeder
                     'employee_id' => $employeeId,
                     'leave_type_id' => $leaveTypes['Maternity Leave'],
                     'year' => $currentYear,
-                    'earned_credits' => 105.0,
-                    'used_credits' => rand(0, 60),
-                    'remaining_credits' => 0, // Will be calculated
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
+                'earned_credits' => 105.0,
+                'used_credits' => 0.0,
+                'remaining_credits' => 105.0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
         }
 
-        // Update remaining_credits
+        // Keep remaining_credits aligned for seeded data
         DB::statement('UPDATE leave_credits SET remaining_credits = earned_credits - used_credits');
     }
 }

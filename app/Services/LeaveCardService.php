@@ -66,9 +66,9 @@ class LeaveCardService
                 'year' => $year,
             ],
             [
-                'earned_credits' => $leaveType->max_days_per_year ?? 15,
+                'earned_credits' => 0,
                 'used_credits' => 0,
-                'remaining_credits' => $leaveType->max_days_per_year ?? 15,
+                'remaining_credits' => 0,
                 'effective_date' => now(),
                 // Don't set created_by here as auth might not be available in all contexts
             ]
@@ -83,10 +83,10 @@ class LeaveCardService
             if ($leaveCard) {
                 if ($leaveType->code === 'VL') {
                     $leaveCredit->remaining_credits = max(0, $leaveCard->vl_balance);
-                    $leaveCredit->used_credits = max(0, ($leaveCredit->earned_credits ?? 15) - $leaveCard->vl_balance);
+                    $leaveCredit->used_credits = max(0, ($leaveCredit->earned_credits ?? 0) - $leaveCard->vl_balance);
                 } elseif ($leaveType->code === 'SL') {
                     $leaveCredit->remaining_credits = max(0, $leaveCard->sl_balance);
-                    $leaveCredit->used_credits = max(0, ($leaveCredit->earned_credits ?? 15) - $leaveCard->sl_balance);
+                    $leaveCredit->used_credits = max(0, ($leaveCredit->earned_credits ?? 0) - $leaveCard->sl_balance);
                 }
             }
         } else {
@@ -122,20 +122,20 @@ class LeaveCardService
         // Ensure leave credits exist for VL and SL
         $this->ensureInitialCreditsExist($employee, $year);
 
-        // Get current leave credits using earned_credits and effective_date
+        // Get current leave credits using remaining_credits to reflect usage
         $vlCredits = LeaveCredit::where('employee_id', $employee->id)
             ->where('leave_type_id', function($query) {
                 $query->select('id')->from('leave_types')->where('code', 'VL');
             })
             ->where('year', $year)
-            ->sum('earned_credits');
+            ->sum('remaining_credits');
 
         $slCredits = LeaveCredit::where('employee_id', $employee->id)
             ->where('leave_type_id', function($query) {
                 $query->select('id')->from('leave_types')->where('code', 'SL');
             })
             ->where('year', $year)
-            ->sum('earned_credits');
+            ->sum('remaining_credits');
 
         // Update balances
         $leaveCard->vl_balance = $vlCredits;
@@ -175,9 +175,9 @@ class LeaveCardService
                 'employee_id' => $employee->id,
                 'leave_type_id' => $vlType->id,
                 'year' => $year,
-                'earned_credits' => 15, // Standard VL entitlement
+                'earned_credits' => 0, // Start at zero; accrual will add monthly
                 'used_credits' => 0,
-                'remaining_credits' => 15,
+                'remaining_credits' => 0,
                 'effective_date' => now()->startOfYear(),
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -186,7 +186,7 @@ class LeaveCardService
             Log::info('Created initial VL credit for employee', [
                 'employee_id' => $employee->id,
                 'year' => $year,
-                'credits' => 15
+                'credits' => 0
             ]);
         }
 
@@ -201,9 +201,9 @@ class LeaveCardService
                 'employee_id' => $employee->id,
                 'leave_type_id' => $slType->id,
                 'year' => $year,
-                'earned_credits' => 15, // Standard SL entitlement
+                'earned_credits' => 0, // Start at zero; accrual will add monthly
                 'used_credits' => 0,
-                'remaining_credits' => 15,
+                'remaining_credits' => 0,
                 'effective_date' => now()->startOfYear(),
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -212,7 +212,7 @@ class LeaveCardService
             Log::info('Created initial SL credit for employee', [
                 'employee_id' => $employee->id,
                 'year' => $year,
-                'credits' => 15
+                'credits' => 0
             ]);
         }
     }

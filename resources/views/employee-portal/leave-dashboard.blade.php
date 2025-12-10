@@ -63,11 +63,21 @@
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Apply for Leave</h2>
 
+                <div x-show="editingDraftId" class="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-yellow-800">Editing saved draft</p>
+                        <p class="text-xs text-yellow-700">Changes will update draft #<span x-text="editingDraftId"></span>. Submitting will convert it to a pending application.</p>
+                    </div>
+                    <button type="button" @click="cancelDraftEditing" class="text-sm text-yellow-800 hover:underline">
+                        Cancel
+                    </button>
+                </div>
+
                 <form @submit.prevent="submitLeaveApplication" class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Leave Type</label>
-                            <select x-model="application.leave_type_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+                            <select x-model="application.leave_type_id" @change="handleLeaveTypeChange" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
                                 <option value="">Select Leave Type</option>
                                 <template x-for="type in leaveTypes" :key="type.id">
                                     <option :value="type.id" x-text="type.name + ' (' + (type.current_balance || 'N/A') + ')'"></option>
@@ -82,12 +92,12 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                            <input type="date" x-model="application.start_date" @change="calculateDays" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+                            <input type="date" x-model="application.start_date" @change="calculateDays" :min="dateBounds.min" :max="dateBounds.max || null" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                            <input type="date" x-model="application.end_date" @change="calculateDays" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+                            <input type="date" x-model="application.end_date" @change="calculateDays" :min="application.start_date || dateBounds.min" :max="dateBounds.max || null" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
                         </div>
                     </div>
 
@@ -167,14 +177,16 @@
 
                     <div class="flex justify-end space-x-3">
                         <button type="button" @click="saveAsDraft" :disabled="submitting" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
-                            Save as Draft
+                            <span x-show="!editingDraftId">Save as Draft</span>
+                            <span x-show="editingDraftId">Update Draft</span>
                         </button>
                         <button type="button" @click="resetApplication" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
                             Clear
                         </button>
                         <button type="submit" :disabled="submitting || rateLimitActive" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
-                            <span x-show="!submitting && !rateLimitActive">Submit Application</span>
-                            <span x-show="submitting">Submitting...</span>
+                            <span x-show="!submitting && !rateLimitActive && !editingDraftId">Submit Application</span>
+                            <span x-show="!submitting && !rateLimitActive && editingDraftId">Submit Draft</span>
+                            <span x-show="submitting">Processing...</span>
                             <span x-show="rateLimitActive && !submitting" class="flex items-center">
                                 <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
@@ -198,7 +210,8 @@
                         <div class="border-l-4" :class="{
                             'border-green-500': app.status === 'approved',
                             'border-yellow-500': app.status === 'pending',
-                            'border-red-500': app.status === 'rejected'
+                            'border-red-500': app.status === 'rejected',
+                            'border-gray-400': app.status === 'draft'
                         }">
                             <div class="pl-3">
                                 <p class="text-sm font-medium text-gray-900" x-text="app.leave_type"></p>
@@ -207,8 +220,14 @@
                                 <span class="inline-block px-2 py-1 text-xs rounded-full mt-1" :class="{
                                     'bg-green-100 text-green-800': app.status === 'approved',
                                     'bg-yellow-100 text-yellow-800': app.status === 'pending',
-                                    'bg-red-100 text-red-800': app.status === 'rejected'
+                                    'bg-red-100 text-red-800': app.status === 'rejected',
+                                    'bg-gray-100 text-gray-800': app.status === 'draft'
                                 }" x-text="app.status"></span>
+                                <div x-show="app.status === 'draft'" class="mt-2">
+                                    <button type="button" @click="resumeDraft(app.id)" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                        Resume Draft
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -364,10 +383,14 @@ function employeeDashboard() {
         upcomingLeave: @json($upcoming_leave),
         statistics: @json($statistics),
         leaveTypes: [],
+        SICK_BACKDATE_DAYS: 30,
+        SICK_ADVANCE_DAYS: 30,
+        dateBounds: { min: '', max: '' },
         availability: {
             nonWorking: [],
             holidays: []
         },
+        editingDraftId: null,
         application: {
             leave_type_id: '',
             start_date: '',
@@ -381,8 +404,10 @@ function employeeDashboard() {
         rateLimitActive: false,
         rateLimitCountdown: 0,
 
-        init() {
-            this.loadLeaveTypes();
+        async init() {
+            await this.loadLeaveTypes();
+            this.updateDateBounds();
+            this.resumeDraftFromQueryParam();
         },
 
   
@@ -392,9 +417,27 @@ function employeeDashboard() {
                 const data = await response.json();
 
                 this.leaveTypes = data.leave_types;
+                this.updateDateBounds();
             } catch (error) {
                 console.error('Error loading leave types:', error);
             }
+        },
+
+        handleLeaveTypeChange() {
+            this.updateDateBounds();
+
+            // Reset dates if out of new bounds
+            if (this.application.start_date && this.dateBounds.min && this.application.start_date < this.dateBounds.min) {
+                this.application.start_date = this.dateBounds.min;
+            }
+            if (this.application.start_date && this.dateBounds.max && this.application.start_date > this.dateBounds.max) {
+                this.application.start_date = this.dateBounds.max;
+            }
+            if (this.application.end_date && this.dateBounds.max && this.application.end_date > this.dateBounds.max) {
+                this.application.end_date = this.dateBounds.max;
+            }
+
+            this.calculateDays();
         },
 
         async calculateDays() {
@@ -450,29 +493,44 @@ function employeeDashboard() {
             }
         },
 
+        buildFormData() {
+            const formData = new FormData();
+            formData.append('leave_type_id', this.application.leave_type_id || '');
+
+            if (this.application.start_date) {
+                formData.append('start_date', this.application.start_date);
+            }
+
+            if (this.application.end_date) {
+                formData.append('end_date', this.application.end_date);
+            }
+
+            formData.append('reason', this.application.reason || '');
+            formData.append('dept_head_informed', this.application.dept_head_informed === '1' ? '1' : '0');
+
+            this.application.documents.forEach((doc, index) => {
+                if (doc.file) {
+                    formData.append(`documents[${index}]`, doc.file);
+                }
+            });
+
+            return formData;
+        },
+
         async submitLeaveApplication() {
             if (!this.validateApplication()) {
+                return;
+            }
+
+            if (this.editingDraftId) {
+                await this.persistExistingDraft(false);
                 return;
             }
 
             this.submitting = true;
 
             try {
-                const formData = new FormData();
-
-                // Add form fields
-                formData.append('leave_type_id', this.application.leave_type_id);
-                formData.append('start_date', this.application.start_date);
-                formData.append('end_date', this.application.end_date);
-                formData.append('reason', this.application.reason);
-                formData.append('dept_head_informed', this.application.dept_head_informed === '1' ? '1' : '0');
-
-                // Add documents
-                this.application.documents.forEach((doc, index) => {
-                    if (doc.file) {
-                        formData.append(`documents[${index}]`, doc.file);
-                    }
-                });
+                const formData = this.buildFormData();
 
                 const response = await fetch('/employee-portal/leave-applications', {
                     method: 'POST',
@@ -493,8 +551,11 @@ function employeeDashboard() {
                 } else if (response.status === 429) {
                     // Handle rate limiting with user-friendly message
                     this.handleRateLimitResponse(data);
+                } else if (response.status === 422) {
+                    const message = this.extractErrorMessage(data) || data.message;
+                    this.showNotification(message || 'Failed to submit application', 'error');
                 } else {
-                    this.showNotification(data.error || 'Failed to submit application', 'error');
+                    this.showNotification(data.error || data.message || 'Failed to submit application', 'error');
                 }
             } catch (error) {
                 console.error('Error submitting application:', error);
@@ -505,6 +566,11 @@ function employeeDashboard() {
         },
 
         async saveAsDraft() {
+            if (this.editingDraftId) {
+                await this.persistExistingDraft(true);
+                return;
+            }
+
             if (!this.application.leave_type_id && !this.application.start_date) {
                 this.showNotification('Please add at least a leave type or start date to save as draft', 'error');
                 return;
@@ -513,22 +579,9 @@ function employeeDashboard() {
             this.submitting = true;
 
             try {
-                const formData = new FormData();
-
-                // Add form fields
-                formData.append('leave_type_id', this.application.leave_type_id);
-                formData.append('start_date', this.application.start_date);
-                formData.append('end_date', this.application.end_date);
-                formData.append('reason', this.application.reason);
-                formData.append('dept_head_informed', this.application.dept_head_informed === '1' ? '1' : '0');
-                formData.append('is_draft', 'true');
-
-                // Add documents
-                this.application.documents.forEach((doc, index) => {
-                    if (doc.file) {
-                        formData.append(`documents[${index}]`, doc.file);
-                    }
-                });
+                const formData = this.buildFormData();
+                // Use numeric string so backend boolean validation accepts the flag
+                formData.append('is_draft', '1');
 
                 const response = await fetch('/employee-portal/leave-applications/draft', {
                     method: 'POST',
@@ -544,7 +597,8 @@ function employeeDashboard() {
                 if (response.ok) {
                     this.showNotification('Application saved as draft!', 'success');
                 } else {
-                    this.showNotification(data.error || 'Failed to save draft', 'error');
+                    const message = this.extractErrorMessage(data) || data.message;
+                    this.showNotification(data.error || message || 'Failed to save draft', 'error');
                 }
             } catch (error) {
                 console.error('Error saving draft:', error);
@@ -552,6 +606,116 @@ function employeeDashboard() {
             } finally {
                 this.submitting = false;
             }
+        },
+
+        async persistExistingDraft(isDraft = true) {
+            if (!this.editingDraftId) {
+                return;
+            }
+
+            this.submitting = true;
+
+            try {
+                const formData = this.buildFormData();
+                formData.append('is_draft', isDraft ? '1' : '0');
+
+                const response = await fetch(`/employee-portal/leave-applications/${this.editingDraftId}/update`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    this.showNotification(data.message || (isDraft ? 'Draft updated successfully' : 'Leave application submitted successfully!'), 'success');
+
+                    if (!isDraft) {
+                        this.resetApplication();
+                        setTimeout(() => location.reload(), 1500);
+                    } else if (data.application) {
+                        this.application.days_requested = data.application.days_requested ?? this.application.days_requested;
+                    }
+                } else {
+                    const message = this.extractErrorMessage(data) || data.message;
+                    this.showNotification(message || 'Failed to update draft', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating draft:', error);
+                this.showNotification('An error occurred while updating your draft', 'error');
+            } finally {
+                this.submitting = false;
+            }
+        },
+
+        async resumeDraft(draftId) {
+            if (!draftId) {
+                return;
+            }
+
+            this.submitting = true;
+
+            try {
+                const response = await fetch(`/employee-portal/leave-applications/${draftId}/edit`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const message = this.extractErrorMessage(data) || data.message;
+                    this.showNotification(message || 'Unable to load draft details', 'error');
+                    return;
+                }
+
+                this.editingDraftId = data.id;
+                this.application = {
+                    leave_type_id: data.leave_type_id ?? '',
+                    start_date: data.start_date ?? '',
+                    end_date: data.end_date ?? '',
+                    days_requested: data.days_requested ?? 0,
+                    reason: data.reason ?? '',
+                    documents: [],
+                    dept_head_informed: data.dept_head_informed ? '1' : '0'
+                };
+
+                this.updateDateBounds();
+
+                if (this.application.start_date && this.application.end_date) {
+                    await this.calculateDays();
+                }
+
+                this.showNotification('Draft loaded. You can continue editing.', 'info');
+
+            } catch (error) {
+                console.error('Error loading draft:', error);
+                this.showNotification('Failed to load draft information', 'error');
+            } finally {
+                this.submitting = false;
+            }
+        },
+
+        resumeDraftFromQueryParam() {
+            const params = new URLSearchParams(window.location.search);
+            const draftId = params.get('draft_id');
+
+            if (draftId) {
+                this.resumeDraft(draftId);
+                params.delete('draft_id');
+                const newQuery = params.toString();
+                const newUrl = `${window.location.pathname}${newQuery ? '?' + newQuery : ''}`;
+                window.history.replaceState({}, '', newUrl);
+            }
+        },
+
+        cancelDraftEditing() {
+            this.resetApplication();
+            this.showNotification('Draft editing canceled. Starting a new application.', 'info');
         },
 
         addDocumentField() {
@@ -614,6 +778,33 @@ function employeeDashboard() {
             return true;
         },
 
+        updateDateBounds() {
+            const today = this.formatDate(new Date());
+            const selectedType = this.leaveTypes.find(t => String(t.id) === String(this.application.leave_type_id));
+            const isSickLeave = selectedType?.code === 'SL';
+
+            if (isSickLeave) {
+                const min = this.formatDate(this.shiftDate(new Date(), -this.SICK_BACKDATE_DAYS));
+                const max = this.formatDate(this.shiftDate(new Date(), this.SICK_ADVANCE_DAYS));
+                this.dateBounds = { min, max };
+            } else {
+                this.dateBounds = { min: today, max: '' };
+            }
+        },
+
+        shiftDate(dateObj, days) {
+            const copy = new Date(dateObj);
+            copy.setDate(copy.getDate() + days);
+            return copy;
+        },
+
+        formatDate(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        },
+
         resetApplication() {
             this.application = {
                 leave_type_id: '',
@@ -624,6 +815,10 @@ function employeeDashboard() {
                 documents: [],
                 dept_head_informed: ''
             };
+            this.editingDraftId = null;
+            this.availability.nonWorking = [];
+            this.availability.holidays = [];
+            this.updateDateBounds();
         },
 
         handleRateLimitResponse(data) {
@@ -693,6 +888,29 @@ function employeeDashboard() {
                     notification.remove();
                 }
             }, (retryAfter + 5) * 1000);
+        },
+
+        extractErrorMessage(data) {
+            if (!data || typeof data !== 'object' || !data.errors) {
+                return '';
+            }
+
+            const firstKey = Object.keys(data.errors)[0];
+            if (!firstKey) {
+                return '';
+            }
+
+            const firstError = data.errors[firstKey];
+
+            if (Array.isArray(firstError) && firstError.length) {
+                return firstError[0];
+            }
+
+            if (typeof firstError === 'string') {
+                return firstError;
+            }
+
+            return '';
         },
 
         showNotification(message, type = 'info') {

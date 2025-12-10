@@ -124,7 +124,7 @@ class SuccessIndicatorController extends Controller
             'code' => 'required|string|max:30|unique:success_indicators,code,NULL,id,mfo_id,' . $request->mfo_id,
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'target_quantity' => 'nullable|numeric|min:0',
+            'target_quality' => 'nullable|numeric|min:0',
             'target_efficiency' => 'nullable|string|max:100',
             'target_timeliness' => 'nullable|string|max:100',
             'measurement_unit' => 'nullable|string|max:50',
@@ -238,7 +238,7 @@ class SuccessIndicatorController extends Controller
             'code' => 'required|string|max:30|unique:success_indicators,code,' . $indicator->id . ',id,mfo_id,' . $request->mfo_id,
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'target_quantity' => 'nullable|numeric|min:0',
+            'target_quality' => 'nullable|numeric|min:0',
             'target_efficiency' => 'nullable|string|max:100',
             'target_timeliness' => 'nullable|string|max:100',
             'measurement_unit' => 'nullable|string|max:50',
@@ -344,7 +344,7 @@ class SuccessIndicatorController extends Controller
         }
 
         $validated = $request->validate([
-            'accomplished_quantity' => 'nullable|numeric|min:0',
+            'accomplished_quality' => 'nullable|numeric|min:0',
             'accomplished_efficiency' => 'nullable|string|max:100',
             'accomplished_timeliness' => 'nullable|string|max:100',
             'accomplishment_notes' => 'nullable|string',

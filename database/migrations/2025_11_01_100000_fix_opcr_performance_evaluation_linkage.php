@@ -138,7 +138,7 @@ return new class extends Migration
             // Check if the evaluation is complete by verifying targets have accomplishments
             $evaluationComplete = DB::table('performance_targets')
                 ->where('opcr_workflow_id', $workflow->id)
-                ->whereNotNull('accomplished_quantity')
+                ->whereNotNull('accomplished_quality')
                 ->whereNotNull('performance_percentage')
                 ->count() > 0;
 

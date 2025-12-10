@@ -64,11 +64,12 @@
                                 <select id="workflow_state" name="workflow_state" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                                     <option value="">All Statuses</option>
                                     <option value="draft" {{ $filters['workflow_state'] == 'draft' ? 'selected' : '' }}>Draft</option>
+                                    <option value="planning_review" {{ $filters['workflow_state'] == 'planning_review' ? 'selected' : '' }}>Planning Review</option>
+                                    <option value="pmt_review" {{ $filters['workflow_state'] == 'pmt_review' ? 'selected' : '' }}>PMT Review</option>
                                     <option value="committed" {{ $filters['workflow_state'] == 'committed' ? 'selected' : '' }}>Committed</option>
                                     <option value="in_progress" {{ $filters['workflow_state'] == 'in_progress' ? 'selected' : '' }}>In Progress</option>
                                     <option value="evaluation" {{ $filters['workflow_state'] == 'evaluation' ? 'selected' : '' }}>Evaluation</option>
                                     <option value="final_approval" {{ $filters['workflow_state'] == 'final_approval' ? 'selected' : '' }}>Final Approval</option>
-                                    <option value="approved" {{ $filters['workflow_state'] == 'approved' ? 'selected' : '' }}>Approved</option>
                                     <option value="returned" {{ $filters['workflow_state'] == 'returned' ? 'selected' : '' }}>Returned</option>
                                 </select>
                             </div>
@@ -139,16 +140,38 @@
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                            @if($workflow->workflow_state === 'draft') bg-gray-100 text-gray-800
-                                            @elseif($workflow->workflow_state === 'committed') bg-blue-100 text-blue-800
-                                            @elseif($workflow->workflow_state === 'in_progress') bg-yellow-100 text-yellow-800
-                                            @elseif($workflow->workflow_state === 'evaluation') bg-orange-100 text-orange-800
-                                            @elseif($workflow->workflow_state === 'final_approval') bg-purple-100 text-purple-800
-                                            @elseif($workflow->workflow_state === 'approved') bg-green-100 text-green-800
-                                            @elseif($workflow->workflow_state === 'returned') bg-red-100 text-red-800
-                                            @endif">
-                                            {{ ucwords(str_replace('_', ' ', $workflow->workflow_state)) }}
+                                        @php
+                                            $statusLabels = [
+                                                'draft' => 'Draft',
+                                                'planning_review' => 'Planning Review',
+                                                'pmt_review' => 'PMT Review',
+                                                'committed' => 'Committed',
+                                                'in_progress' => 'In Progress',
+                                                'evaluation' => 'Evaluation',
+                                                'final_approval' => 'Final Approval',
+                                                'approved' => 'Approved',
+                                                'returned' => 'Returned',
+                                            ];
+
+                                            $badgeColors = [
+                                                'draft' => 'bg-gray-100 text-gray-800',
+                                                'planning_review' => 'bg-cyan-100 text-cyan-800',
+                                                'pmt_review' => 'bg-teal-100 text-teal-800',
+                                                'committed' => 'bg-blue-100 text-blue-800',
+                                                'in_progress' => 'bg-yellow-100 text-yellow-800',
+                                                'evaluation' => 'bg-orange-100 text-orange-800',
+                                                'final_approval' => 'bg-purple-100 text-purple-800',
+                                                'approved' => 'bg-green-100 text-green-800',
+                                                'returned' => 'bg-red-100 text-red-800',
+                                            ];
+
+                                            $workflowState = $workflow->workflow_state;
+                                            $displayState = ($workflowState === 'final_approval' && $workflow->approval_status === 'approved')
+                                                ? 'approved'
+                                                : $workflowState;
+                                        @endphp
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $badgeColors[$displayState] ?? 'bg-gray-100 text-gray-800' }}">
+                                            {{ $statusLabels[$displayState] ?? ucwords(str_replace('_', ' ', $displayState)) }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

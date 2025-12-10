@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Employee;
 use App\Models\Ipcr;
 use App\Models\IpcrItem;
 use App\Models\Office;
+use App\Models\OfficeAssignment;
 use App\Models\OPCRWorkflow;
 use App\Models\PerformanceTarget;
 use App\Models\PerformancePeriod;
@@ -52,8 +54,11 @@ class IpcrCascadingService
             return collect();
         }
 
-        $generatedIpcrs = DB::transaction(function () use ($assignees, $targets, $workflow, $period, $options) {
-            return $assignees->map(function (array $assignment) use ($targets, $workflow, $period, $options) {
+        $resolvedHeadId = $this->resolveHeadOfOfficeId($workflow, $options);
+        $resolvedFinalApproverId = $this->resolveFinalApproverId($workflow, $options);
+
+        $generatedIpcrs = DB::transaction(function () use ($assignees, $targets, $workflow, $period, $options, $resolvedHeadId, $resolvedFinalApproverId) {
+            return $assignees->map(function (array $assignment) use ($targets, $workflow, $period, $options, $resolvedHeadId, $resolvedFinalApproverId) {
                 /** @var Employee $employee */
                 $employee = $assignment['employee'];
                 $supervisor = $assignment['supervisor'];
@@ -67,7 +72,7 @@ class IpcrCascadingService
                         'office_id' => $employee->office_id ?? $workflow->office_id,
                         'opcr_workflow_id' => $workflow->id,
                         'supervisor_id' => $supervisor?->id,
-                        'head_of_office_id' => $options['head_of_office_id'] ?? $workflow->office?->department_head_id,
+                        'head_of_office_id' => $resolvedHeadId,
                         'status' => IpcrWorkflowService::STATE_DRAFT,
                         'is_auto_generated' => true,
                         'total_weight' => 0,
@@ -82,9 +87,9 @@ class IpcrCascadingService
                     'office_id' => $employee->office_id ?? $workflow->office_id,
                     'opcr_workflow_id' => $workflow->id,
                     'supervisor_id' => $supervisor?->id,
-                    'head_of_office_id' => $options['head_of_office_id'] ?? $workflow->office?->department_head_id,
+                    'head_of_office_id' => $resolvedHeadId,
                     'pmt_validator_id' => $options['pmt_validator_id'] ?? null,
-                    'final_approver_id' => $options['final_approver_id'] ?? null,
+                    'final_approver_id' => $resolvedFinalApproverId,
                     'metadata' => array_merge($ipcr->metadata ?? [], [
                         'generated_at' => now()->toDateTimeString(),
                         'generator' => 'IpcrCascadingService',
@@ -119,7 +124,7 @@ class IpcrCascadingService
                 'description' => $target->target,
                 'weight' => $distribution[$target->id] ?? 0,
                 'measure' => $target->success_indicator,
-                'target_quantity' => $target->target_quantity,
+                'target_quality' => $target->target_quality,
                 'target_efficiency' => $target->target_efficiency,
                 'target_timeliness' => $target->target_timeliness,
                 'sequence' => $target->id,
@@ -227,5 +232,39 @@ class IpcrCascadingService
         $weights['strategy'] = $strategy;
 
         return $weights;
+    }
+
+    protected function resolveHeadOfOfficeId(OPCRWorkflow $workflow, array $options): ?int
+    {
+        if (!empty($options['head_of_office_id'])) {
+            return $options['head_of_office_id'];
+        }
+
+        if ($workflow->office?->department_head_id) {
+            return $workflow->office->department_head_id;
+        }
+
+        return OfficeAssignment::query()
+            ->current()
+            ->forOffice($workflow->office_id)
+            ->byRole(OfficeAssignment::ROLE_DEPARTMENT_HEAD)
+            ->value('employee_id');
+    }
+
+    protected function resolveFinalApproverId(OPCRWorkflow $workflow, array $options): ?int
+    {
+        if (!empty($options['final_approver_id'])) {
+            return $options['final_approver_id'];
+        }
+
+        if ($workflow->finalApprover?->employee?->id) {
+            return $workflow->finalApprover->employee->id;
+        }
+
+        return OfficeAssignment::query()
+            ->current()
+            ->forOffice($workflow->office_id)
+            ->byRole(OfficeAssignment::ROLE_FINAL_APPROVER)
+            ->value('employee_id');
     }
 }

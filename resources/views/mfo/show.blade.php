@@ -149,7 +149,7 @@
                 <div class="p-6 flex items-center justify-between">
                     <div>
                         <h3 class="text-lg font-medium text-gray-900">Success Indicators</h3>
-                        <p class="mt-1 text-sm text-gray-600">Track quantity, efficiency, and timeliness targets linked to this MFO.</p>
+                        <p class="mt-1 text-sm text-gray-600">Track quality, efficiency, and timeliness targets linked to this MFO.</p>
                     </div>
                     @can('si.create')
                         <a href="{{ route('opcr.success-indicators.create', ['mfo_id' => $mfo->id]) }}" class="inline-flex items-center px-3 py-2 bg-indigo-600 border border-transparent rounded-md text-xs font-semibold uppercase tracking-widest text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">New Indicator</a>
@@ -177,7 +177,7 @@
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-sm text-gray-700">
-                                        <div><span class="font-semibold">Quantity:</span> {{ $indicator->target_quantity ?? 'N/A' }}</div>
+                                        <div><span class="font-semibold">Quality:</span> {{ $indicator->target_quality ?? 'N/A' }}</div>
                                         <div><span class="font-semibold">Efficiency:</span> {{ $indicator->target_efficiency ?? 'N/A' }}</div>
                                         <div><span class="font-semibold">Timeliness:</span> {{ $indicator->target_timeliness ?? 'N/A' }}</div>
                                     </td>

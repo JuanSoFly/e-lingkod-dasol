@@ -103,8 +103,7 @@ class LeavePolicyService
 
         if (!$leaveCredit) {
             // Create leave credit record if it doesn't exist
-            $entitlement = $policy->calculateAnnualEntitlement($employee, $year);
-            $leaveCredit = $this->createLeaveCredit($employee, $policy, $year, $entitlement);
+            $leaveCredit = $this->createLeaveCredit($employee, $policy, $year);
         }
 
         $availableBalance = $leaveCredit->remaining_credits;
@@ -143,16 +142,47 @@ class LeavePolicyService
     /**
      * Create leave credit record for employee
      */
-    public function createLeaveCredit(Employee $employee, LeavePolicy $policy, int $year, float $entitlement): LeaveCredit
+    public function createLeaveCredit(Employee $employee, LeavePolicy $policy, int $year): LeaveCredit
     {
+        // Determine earned credits to-date based on accrual method
+        $entitlement = $policy->calculateAnnualEntitlement($employee, $year);
+        $earned = $entitlement;
+
+        if ($policy->accrual_method === 'monthly') {
+            $earned = $this->calculateAccruedToDate($employee, $policy, $year);
+        }
+
         return LeaveCredit::create([
             'employee_id' => $employee->id,
             'leave_type_id' => $policy->leave_type_id,
             'year' => $year,
-            'earned_credits' => $entitlement,
+            'earned_credits' => $earned,
             'used_credits' => 0,
-            'remaining_credits' => $entitlement
+            'remaining_credits' => $earned
         ]);
+    }
+
+    /**
+     * Calculate accrued leave up to the current (or target) month for monthly accrual policies.
+     */
+    protected function calculateAccruedToDate(Employee $employee, LeavePolicy $policy, int $year): float
+    {
+        $rate = $policy->monthly_accrual_rate ?? 0;
+        if ($rate <= 0) {
+            return 0;
+        }
+
+        $today = now();
+        $target = $year === (int)$today->year ? $today : Carbon::create($year, 12, 31);
+
+        $startMonth = 1;
+        if ($employee->date_hired && $employee->date_hired->year === $year) {
+            $startMonth = $employee->date_hired->month;
+        }
+
+        $monthsWorked = max(0, $target->month - $startMonth + 1);
+
+        return round($monthsWorked * $rate, 2);
     }
 
     /**
@@ -174,8 +204,7 @@ class LeavePolicyService
                 ->first();
                 
             if ($policy) {
-                $entitlement = $policy->calculateAnnualEntitlement($application->employee, $year);
-                $leaveCredit = $this->createLeaveCredit($application->employee, $policy, $year, $entitlement);
+                $leaveCredit = $this->createLeaveCredit($application->employee, $policy, $year);
             }
         }
 
@@ -226,10 +255,10 @@ class LeavePolicyService
 
             if (!$existingCredit) {
                 $entitlement = $policy->calculateAnnualEntitlement($employee, $year);
-                
-                if ($entitlement > 0) {
-                    $this->createLeaveCredit($employee, $policy, $year, $entitlement);
-                    Log::info("Generated leave credit for {$employee->employee_number}: {$entitlement} days of {$policy->leaveType->name}");
+                $leaveCredit = $this->createLeaveCredit($employee, $policy, $year);
+
+                if ($leaveCredit->earned_credits > 0) {
+                    Log::info("Generated leave credit for {$employee->employee_number}: {$leaveCredit->earned_credits} days of {$policy->leaveType->name}");
                 }
             }
         }

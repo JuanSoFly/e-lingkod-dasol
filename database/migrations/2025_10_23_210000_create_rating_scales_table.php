@@ -68,7 +68,7 @@ return new class extends Migration
                 'type' => 'standard_5_point'
             ]),
             'qet_weights' => json_encode([
-                'quantity' => 0.4,
+                'quality' => 0.4,
                 'efficiency' => 0.3,
                 'timeliness' => 0.3
             ]),

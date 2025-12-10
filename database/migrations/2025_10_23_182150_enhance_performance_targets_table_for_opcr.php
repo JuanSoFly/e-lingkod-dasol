@@ -22,8 +22,8 @@ return new class extends Migration
             $table->foreignId('office_id')->nullable()->after('period_id')->constrained()->onDelete('set null');
 
             // Enhanced target structure
-            $table->decimal('target_quantity', 10, 2)->nullable()->after('weight'); // QET target quantity
-            $table->string('target_efficiency', 100)->nullable()->after('target_quantity'); // QET target efficiency
+            $table->decimal('target_quality', 10, 2)->nullable()->after('weight'); // QET target quality
+            $table->string('target_efficiency', 100)->nullable()->after('target_quality'); // QET target efficiency
             $table->string('target_timeliness', 100)->nullable()->after('target_efficiency'); // QET target timeliness
 
             // Legacy compatibility flag
@@ -52,7 +52,7 @@ return new class extends Migration
                 'mfo_code',
                 'si_code',
                 'office_id',
-                'target_quantity',
+                'target_quality',
                 'target_efficiency',
                 'target_timeliness',
                 'is_legacy_ipcr'

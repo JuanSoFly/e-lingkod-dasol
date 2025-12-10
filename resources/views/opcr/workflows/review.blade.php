@@ -167,7 +167,7 @@
                                         <div class="space-y-3">
                                             <div>
                                                 <div class="flex justify-between items-center mb-1">
-                                                    <span class="text-sm text-gray-600">Quantity Achievement</span>
+                                                    <span class="text-sm text-gray-600">Quality Achievement</span>
                                                     <span class="text-sm font-medium">{{ $target->performance_percentage ?? 0 }}%</span>
                                                 </div>
                                                 @if($target->performance_percentage)
@@ -207,8 +207,8 @@
                                                 $qetRating = $target->ratings?->first();
                                             @endphp
                                             <div class="flex justify-between">
-                                                <span class="text-sm text-gray-600">Quantity:</span>
-                                                <span class="text-sm font-medium">{{ $qetRating?->rating_quantity ?? 'Not Rated' }}/5</span>
+                                                <span class="text-sm text-gray-600">Quality:</span>
+                                                <span class="text-sm font-medium">{{ $qetRating?->rating_quality ?? 'Not Rated' }}/5</span>
                                             </div>
                                             <div class="flex justify-between">
                                                 <span class="text-sm text-gray-600">Efficiency:</span>
@@ -375,6 +375,7 @@
             const approveBtn = document.getElementById('approve-btn');
             const returnBtn = document.getElementById('return-btn');
             const rejectBtn = document.getElementById('reject-btn');
+            const reviewForm = document.getElementById('review-form');
 
             // Show/hide action buttons based on approval status
             function updateActionButtons() {
@@ -396,6 +397,14 @@
             }
 
             approvalStatus.addEventListener('change', updateActionButtons);
+            updateActionButtons();
+
+            reviewForm.addEventListener('submit', function(event) {
+                if (!approvalStatus.value) {
+                    event.preventDefault();
+                    alert('Please select a Final Decision before submitting.');
+                }
+            });
 
             // Handle different action buttons
             returnBtn.addEventListener('click', async function() {

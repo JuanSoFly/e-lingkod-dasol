@@ -383,8 +383,8 @@ function leaveHistory() {
         },
 
         editDraft(record) {
-            // Redirect to edit page or open edit modal
-            window.location.href = `/employee-portal/leave-applications/${record.id}/edit`;
+            // Redirect to dashboard Quick Apply with draft preloaded
+            window.location.href = `/employee-portal/leave-dashboard?draft_id=${record.id}`;
         },
 
         async withdrawApplication(applicationId) {

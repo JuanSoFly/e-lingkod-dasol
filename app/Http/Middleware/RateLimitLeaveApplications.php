@@ -5,10 +5,16 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use App\Models\LeaveType;
+use Carbon\Carbon;
 use Symfony\Component\HttpFoundation\Response;
 
 class RateLimitLeaveApplications
 {
+    private const SICK_LEAVE_CODE = 'SL';
+    private const SICK_BACKDATE_WINDOW_DAYS = 30;
+    private const SICK_ADVANCE_WINDOW_DAYS = 30;
+
     /**
      * Handle an incoming request.
      *
@@ -71,13 +77,18 @@ class RateLimitLeaveApplications
      */
     private function passesBasicValidation(Request $request): bool
     {
+        $leaveType = $request->input('leave_type_id')
+            ? LeaveType::find($request->input('leave_type_id'))
+            : null;
+        $isSickLeave = $leaveType?->code === self::SICK_LEAVE_CODE;
+
         // Must have leave type ID
         if (!$request->input('leave_type_id')) {
             return false;
         }
 
         // Must have dates (unless it's a draft)
-        $isDraft = $request->input('is_draft', false);
+        $isDraft = filter_var($request->input('is_draft', false), FILTER_VALIDATE_BOOLEAN);
         if (!$isDraft && (!$request->input('start_date') || !$request->input('end_date'))) {
             return false;
         }
@@ -90,9 +101,17 @@ class RateLimitLeaveApplications
         // Dates must be valid if provided
         if ($request->input('start_date')) {
             try {
-                $startDate = \Carbon\Carbon::parse($request->input('start_date'));
-                if ($startDate->isPast()) {
-                    return false; // Don't count past dates toward rate limit
+                $startDate = Carbon::parse($request->input('start_date'));
+
+                if ($isSickLeave) {
+                    if ($startDate->lt(Carbon::now()->subDays(self::SICK_BACKDATE_WINDOW_DAYS)) ||
+                        $startDate->gt(Carbon::now()->addDays(self::SICK_ADVANCE_WINDOW_DAYS))) {
+                        return false; // Out of allowed sick-leave window
+                    }
+                } else {
+                    if ($startDate->isPast()) {
+                        return false; // Don't count past dates toward rate limit for non-sick leave
+                    }
                 }
             } catch (\Exception $e) {
                 return false; // Invalid date format

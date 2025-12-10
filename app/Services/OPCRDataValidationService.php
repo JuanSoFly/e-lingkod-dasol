@@ -51,13 +51,13 @@ class OPCRDataValidationService
     /**
      * Validate QET rating calculation
      */
-    public function validateQETRating(float $quantity, float $efficiency, float $timeliness): array
+    public function validateQETRating(float $quality, float $efficiency, float $timeliness): array
     {
         $errors = [];
 
         // Check individual rating bounds
-        if ($quantity < 0 || $quantity > 5) {
-            $errors[] = 'Quantity rating must be between 0 and 5';
+        if ($quality < 0 || $quality > 5) {
+            $errors[] = 'Quality rating must be between 0 and 5';
         }
 
         if ($efficiency < 0 || $efficiency > 5) {
@@ -69,8 +69,8 @@ class OPCRDataValidationService
         }
 
         // Check for rating format
-        if (!$this->isValidRatingFormat($quantity)) {
-            $errors[] = 'Quantity rating must have maximum 2 decimal places';
+        if (!$this->isValidRatingFormat($quality)) {
+            $errors[] = 'Quality rating must have maximum 2 decimal places';
         }
 
         if (!$this->isValidRatingFormat($efficiency)) {
@@ -82,7 +82,7 @@ class OPCRDataValidationService
         }
 
         // Calculate and validate final rating
-        $finalRating = ($quantity + $efficiency + $timeliness) / 3;
+        $finalRating = ($quality + $efficiency + $timeliness) / 3;
 
         if (!empty($errors)) {
             throw new ValidationException(
@@ -94,7 +94,7 @@ class OPCRDataValidationService
 
         return [
             'valid' => true,
-            'quantity_rating' => $quantity,
+            'quality_rating' => $quality,
             'efficiency_rating' => $efficiency,
             'timeliness_rating' => $timeliness,
             'final_rating' => round($finalRating, 2),
@@ -109,15 +109,15 @@ class OPCRDataValidationService
     {
         $errors = [];
 
-        // Validate accomplished quantity against target
-        if (isset($target->target_quantity) && isset($accomplishment['quantity'])) {
-            if ($accomplishment['quantity'] < 0) {
-                $errors[] = 'Accomplished quantity cannot be negative';
+        // Validate accomplished quality against target
+        if (isset($target->target_quality) && isset($accomplishment['quality'])) {
+            if ($accomplishment['quality'] < 0) {
+                $errors[] = 'Accomplished quality cannot be negative';
             }
 
             // Check for unreasonable over-achievement (more than 500% of target)
-            if ($target->target_quantity > 0 && $accomplishment['quantity'] > ($target->target_quantity * 5)) {
-                $errors[] = 'Accomplished quantity is unreasonably high compared to target';
+            if ($target->target_quality > 0 && $accomplishment['quality'] > ($target->target_quality * 5)) {
+                $errors[] = 'Accomplished quality is unreasonably high compared to target';
             }
         }
 
@@ -135,7 +135,7 @@ class OPCRDataValidationService
         if (isset($accomplishment['ratings'])) {
             try {
                 $this->validateQETRating(
-                    $accomplishment['ratings']['quantity'] ?? 0,
+                    $accomplishment['ratings']['quality'] ?? 0,
                     $accomplishment['ratings']['efficiency'] ?? 0,
                     $accomplishment['ratings']['timeliness'] ?? 0
                 );
@@ -374,11 +374,11 @@ class OPCRDataValidationService
 
     private function calculateCompletionPercentage(PerformanceTarget $target, array $accomplishment): float
     {
-        if (!isset($target->target_quantity) || $target->target_quantity == 0) {
+        if (!isset($target->target_quality) || $target->target_quality == 0) {
             return 0;
         }
 
-        $accomplishedQuantity = $accomplishment['quantity'] ?? 0;
-        return min(($accomplishedQuantity / $target->target_quantity) * 100, 999.99);
+        $accomplishedQuality = $accomplishment['quality'] ?? 0;
+        return min(($accomplishedQuality / $target->target_quality) * 100, 999.99);
     }
 }

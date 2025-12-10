@@ -24,15 +24,18 @@ class DatabaseSeeder extends Seeder
         $this->call(WorkCalendarSeeder::class);
 
         // Create a Super Admin who is not an employee
-        $superAdminUser = User::factory()->create([
+        $superAdminUser = User::firstOrCreate([
+            'email' => 'admin@example.com'
+        ], [
             'name' => 'Super Admin',
-            'email' => 'admin@example.com',
+            'password' => bcrypt('password'),
+            'email_verified_at' => now(),
             'employee_id' => null, // Super Admin may not be an employee
         ]);
         $superAdminUser->assignRole('Super Admin');
 
         // Create a sample Employee with a User account
-        Employee::factory()
+        $employee = Employee::factory()
             ->has(User::factory()->state(function (array $attributes, Employee $employee) {
                 return [
                     'name' => $employee->first_name . ' ' . $employee->last_name,
@@ -45,11 +48,12 @@ class DatabaseSeeder extends Seeder
                 'email' => 'employee@example.com',
                 'department' => 'Human Resource Management Office',
                 'position' => 'HR Staff'
-            ])
-            ->user->assignRole('Employee');
+            ]);
+
+        optional($employee->fresh()->user)->assignRole('Employee');
 
         // Create an HR Admin
-        Employee::factory()
+        $hrAdmin = Employee::factory()
             ->has(User::factory()->state(function (array $attributes, Employee $employee) {
                 return [
                     'name' => $employee->first_name . ' ' . $employee->last_name,
@@ -62,23 +66,48 @@ class DatabaseSeeder extends Seeder
                  'email' => 'hr@example.com',
                  'department' => 'Human Resource Management Office',
                  'position' => 'HR Manager'
-             ])
-            ->user->assignRole('HR Admin');
+             ]);
 
-        // Create Department Head for Office of the Municipal Mayor
-        Employee::factory()
-            ->has(User::factory()->mayorDepartmentHead())
+        optional($hrAdmin->fresh()->user)->assignRole('HR Admin');
+
+        // Create a Supervisor (immediate approver for leave workflows)
+        $supervisor = Employee::factory()
+            ->has(User::factory()->state(function (array $attributes, Employee $employee) {
+                return [
+                    'name' => $employee->first_name . ' ' . $employee->last_name,
+                    'email' => $employee->email,
+                ];
+            }))
             ->create([
-                'first_name' => 'Roberto',
-                'last_name' => 'Mendoza',
-                'email' => 'depthead.mayor@dasol.gov.ph',
+                'first_name' => 'Sofia',
+                'last_name' => 'Lopez',
+                'email' => 'supervisor@example.com',
+                'department' => 'Human Resource Management Office',
+                'position' => 'HR Supervisor'
+            ]);
+
+        optional($supervisor->fresh()->user)->assignRole('Supervisor');
+
+        // Create Municipal Mayor as sole Final Approver
+        $mayor = Employee::factory()
+            ->has(User::factory()->state(function (array $attributes, Employee $employee) {
+                return [
+                    'name' => 'Municipal Mayor',
+                    'email' => 'mayor@dasol.gov.ph',
+                ];
+            }))
+            ->create([
+                'first_name' => 'Municipal',
+                'last_name' => 'Mayor',
+                'email' => 'mayor@dasol.gov.ph',
                 'department' => 'Office of the Municipal Mayor',
-                'position' => 'Department Head'
-            ])
-            ->user->assignRole('Department Head');
+                'position' => 'Municipal Mayor',
+            ]);
+
+        optional($mayor->fresh()->user)->assignRole('Final Approver');
 
         // Create Assessor (Performance Management Team)
-        Employee::factory()
+        $assessor = Employee::factory()
             ->has(User::factory()->assessor())
             ->create([
                 'first_name' => 'Carmela',
@@ -86,20 +115,9 @@ class DatabaseSeeder extends Seeder
                 'email' => 'assessor.pmt@dasol.gov.ph',
                 'department' => 'Performance Management Team',
                 'position' => 'Assessor'
-            ])
-            ->user->assignRole('Assessor');
+            ]);
 
-        // Create Final Approver (Senior Management)
-        Employee::factory()
-            ->has(User::factory()->finalApprover())
-            ->create([
-                'first_name' => 'Antonio',
-                'last_name' => 'Santos',
-                'email' => 'administrator@dasol.gov.ph',
-                'department' => 'Office of the Municipal Administrator',
-                'position' => 'Final Approver'
-            ])
-            ->user->assignRole('Final Approver');
+        optional($assessor->fresh()->user)->assignRole('Assessor');
 
         // Seed salary grades for civil service career management
         $this->call(SalaryGradeSeeder::class);
@@ -113,6 +131,8 @@ class DatabaseSeeder extends Seeder
         // Seed leave types and policies before credits
         $this->call(LeaveTypesSeeder::class);
         $this->call(LeavePolicySeeder::class);
+                // Seed Leave Workflows
+        $this->call(LeaveWorkflowSeeder::class);
 
         // Seed leave credits for employees (initial VL/SL balances)
         $this->call(SampleLeaveCreditsSeeder::class);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LeaveApplication;
 use App\Models\LeaveType;
 use App\Models\Employee;
+use App\Models\LeaveCredit;
 use App\Models\User;
 use App\Services\LeaveApplicationService;
 use App\Services\LeaveCardService;
@@ -41,7 +42,8 @@ class LeaveApplicationController extends Controller
 
         $applications = $this->leaveApplicationService->getApplicationsForUser(
             $user, 
-            $request->get('status')
+            $request->get('status'),
+            $request
         );
         
         return view('leave_applications.index', compact('applications'));
@@ -255,38 +257,23 @@ class LeaveApplicationController extends Controller
      */
     private function canUserApproveStep(User $user, LeaveApplication $application, \App\Models\LeaveWorkflowStep $workflowStep): bool
     {
-        // Super Admin and users with leave.approve permission can approve any step
-        if ($user->can('leave.approve') && ($user->hasRole('Super Admin') || $user->hasRole('hr_admin'))) {
-            \Log::info('Super Admin/HR user can approve any step', [
+        // Use the workflow service to determine if user can approve this application
+        $workflowService = new \App\Services\LeaveWorkflowService();
+        $canApprove = $workflowService->canUserApproveApplication($application, $user);
+
+        if ($canApprove) {
+            \Log::info('User can approve workflow step', [
                 'user_id' => $user->id,
                 'step_name' => $workflowStep->step_name
             ]);
-            return true;
-        }
-
-        // Department Heads with leave.approve permission can also approve any step
-        if ($user->can('leave.approve') && $user->hasRole('Department Head')) {
-            \Log::info('Department Head with leave.approve permission can approve any step', [
+        } else {
+            \Log::warning('User cannot approve workflow step', [
                 'user_id' => $user->id,
                 'step_name' => $workflowStep->step_name
             ]);
-            return true;
         }
 
-        // For regular workflow-based approval, check if user is in the approvers list
-        $currentApprovers = $workflowStep->getCurrentApprovers($application);
-
-        foreach ($currentApprovers as $approver) {
-            if ($approver->id === $user->id) {
-                \Log::info('User found in current approvers', [
-                    'user_id' => $user->id,
-                    'step_name' => $workflowStep->step_name
-                ]);
-                return true;
-            }
-        }
-
-        return false;
+        return $canApprove;
     }
 
     /**
@@ -296,9 +283,17 @@ class LeaveApplicationController extends Controller
     {
         $this->authorize('leave.view');
 
+        $user = Auth::user();
+        $canViewAllCards = $this->userCanViewAllLeaveCards($user);
+        $canViewOfficeCards = $this->userHasDepartmentHeadOfficeScope($user);
+        $userOfficeId = optional($user->employee)->office_id;
+
         // HR users without employee ID should see employee selection list
-        if (Auth::user()->can('leave.approve') && !$employeeId) {
+        if (($canViewAllCards || $canViewOfficeCards) && !$employeeId) {
             $employees = Employee::query()
+                ->when($canViewOfficeCards && !$canViewAllCards && $userOfficeId, function ($query) use ($userOfficeId) {
+                    $query->where('office_id', $userOfficeId);
+                })
                 ->when($request->filled('search'), function ($query) use ($request) {
                     $search = $request->get('search');
                     $query->where(function ($q) use ($search) {
@@ -314,15 +309,20 @@ class LeaveApplicationController extends Controller
             return view('leave-applications.employee-selection', compact('employees'));
         }
 
-        // Use provided employee ID or current user
-        $targetEmployeeId = $employeeId ?? Auth::user()->employee_id;
+        // Use provided employee ID or current user (Department Head limited to office)
+        $targetEmployeeId = ($canViewAllCards || $canViewOfficeCards)
+            ? ($employeeId ?? $user->employee_id)
+            : $user->employee_id;
 
-        // Non-HR users can only view their own leave card
-        if (!Auth::user()->can('leave.approve') && $targetEmployeeId !== Auth::user()->employee_id) {
-            abort(403, 'Unauthorized');
+        if (!$targetEmployeeId) {
+            abort(404, 'Employee profile not found');
         }
 
         $employee = Employee::findOrFail($targetEmployeeId);
+
+        if (!$this->employeeWithinLeaveCardScope($user, $employee)) {
+            abort(403, 'Unauthorized');
+        }
         $year = $request->get('year', date('Y'));
 
         // Get approved leave applications for the year
@@ -346,12 +346,78 @@ class LeaveApplicationController extends Controller
             )
             ->get();
 
+        $leaveTypes = LeaveType::where('is_active', true)->orderBy('name')->get();
+
         return view('leave-applications.leave-card', compact(
             'employee',
             'year',
             'leaveApplications',
-            'leaveCredits'
+            'leaveCredits',
+            'leaveTypes'
         ));
+    }
+
+    /**
+     * Update or create leave credit record for an employee (manager-only).
+     */
+    public function updateLeaveCredit(Request $request, $employeeId)
+    {
+        $this->authorize('employee.manage');
+
+        $employee = Employee::findOrFail($employeeId);
+
+        $validated = $request->validate([
+            'leave_type_id' => 'required|exists:leave_types,id',
+            'year' => 'required|integer|min:2000|max:' . (date('Y') + 1),
+            'earned_credits' => 'required|numeric|min:0',
+            'used_credits' => 'required|numeric|min:0',
+            'remaining_credits' => 'nullable|numeric|min:0',
+            'effective_date' => 'nullable|date',
+        ]);
+
+        $remaining = $validated['remaining_credits'] ?? max(0, $validated['earned_credits'] - $validated['used_credits']);
+
+        DB::transaction(function () use ($validated, $employee, $remaining) {
+            $leaveCredit = LeaveCredit::withTrashed()->firstOrCreate(
+                [
+                    'employee_id' => $employee->id,
+                    'leave_type_id' => $validated['leave_type_id'],
+                    'year' => $validated['year'],
+                ],
+                [
+                    'earned_credits' => 0,
+                    'used_credits' => 0,
+                    'remaining_credits' => 0,
+                    'effective_date' => now(),
+                ]
+            );
+
+            if ($leaveCredit->trashed()) {
+                $leaveCredit->restore();
+            }
+
+            $leaveCredit->earned_credits = $validated['earned_credits'];
+            $leaveCredit->used_credits = $validated['used_credits'];
+            $leaveCredit->remaining_credits = $remaining;
+            $leaveCredit->effective_date = $validated['effective_date'] ?? now();
+            $leaveCredit->updated_by = Auth::id();
+            $leaveCredit->save();
+
+            // Keep legacy LeaveCard balances in sync for VL/SL codes
+            $leaveType = LeaveType::find($validated['leave_type_id']);
+            if (in_array($leaveType->code, ['VL', 'SL'])) {
+                $leaveCard = \App\Models\LeaveCard::getOrCreateCard($employee, (int) $validated['year']);
+                if ($leaveType->code === 'VL') {
+                    $leaveCard->vl_balance = $remaining;
+                } else {
+                    $leaveCard->sl_balance = $remaining;
+                }
+                $leaveCard->last_updated = now();
+                $leaveCard->save();
+            }
+        });
+
+        return redirect()->back()->with('status', 'Leave credit updated successfully.');
     }
 
     /**
@@ -361,15 +427,24 @@ class LeaveApplicationController extends Controller
     {
         $this->authorize('leave.view');
 
-        // Use provided employee ID or current user
-        $targetEmployeeId = $employeeId ?? Auth::user()->employee_id;
+        $user = Auth::user();
+        $canViewAllCards = $this->userCanViewAllLeaveCards($user);
+        $canViewOfficeCards = $this->userHasDepartmentHeadOfficeScope($user);
 
-        // Non-HR users can only view their own leave card
-        if (!Auth::user()->can('leave.approve') && $targetEmployeeId !== Auth::user()->employee_id) {
-            abort(403, 'Unauthorized');
+        // Use provided employee ID or current user
+        $targetEmployeeId = ($canViewAllCards || $canViewOfficeCards)
+            ? ($employeeId ?? $user->employee_id)
+            : $user->employee_id;
+
+        if (!$targetEmployeeId) {
+            abort(404, 'Employee profile not found');
         }
 
         $employee = Employee::findOrFail($targetEmployeeId);
+
+        if (!$this->employeeWithinLeaveCardScope($user, $employee)) {
+            abort(403, 'Unauthorized');
+        }
         $year = $request->get('year', date('Y'));
 
         // Get approved leave applications for the year
@@ -399,5 +474,35 @@ class LeaveApplicationController extends Controller
             'leaveApplications',
             'leaveCredits'
         ));
+    }
+
+    private function userCanViewAllLeaveCards(User $user): bool
+    {
+        return $user->hasAnyRole(['Super Admin', 'HR Admin']) || $user->can('employee.manage');
+    }
+
+    /**
+     * Department Head visibility is limited to their own office.
+     */
+    private function userHasDepartmentHeadOfficeScope(User $user): bool
+    {
+        return $user->hasRole('Department Head') && optional($user->employee)->office_id !== null;
+    }
+
+    /**
+     * Determine if a target employee is within the viewer's allowed scope.
+     */
+    private function employeeWithinLeaveCardScope(User $user, Employee $employee): bool
+    {
+        if ($this->userCanViewAllLeaveCards($user)) {
+            return true;
+        }
+
+        if ($this->userHasDepartmentHeadOfficeScope($user)) {
+            $viewerOfficeId = optional($user->employee)->office_id;
+            return $viewerOfficeId && (int) $employee->office_id === (int) $viewerOfficeId;
+        }
+
+        return optional($user->employee)->id === $employee->id;
     }
 }

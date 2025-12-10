@@ -32,11 +32,11 @@ return new class extends Migration
             }
 
             // Enhanced target structure
-            if (!Schema::hasColumn('performance_targets', 'target_quantity')) {
-                $table->decimal('target_quantity', 10, 2)->nullable()->after('weight'); // QET target quantity
+            if (!Schema::hasColumn('performance_targets', 'target_quality')) {
+                $table->decimal('target_quality', 10, 2)->nullable()->after('weight'); // QET target quality
             }
             if (!Schema::hasColumn('performance_targets', 'target_efficiency')) {
-                $table->string('target_efficiency', 100)->nullable()->after('target_quantity'); // QET target efficiency
+                $table->string('target_efficiency', 100)->nullable()->after('target_quality'); // QET target efficiency
             }
             if (!Schema::hasColumn('performance_targets', 'target_timeliness')) {
                 $table->string('target_timeliness', 100)->nullable()->after('target_efficiency'); // QET target timeliness
@@ -70,7 +70,7 @@ return new class extends Migration
                 'mfo_code',
                 'si_code',
                 'office_id',
-                'target_quantity',
+                'target_quality',
                 'target_efficiency',
                 'target_timeliness',
                 'is_legacy_ipcr'

@@ -479,7 +479,7 @@ class OfficeController extends Controller
         $assignments = $office->activeAssignments()
             ->with(['user', 'employee'])
             ->orderBy('role')
-            ->orderBy('assigned_at')
+            ->orderBy('assigned_date')
             ->get();
 
         $employees = $office->employees()

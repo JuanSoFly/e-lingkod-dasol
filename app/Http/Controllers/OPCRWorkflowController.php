@@ -347,7 +347,7 @@ class OPCRWorkflowController extends Controller
 
         $request->validate([
             'ratings' => 'required|array',
-            'ratings.*.quantity_rating' => 'required|integer|min:1|max:5',
+            'ratings.*.quality_rating' => 'required|integer|min:1|max:5',
             'ratings.*.efficiency_rating' => 'required|integer|min:1|max:5',
             'ratings.*.timeliness_rating' => 'required|integer|min:1|max:5',
             'assessor_remarks' => 'nullable|string',

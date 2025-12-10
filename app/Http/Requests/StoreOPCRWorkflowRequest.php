@@ -89,7 +89,7 @@ class StoreOPCRWorkflowRequest extends FormRequest
                     }
                 },
             ],
-            'targets.*.target_quantity' => [
+            'targets.*.target_quality' => [
                 'nullable',
                 'numeric',
                 'min:0',
@@ -144,8 +144,8 @@ class StoreOPCRWorkflowRequest extends FormRequest
             'targets.*.mfo_id.required' => 'Please select an MFO for each target.',
             'targets.*.mfo_id.distinct' => 'Each MFO can only be selected once.',
             'targets.*.success_indicator_id.required' => 'Please select a success indicator for each target.',
-            'targets.*.target_quantity.numeric' => 'Target quantity must be a number.',
-            'targets.*.target_quantity.min' => 'Target quantity cannot be negative.',
+            'targets.*.target_quality.numeric' => 'Target quality must be a number.',
+            'targets.*.target_quality.min' => 'Target quality cannot be negative.',
             'targets.*.weight.required' => 'Weight is required for each target.',
             'targets.*.weight.min' => 'Weight must be at least 0.1.',
             'targets.*.weight.max' => 'Weight cannot exceed 100.',
@@ -201,7 +201,7 @@ class StoreOPCRWorkflowRequest extends FormRequest
             'description' => 'Description',
             'targets.*.mfo_id' => 'MFO',
             'targets.*.success_indicator_id' => 'Success Indicator',
-            'targets.*.target_quantity' => 'Target Quantity',
+            'targets.*.target_quality' => 'Target Quality',
             'targets.*.target_efficiency' => 'Target Efficiency',
             'targets.*.target_timeliness' => 'Target Timeliness',
             'targets.*.weight' => 'Weight',

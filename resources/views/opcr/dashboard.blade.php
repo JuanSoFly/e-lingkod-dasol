@@ -15,12 +15,17 @@
                             <h3 class="text-lg font-medium text-gray-900">
                                 Welcome back, {{ auth()->user()->employee->full_name ?? auth()->user()->name }}!
                             </h3>
-                            <p class="mt-1 text-sm text-gray-600">
-                                {{ $userRole === 'Department Head' ? 'Manage your office performance commitments' :
-                                   ($userRole === 'Assessor' ? 'Review and evaluate OPCR submissions' :
-                                   ($userRole === 'Final Approver' ? 'Finalize OPCR approvals' :
-                                   'Monitor OPCR system performance')) }}
-                            </p>
+                            @php
+                                $roleMessages = [
+                                    'Department Head' => 'Manage your office performance commitments',
+                                    'Planning Reviewer' => 'Validate OPCR alignment with LGU plans',
+                                    'PMT Reviewer' => 'Calibrate and recommend OPCRs',
+                                    'Assessor' => 'Review and evaluate OPCR submissions',
+                                    'Final Approver' => 'Finalize OPCR approvals',
+                                ];
+                                $roleMessage = $roleMessages[$userRole] ?? 'Monitor OPCR system performance';
+                            @endphp
+                            <p class="mt-1 text-sm text-gray-600">{{ $roleMessage }}</p>
                         </div>
                         <div class="text-right">
                             <div class="text-2xl font-bold text-indigo-600">{{ now()->format('M d, Y') }}</div>
@@ -153,6 +158,34 @@
                                             </div>
                                             <a href="{{ route('opcr.workflows.index', ['workflow_state' => 'returned']) }}" class="inline-flex items-center px-3 py-2 bg-orange-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition ease-in-out duration-150">
                                                 Revise
+                                            </a>
+                                        </div>
+                                    @endif
+                                @endif
+
+                                @if($userRole === 'Planning Reviewer')
+                                    @if(isset($pendingItems['planning_review']) && $pendingItems['planning_review'] > 0)
+                                        <div class="flex items-center justify-between p-4 bg-cyan-50 rounded-lg">
+                                            <div>
+                                                <h4 class="text-sm font-medium text-cyan-900">Planning Reviews</h4>
+                                                <p class="text-sm text-cyan-700">{{ $pendingItems['planning_review'] }} awaiting validation</p>
+                                            </div>
+                                            <a href="{{ route('opcr.workflows.index', ['workflow_state' => 'planning_review']) }}" class="inline-flex items-center px-3 py-2 bg-cyan-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                                Review
+                                            </a>
+                                        </div>
+                                    @endif
+                                @endif
+
+                                @if($userRole === 'PMT Reviewer')
+                                    @if(isset($pendingItems['pmt_review']) && $pendingItems['pmt_review'] > 0)
+                                        <div class="flex items-center justify-between p-4 bg-teal-50 rounded-lg">
+                                            <div>
+                                                <h4 class="text-sm font-medium text-teal-900">PMT Reviews</h4>
+                                                <p class="text-sm text-teal-700">{{ $pendingItems['pmt_review'] }} awaiting PMT action</p>
+                                            </div>
+                                            <a href="{{ route('opcr.workflows.index', ['workflow_state' => 'pmt_review']) }}" class="inline-flex items-center px-3 py-2 bg-teal-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                                Review
                                             </a>
                                         </div>
                                     @endif

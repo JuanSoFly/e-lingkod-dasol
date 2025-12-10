@@ -158,7 +158,7 @@ class OPCRAnalyticsController extends Controller
         $validated = $request->validate([
             'period_id' => 'nullable|exists:performance_periods,id',
             'office_id' => 'nullable|exists:offices,id',
-            'rating_type' => 'in:quantity,efficiency,timeliness,adjectival',
+            'rating_type' => 'in:quality,efficiency,timeliness,adjectival',
             'analysis_depth' => 'in:summary,detailed,comprehensive',
             'benchmark_comparison' => 'boolean',
             'trend_analysis' => 'boolean'

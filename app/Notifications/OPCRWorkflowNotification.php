@@ -61,6 +61,8 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
             'opcr.reminder' => $this->createReminderMail($notifiable, $workflow, $user),
             'opcr.daily_summary' => $this->createDailySummaryMail($notifiable, $this->data),
             'opcr.custom' => $this->createCustomMail($notifiable, $this->data),
+            'opcr.evaluation_started' => $this->createEvaluationStartedMail($notifiable, $workflow, $user),
+            'opcr.ready_for_final_approval' => $this->createReadyForFinalApprovalMail($notifiable, $workflow, $user),
             default => $this->createDefaultMail($notifiable, $this->data),
         };
     }
@@ -101,7 +103,7 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
                        ->line('**Period:** ' . $workflow->period->name)
                        ->line('**Title:** ' . $workflow->title);
             })
-            ->action('View OPCR Workflow', route('opcr.show', $workflow->id))
+            ->action('View OPCR Workflow', route('opcr.workflows.show', $workflow->id))
             ->line('Please review and commit your OPCR targets as soon as possible.')
             ->line('Thank you for using the E-Lingkod Dasol HRIS system.');
     }
@@ -120,7 +122,7 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
                        ->line('**Period:** ' . $workflow->period->name)
                        ->line('**Committed by:** ' . $workflow->committedBy->name);
             })
-            ->action('Assess OPCR', route('opcr.assess', $workflow->id))
+            ->action('Assess OPCR', route('opcr.workflows.evaluate', $workflow->id))
             ->line('Please review the committed targets and provide your assessment.')
             ->line('Thank you for your attention to this matter.');
     }
@@ -139,7 +141,7 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
                        ->line('**Period:** ' . $workflow->period->name)
                        ->line('**Submitted by:** ' . $workflow->submittedBy->name);
             })
-            ->action('Review OPCR', route('opcr.assess', $workflow->id))
+            ->action('Review OPCR', route('opcr.workflows.evaluate', $workflow->id))
             ->line('Please assess the submitted OPCR and provide your ratings.')
             ->line('Your prompt attention to this matter is appreciated.');
     }
@@ -161,7 +163,7 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
                            $msg->line('**Overall Rating:** ' . $workflow->overall_rating . ' (' . $workflow->overall_adjectival_rating . ')');
                        });
             })
-            ->action('Review and Approve', route('opcr.approve', $workflow->id))
+            ->action('Review and Approve', route('opcr.workflows.review', $workflow->id))
             ->line('Please review the assessment and provide your final approval.')
             ->line('Your decision on this matter is greatly appreciated.');
     }
@@ -183,7 +185,7 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
                            $msg->line('**Final Rating:** ' . $workflow->overall_rating . ' (' . $workflow->overall_adjectival_rating . ')');
                        });
             })
-            ->action('View Approved OPCR', route('opcr.show', $workflow->id))
+            ->action('View Approved OPCR', route('opcr.workflows.show', $workflow->id))
             ->line('Congratulations on the successful completion of the OPCR process.')
             ->line('The approved OPCR is now available for download and reference.');
     }
@@ -205,9 +207,45 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
                            $msg->line('**Reason:** ' . $workflow->return_reason);
                        });
             })
-            ->action('Review and Revise', route('opcr.edit', $workflow->id))
+            ->action('Review and Revise', route('opcr.workflows.edit', $workflow->id))
             ->line('Please review the feedback and make the necessary revisions.')
             ->line('After revising, please resubmit the OPCR for evaluation.');
+    }
+
+    /**
+     * Create evaluation started notification mail
+     */
+    private function createEvaluationStartedMail($notifiable, $workflow, $user): MailMessage
+    {
+        return (new MailMessage)
+            ->subject('OPCR Evaluation Started')
+            ->greeting('Hello ' . $notifiable->name . ',')
+            ->line('An OPCR workflow is now in the evaluation phase.')
+            ->when($workflow, function ($message) use ($workflow) {
+                $message->line('**Office:** ' . $workflow->office->name)
+                       ->line('**Period:** ' . $workflow->period->name)
+                       ->line('**Committed Targets:** ' . $workflow->targets()->count());
+            })
+            ->action('Review Evaluation Status', route('opcr.workflows.review', $workflow->id))
+            ->line('Please prepare for validation and ensure timelines are met.');
+    }
+
+    /**
+     * Create ready for final approval notification mail
+     */
+    private function createReadyForFinalApprovalMail($notifiable, $workflow, $user): MailMessage
+    {
+        return (new MailMessage)
+            ->subject('OPCR Ready for Final Approval')
+            ->greeting('Hello ' . $notifiable->name . ',')
+            ->line('An OPCR workflow has completed evaluation and awaits your final approval.')
+            ->when($workflow, function ($message) use ($workflow) {
+                $message->line('**Office:** ' . $workflow->office->name)
+                       ->line('**Period:** ' . $workflow->period->name)
+                       ->line('**Overall Rating:** ' . ($workflow->overall_rating ?? 'Pending'));
+            })
+            ->action('Finalize OPCR', route('opcr.workflows.review', $workflow->id))
+            ->line('Kindly review and take action to finalize the workflow.');
     }
 
     /**
@@ -227,7 +265,7 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
                        ->line('**Current Status:** ' . $workflow->state_display_name);
             })
             ->line('**Days Overdue:** ' . $daysOverdue)
-            ->action('View OPCR Workflow', route('opcr.show', $workflow->id))
+            ->action('View OPCR Workflow', route('opcr.workflows.show', $workflow->id))
             ->line('Please take immediate action to complete the required steps.')
             ->line('Your prompt attention to this matter is greatly appreciated.');
     }
@@ -246,7 +284,7 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
                        ->line('**Period:** ' . $workflow->period->name)
                        ->line('**Current Status:** ' . $workflow->state_display_name);
             })
-            ->action('View OPCR Workflow', route('opcr.show', $workflow->id))
+            ->action('View OPCR Workflow', route('opcr.workflows.show', $workflow->id))
             ->line('Please review and take the necessary action.')
             ->line('Thank you for your attention to this matter.');
     }
@@ -290,7 +328,7 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
                    ->line('**Period:** ' . $workflow->period->name);
             })
             ->when($workflow, function ($msg) use ($workflow) {
-                $msg->action('View OPCR Workflow', route('opcr.show', $workflow->id));
+                $msg->action('View OPCR Workflow', route('opcr.workflows.show', $workflow->id));
             })
             ->line('Thank you for your attention to this matter.');
     }
@@ -321,6 +359,8 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
             'opcr.assessed' => 'OPCR Assessment Completed',
             'opcr.approved' => 'OPCR Finally Approved',
             'opcr.returned' => 'OPCR Returned for Revision',
+            'opcr.evaluation_started' => 'OPCR Evaluation Started',
+            'opcr.ready_for_final_approval' => 'OPCR Ready for Final Approval',
             'opcr.overdue' => 'OPCR Workflow Overdue',
             'opcr.reminder' => 'OPCR Workflow Reminder',
             'opcr.daily_summary' => 'Daily OPCR Summary',
@@ -344,6 +384,8 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
             'opcr.assessed' => 'OPCR assessment has been completed.',
             'opcr.approved' => 'OPCR has been finally approved.',
             'opcr.returned' => 'OPCR has been returned for revision.',
+            'opcr.evaluation_started' => 'OPCR evaluation has started.',
+            'opcr.ready_for_final_approval' => 'OPCR is ready for final approval.',
             'opcr.overdue' => 'OPCR workflow is overdue and requires attention.',
             'opcr.reminder' => 'This is a reminder about an OPCR workflow.',
             'opcr.daily_summary' => 'Daily OPCR workflow summary is available.',
@@ -364,10 +406,10 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
         }
 
         return match ($this->notificationType) {
-            'opcr.initialized', 'opcr.returned' => route('opcr.edit', $workflow->id),
-            'opcr.committed', 'opcr.submitted' => route('opcr.assess', $workflow->id),
-            'opcr.assessed' => route('opcr.approve', $workflow->id),
-            default => route('opcr.show', $workflow->id),
+            'opcr.initialized', 'opcr.returned' => route('opcr.workflows.edit', $workflow->id),
+            'opcr.committed', 'opcr.submitted' => route('opcr.workflows.evaluate', $workflow->id),
+            'opcr.evaluation_started', 'opcr.assessed', 'opcr.ready_for_final_approval' => route('opcr.workflows.review', $workflow->id),
+            default => route('opcr.workflows.show', $workflow->id),
         };
     }
 
@@ -383,6 +425,8 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
             'opcr.assessed' => 'Approve OPCR',
             'opcr.approved' => 'View Approved OPCR',
             'opcr.returned' => 'Revise OPCR',
+            'opcr.evaluation_started' => 'Review Evaluation',
+            'opcr.ready_for_final_approval' => 'Finalize OPCR',
             'opcr.overdue' => 'Take Action',
             'opcr.reminder' => 'View OPCR',
             'opcr.daily_summary' => 'View Dashboard',
@@ -398,6 +442,7 @@ class OPCRWorkflowNotification extends Notification implements ShouldQueue
         return match ($this->notificationType) {
             'opcr.overdue' => 'high',
             'opcr.returned' => 'medium',
+            'opcr.ready_for_final_approval' => 'medium',
             'opcr.approved' => 'low',
             default => 'normal',
         };

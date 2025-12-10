@@ -13,15 +13,15 @@ return new class extends Migration
     {
         Schema::table('performance_ratings', function (Blueprint $table) {
             // QET rating columns
-            $table->integer('rating_quantity')->nullable()->after('remarks'); // QET quantity rating (1-5)
-            $table->integer('rating_efficiency')->nullable()->after('rating_quantity'); // EET efficiency rating (1-5)
+            $table->integer('rating_quality')->nullable()->after('remarks'); // QET quality rating (1-5)
+            $table->integer('rating_efficiency')->nullable()->after('rating_quality'); // EET efficiency rating (1-5)
             $table->integer('rating_timeliness')->nullable()->after('rating_efficiency'); // TET timeliness rating (1-5)
             $table->decimal('average_qet_rating', 3, 2)->nullable()->after('rating_timeliness'); // Average QET rating
             $table->string('adjectival_rating', 50)->nullable()->after('average_qet_rating'); // Adjectival rating
 
             // Accomplishment tracking
-            $table->decimal('accomplished_quantity', 10, 2)->nullable()->after('final_rating');
-            $table->string('accomplished_efficiency', 100)->nullable()->after('accomplished_quantity');
+            $table->decimal('accomplished_quality', 10, 2)->nullable()->after('final_rating');
+            $table->string('accomplished_efficiency', 100)->nullable()->after('accomplished_quality');
             $table->string('accomplished_timeliness', 100)->nullable()->after('accomplished_efficiency');
 
             // Rating workflow
@@ -42,7 +42,7 @@ return new class extends Migration
             $table->json('evidence_documents')->nullable()->after('approver_remarks'); // Document IDs
 
             // Indexes
-            $table->index(['rating_quantity', 'rating_efficiency', 'rating_timeliness'], 'pr_ratings_qet_index');
+            $table->index(['rating_quality', 'rating_efficiency', 'rating_timeliness'], 'pr_ratings_qet_index');
             $table->index('average_qet_rating');
             $table->index('adjectival_rating');
             $table->index(['office_id', 'assessed_by'], 'pr_ratings_office_assessor_index');
@@ -60,12 +60,12 @@ return new class extends Migration
             $table->dropForeign(['assessed_by']);
             $table->dropForeign(['approved_by']);
             $table->dropColumn([
-                'rating_quantity',
+                'rating_quality',
                 'rating_efficiency',
                 'rating_timeliness',
                 'average_qet_rating',
                 'adjectival_rating',
-                'accomplished_quantity',
+                'accomplished_quality',
                 'accomplished_efficiency',
                 'accomplished_timeliness',
                 'assessed_by',

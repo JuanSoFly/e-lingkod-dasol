@@ -34,6 +34,7 @@ class OfficeAssignmentController extends Controller
     public function index(Request $request): View
     {
         $query = OfficeAssignment::with(['user', 'office'])
+            ->withoutArchivedPersonnel()
             ->orderBy('office_id')
             ->orderBy('role');
 
@@ -458,11 +459,12 @@ class OfficeAssignmentController extends Controller
 
                         OfficeAssignment::create([
                             'user_id' => $assignmentData['user_id'],
+                            'employee_id' => User::find($assignmentData['user_id'])?->employee?->id,
                             'office_id' => $assignmentData['office_id'],
                             'role' => $assignmentData['role'],
                             'is_active' => true,
                             'assigned_by' => auth()->id(),
-                            'assigned_at' => now(),
+                            'assigned_date' => now()->toDateString(),
                         ]);
 
                         $successCount++;

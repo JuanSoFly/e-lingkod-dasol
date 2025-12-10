@@ -63,6 +63,17 @@ class OPCRWorkflow extends Model
         'final_rating_override',
         'performance_level',
         'rating_override_justification',
+        // Planning / PMT checkpoints
+        'planning_reviewer_id',
+        'planning_reviewed_at',
+        'planning_remarks',
+        'pmt_recommender_id',
+        'pmt_recommended_at',
+        'pmt_remarks',
+        // Compliance + override
+        'return_source',
+        'hrmo_override',
+        'hrmo_override_reason',
     ];
 
     protected $casts = [
@@ -71,6 +82,7 @@ class OPCRWorkflow extends Model
         'metadata' => 'array',
         'file_attachments' => 'array',
         'is_archived' => 'boolean',
+        'hrmo_override' => 'boolean',
         // Current database structure dates
         'commitment_date' => 'date',
         'accomplishment_date' => 'date',
@@ -83,12 +95,16 @@ class OPCRWorkflow extends Model
         'assessed_at' => 'datetime',
         'approved_at' => 'datetime',
         'returned_at' => 'datetime',
+        'planning_reviewed_at' => 'datetime',
+        'pmt_recommended_at' => 'datetime',
     ];
 
     /**
      * Workflow states
      */
     const STATE_DRAFT = 'draft';
+    const STATE_PLANNING_REVIEW = 'planning_review';
+    const STATE_PMT_REVIEW = 'pmt_review';
     const STATE_COMMITTED = 'committed';
     const STATE_IN_PROGRESS = 'in_progress';
     const STATE_EVALUATION = 'evaluation';
@@ -126,6 +142,22 @@ class OPCRWorkflow extends Model
     public function committedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'committed_by');
+    }
+
+    /**
+     * Get the planning reviewer
+     */
+    public function planningReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'planning_reviewer_id');
+    }
+
+    /**
+     * Get the PMT recommender
+     */
+    public function pmtRecommender(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'pmt_recommender_id');
     }
 
     /**
@@ -239,6 +271,8 @@ class OPCRWorkflow extends Model
     {
         return $query->whereIn('workflow_state', [
             self::STATE_DRAFT,
+            self::STATE_PLANNING_REVIEW,
+            self::STATE_PMT_REVIEW,
             self::STATE_COMMITTED,
             self::STATE_IN_PROGRESS,
             self::STATE_EVALUATION,
@@ -300,6 +334,8 @@ class OPCRWorkflow extends Model
     {
         return match ($this->workflow_state) {
             self::STATE_DRAFT => 'Draft',
+            self::STATE_PLANNING_REVIEW => 'Planning Review',
+            self::STATE_PMT_REVIEW => 'PMT Review',
             self::STATE_COMMITTED => 'Committed',
             self::STATE_IN_PROGRESS => 'In Progress',
             self::STATE_EVALUATION => 'Under Evaluation',
@@ -316,6 +352,8 @@ class OPCRWorkflow extends Model
     {
         return match ($this->workflow_state) {
             self::STATE_DRAFT => 'gray',
+            self::STATE_PLANNING_REVIEW => 'cyan',
+            self::STATE_PMT_REVIEW => 'teal',
             self::STATE_COMMITTED => 'blue',
             self::STATE_IN_PROGRESS => 'yellow',
             self::STATE_EVALUATION => 'orange',
@@ -346,7 +384,10 @@ class OPCRWorkflow extends Model
      */
     public function canBeSubmitted(): bool
     {
-        return in_array($this->workflow_state, [self::STATE_COMMITTED, self::STATE_RETURNED]);
+        return in_array($this->workflow_state, [
+            self::STATE_COMMITTED,
+            self::STATE_RETURNED,
+        ]);
     }
 
     /**
@@ -371,6 +412,8 @@ class OPCRWorkflow extends Model
     public function canBeReturned(): bool
     {
         return in_array($this->workflow_state, [
+            self::STATE_PLANNING_REVIEW,
+            self::STATE_PMT_REVIEW,
             self::STATE_COMMITTED,
             self::STATE_IN_PROGRESS,
             self::STATE_EVALUATION,
@@ -392,6 +435,8 @@ class OPCRWorkflow extends Model
     {
         return in_array($this->workflow_state, [
             self::STATE_DRAFT,
+            self::STATE_PLANNING_REVIEW,
+            self::STATE_PMT_REVIEW,
             self::STATE_COMMITTED,
             self::STATE_IN_PROGRESS,
             self::STATE_EVALUATION,
@@ -404,11 +449,13 @@ class OPCRWorkflow extends Model
     public function getAllowedTransitions(): array
     {
         return match ($this->workflow_state) {
-            self::STATE_DRAFT => [self::STATE_COMMITTED, self::STATE_RETURNED],
+            self::STATE_DRAFT => [self::STATE_PLANNING_REVIEW, self::STATE_RETURNED],
+            self::STATE_PLANNING_REVIEW => [self::STATE_PMT_REVIEW, self::STATE_RETURNED],
+            self::STATE_PMT_REVIEW => [self::STATE_COMMITTED, self::STATE_RETURNED],
             self::STATE_COMMITTED => [self::STATE_IN_PROGRESS, self::STATE_RETURNED],
             self::STATE_IN_PROGRESS => [self::STATE_EVALUATION, self::STATE_RETURNED],
             self::STATE_EVALUATION => [self::STATE_FINAL_APPROVAL, self::STATE_RETURNED],
-            self::STATE_RETURNED => [self::STATE_COMMITTED],
+            self::STATE_RETURNED => [self::STATE_PLANNING_REVIEW],
             self::STATE_FINAL_APPROVAL => [], // Terminal state
             default => [],
         };
@@ -433,11 +480,31 @@ class OPCRWorkflow extends Model
 
         if ($this->committed_at && $this->committedBy) {
             $timeline[] = [
-                'event' => 'Committed',
-                'description' => 'OPCR committed by Department Head',
+                'event' => 'Submitted',
+                'description' => 'OPCR submitted by Department Head to Planning',
                 'user' => $this->committedBy,
                 'timestamp' => $this->committed_at,
                 'type' => 'commitment',
+            ];
+        }
+
+        if ($this->planning_reviewed_at && $this->planningReviewer) {
+            $timeline[] = [
+                'event' => 'Planning Review',
+                'description' => 'Planning Office review completed',
+                'user' => $this->planningReviewer,
+                'timestamp' => $this->planning_reviewed_at,
+                'type' => 'planning_review',
+            ];
+        }
+
+        if ($this->pmt_recommended_at && $this->pmtRecommender) {
+            $timeline[] = [
+                'event' => 'PMT Recommendation',
+                'description' => 'PMT endorsed the OPCR',
+                'user' => $this->pmtRecommender,
+                'timestamp' => $this->pmt_recommended_at,
+                'type' => 'pmt_recommendation',
             ];
         }
 
@@ -474,7 +541,7 @@ class OPCRWorkflow extends Model
         if ($this->returned_at && $this->returnedBy) {
             $timeline[] = [
                 'event' => 'Returned',
-                'description' => 'OPCR returned for revision: ' . $this->return_reason,
+                'description' => 'OPCR returned for revision by ' . ($this->return_source ?? 'approver') . ': ' . $this->return_reason,
                 'user' => $this->returnedBy,
                 'timestamp' => $this->returned_at,
                 'type' => 'return',
@@ -495,6 +562,18 @@ class OPCRWorkflow extends Model
                 'description' => 'Department Head is preparing the OPCR',
                 'actions' => ['edit', 'commit'],
                 'responsible_role' => 'Department Head',
+            ],
+            self::STATE_PLANNING_REVIEW => [
+                'name' => 'Planning Review',
+                'description' => 'Planning Office validating alignment with LGU plans',
+                'actions' => ['approve', 'return'],
+                'responsible_role' => 'Planning Reviewer',
+            ],
+            self::STATE_PMT_REVIEW => [
+                'name' => 'PMT Review',
+                'description' => 'PMT calibrating and recommending approval',
+                'actions' => ['approve', 'return'],
+                'responsible_role' => 'PMT',
             ],
             self::STATE_COMMITTED => [
                 'name' => 'Committed',
@@ -542,11 +621,13 @@ class OPCRWorkflow extends Model
     {
         $states = [
             self::STATE_DRAFT => 0,
-            self::STATE_COMMITTED => 25,
-            self::STATE_IN_PROGRESS => 50,
-            self::STATE_EVALUATION => 75,
+            self::STATE_PLANNING_REVIEW => 15,
+            self::STATE_PMT_REVIEW => 30,
+            self::STATE_COMMITTED => 45,
+            self::STATE_IN_PROGRESS => 60,
+            self::STATE_EVALUATION => 80,
             self::STATE_FINAL_APPROVAL => 100,
-            self::STATE_RETURNED => 25, // Reset to 25% when returned
+            self::STATE_RETURNED => 15, // Reset near planning when returned
         ];
 
         return $states[$this->workflow_state] ?? 0;
@@ -600,6 +681,8 @@ class OPCRWorkflow extends Model
     {
         return [
             self::STATE_DRAFT => 'Draft',
+            self::STATE_PLANNING_REVIEW => 'Planning Review',
+            self::STATE_PMT_REVIEW => 'PMT Review',
             self::STATE_COMMITTED => 'Committed',
             self::STATE_IN_PROGRESS => 'In Progress',
             self::STATE_EVALUATION => 'Under Evaluation',

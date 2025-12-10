@@ -55,7 +55,7 @@ class PerformanceRatingController extends Controller
             'filters' => $filters,
             'offices' => Office::orderBy('name')->get(['id', 'name']),
             'ratingScales' => $this->qetRatingService->getRatingScales(),
-            'qetCategories' => ['quantity', 'efficiency', 'timeliness']
+            'qetCategories' => ['quality', 'efficiency', 'timeliness']
         ]);
     }
 
@@ -87,10 +87,10 @@ class PerformanceRatingController extends Controller
     public function storeQETRating(Request $request, PerformanceTarget $target): JsonResponse
     {
         $validated = $request->validate([
-            'quantity_rating' => 'required|integer|min:1|max:5',
+            'quality_rating' => 'required|integer|min:1|max:5',
             'efficiency_rating' => 'required|integer|min:1|max:5',
             'timeliness_rating' => 'required|integer|min:1|max:5',
-            'quantity_remarks' => 'nullable|string|max:1000',
+            'quality_remarks' => 'nullable|string|max:1000',
             'efficiency_remarks' => 'nullable|string|max:1000',
             'timeliness_remarks' => 'nullable|string|max:1000',
             'evidence_attachments' => 'nullable|array',
@@ -158,10 +158,10 @@ class PerformanceRatingController extends Controller
     public function storeOPCREvaluation(Request $request, PerformanceTarget $target): JsonResponse
     {
         $validated = $request->validate([
-            'quantity_rating' => 'required|integer|min:1|max:5',
+            'quality_rating' => 'required|integer|min:1|max:5',
             'efficiency_rating' => 'required|integer|min:1|max:5',
             'timeliness_rating' => 'required|integer|min:1|max:5',
-            'quantity_comments' => 'nullable|string|max:1000',
+            'quality_comments' => 'nullable|string|max:1000',
             'efficiency_comments' => 'nullable|string|max:1000',
             'timeliness_comments' => 'nullable|string|max:1000',
             'overall_comments' => 'nullable|string|max:2000',
@@ -211,7 +211,7 @@ class PerformanceRatingController extends Controller
     {
         $validated = $request->validate([
             'assessment_type' => 'required|in:intermediate,final',
-            'quantity_assessment' => 'required|integer|min:1|max:5',
+            'quality_assessment' => 'required|integer|min:1|max:5',
             'efficiency_assessment' => 'required|integer|min:1|max:5',
             'timeliness_assessment' => 'required|integer|min:1|max:5',
             'assessment_comments' => 'required|string|max:3000',
@@ -298,7 +298,7 @@ class PerformanceRatingController extends Controller
             'office_id' => 'nullable|exists:offices,id',
             'period_id' => 'nullable|exists:performance_periods,id',
             'analysis_type' => 'in:distribution,trends,comparisons,quality_metrics',
-            'rating_category' => 'in:quantity,efficiency,timeliness,adjectival'
+            'rating_category' => 'in:quality,efficiency,timeliness,adjectival'
         ]);
 
         $analytics = $this->qetRatingService->getRatingAnalytics($validated);

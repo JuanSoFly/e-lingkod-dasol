@@ -194,9 +194,14 @@
                                         {{ __('Office Management') }}
                                     </x-dropdown-link>
                                 @endcan
-                                @can('opcr.manage')
+                                @can('opcr.settings')
                                     <x-dropdown-link :href="route('opcr.mfos.index')">
                                         {{ __('Manage MFOs') }}
+                                    </x-dropdown-link>
+                                @endcan
+                                @can('opcr.settings')
+                                    <x-dropdown-link :href="route('opcr.success-indicators.index')">
+                                        {{ __('Success Indicators') }}
                                     </x-dropdown-link>
                                 @endcan
                                 @can('opcr.manage')
@@ -516,9 +521,24 @@
                     {{ __('OPCR Workflows') }}
                 </x-responsive-nav-link>
             @endcan
+            @can('opcr.settings')
+                <x-responsive-nav-link :href="route('opcr.mfos.index')">
+                    {{ __('Manage MFOs') }}
+                </x-responsive-nav-link>
+            @endcan
+            @can('opcr.settings')
+                <x-responsive-nav-link :href="route('opcr.success-indicators.index')">
+                    {{ __('Success Indicators') }}
+                </x-responsive-nav-link>
+            @endcan
             @can('opcr.export')
                 <x-responsive-nav-link :href="route('opcr.archive.index')">
                     {{ __('OPCR Archive') }}
+                </x-responsive-nav-link>
+            @endcan
+            @can('opcr.manage')
+                <x-responsive-nav-link :href="route('admin.rating-scales.index')">
+                    {{ __('Rating Scales') }}
                 </x-responsive-nav-link>
             @endcan
             @can('audit.view')

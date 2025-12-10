@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\OpcrWorkflowApproved;
 use App\Models\OPCRWorkflow;
 use App\Models\PerformancePeriod;
 use App\Models\Office;
@@ -56,6 +57,8 @@ class OPCRController extends Controller
         $this->middleware('permission:opcr.delete')->only(['destroy']);
         $this->middleware('permission:opcr.assess')->only(['evaluate', 'submitEvaluation']);
         $this->middleware('permission:opcr.approve')->only(['review', 'finalApprove', 'reject']);
+        $this->middleware('permission:opcr.planning_review')->only(['planningReview']);
+        $this->middleware('permission:opcr.pmt_review')->only(['pmtReview']);
     }
 
     /**
@@ -189,7 +192,7 @@ class OPCRController extends Controller
             'targets' => 'required|array|min:1',
             'targets.*.mfo_id' => 'required|exists:major_final_outputs,id',
             'targets.*.success_indicator_id' => 'required|exists:success_indicators,id',
-            'targets.*.target_quantity' => 'nullable|numeric|min:0',
+            'targets.*.target_quality' => 'nullable|numeric|min:0',
             'targets.*.target_efficiency' => 'nullable|string|max:100',
             'targets.*.target_timeliness' => 'nullable|string|max:100',
         ]);
@@ -320,7 +323,7 @@ class OPCRController extends Controller
             'targets.*.id' => 'nullable|exists:performance_targets,id',
             'targets.*.mfo_id' => 'required|exists:major_final_outputs,id',
             'targets.*.success_indicator_id' => 'required|exists:success_indicators,id',
-            'targets.*.target_quantity' => 'nullable|numeric|min:0',
+            'targets.*.target_quality' => 'nullable|numeric|min:0',
             'targets.*.target_efficiency' => 'nullable|string|max:100',
             'targets.*.target_timeliness' => 'nullable|string|max:100',
         ]);
@@ -376,7 +379,12 @@ class OPCRController extends Controller
         }
 
         try {
-            $this->workflowService->transitionState($workflow, OPCRWorkflow::STATE_COMMITTED, [
+            $period = $workflow->period ?? $workflow->period()->first();
+            if ($period && $period->planning_deadline && now()->greaterThan($period->planning_deadline)) {
+                return back()->with('error', 'Planning submission deadline has passed for this period.');
+            }
+
+            $this->workflowService->transitionState($workflow, OPCRWorkflow::STATE_PLANNING_REVIEW, [
                 'committed_by' => Auth::id(),
                 'committed_at' => now(),
             ]);
@@ -384,12 +392,12 @@ class OPCRController extends Controller
             Log::info('OPCR workflow submitted', [
                 'workflow_id' => $workflow->id,
                 'user_id' => Auth::id(),
-                'new_state' => 'committed',
+                'new_state' => OPCRWorkflow::STATE_PLANNING_REVIEW,
             ]);
 
             return redirect()
                 ->route('opcr.workflows.show', $workflow)
-                ->with('success', 'OPCR workflow submitted for evaluation.');
+                ->with('success', 'OPCR workflow submitted to Planning for review.');
 
         } catch (\Exception $e) {
             Log::error('Failed to submit OPCR workflow', [
@@ -401,6 +409,130 @@ class OPCRController extends Controller
             return redirect()
                 ->back()
                 ->with('error', 'Failed to submit OPCR workflow: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Planning Office review (approve/return)
+     */
+    public function planningReview(Request $request, OPCRWorkflow $workflow): RedirectResponse
+    {
+        $this->authorizeWorkflowAccess($workflow);
+
+        if ($workflow->workflow_state !== OPCRWorkflow::STATE_PLANNING_REVIEW) {
+            abort(403, 'Planning review is only allowed while in Planning Review state.');
+        }
+
+        if (!$request->user()->can('opcr.planning_review')) {
+            abort(403, 'You do not have permission to perform Planning review.');
+        }
+
+        $validated = $request->validate([
+            'action' => 'required|string|in:approve,return',
+            'remarks' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $period = $workflow->period ?? $workflow->period()->first();
+            if ($period && $period->planning_deadline && now()->greaterThan($period->planning_deadline) && $validated['action'] === 'approve') {
+                return back()->with('error', 'Planning deadline has passed; cannot approve without reopening the period.');
+            }
+
+            DB::beginTransaction();
+
+            if ($validated['action'] === 'approve') {
+                $this->workflowService->transitionState($workflow, OPCRWorkflow::STATE_PMT_REVIEW, [
+                    'planning_reviewer_id' => $request->user()->id,
+                    'planning_reviewed_at' => now(),
+                    'planning_remarks' => $validated['remarks'] ?? null,
+                ]);
+
+                $message = 'Planning review completed. Forwarded to PMT.';
+            } else {
+                $this->workflowService->transitionState($workflow, OPCRWorkflow::STATE_RETURNED, [
+                    'return_reason' => $validated['remarks'] ?? 'Returned by Planning',
+                    'return_source' => 'planning',
+                ]);
+                $message = 'OPCR returned by Planning for revision.';
+            }
+
+            DB::commit();
+
+            return redirect()
+                ->route('opcr.workflows.show', $workflow)
+                ->with('success', $message);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Planning review failed', [
+                'workflow_id' => $workflow->id,
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withInput()->with('error', 'Planning review failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * PMT review (approve/return)
+     */
+    public function pmtReview(Request $request, OPCRWorkflow $workflow): RedirectResponse
+    {
+        $this->authorizeWorkflowAccess($workflow);
+
+        if ($workflow->workflow_state !== OPCRWorkflow::STATE_PMT_REVIEW) {
+            abort(403, 'PMT review is only allowed while in PMT Review state.');
+        }
+
+        if (!$request->user()->can('opcr.pmt_review')) {
+            abort(403, 'You do not have permission to perform PMT review.');
+        }
+
+        $validated = $request->validate([
+            'action' => 'required|string|in:approve,return',
+            'remarks' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $period = $workflow->period ?? $workflow->period()->first();
+            if ($period && $period->pmt_deadline && now()->greaterThan($period->pmt_deadline) && $validated['action'] === 'approve') {
+                return back()->with('error', 'PMT deadline has passed; cannot approve without reopening the period.');
+            }
+
+            DB::beginTransaction();
+
+            if ($validated['action'] === 'approve') {
+                $this->workflowService->transitionState($workflow, OPCRWorkflow::STATE_COMMITTED, [
+                    'pmt_recommender_id' => $request->user()->id,
+                    'pmt_recommended_at' => now(),
+                    'pmt_remarks' => $validated['remarks'] ?? null,
+                ]);
+
+                $message = 'PMT endorsed the OPCR. It is now committed for assessment.';
+            } else {
+                $this->workflowService->transitionState($workflow, OPCRWorkflow::STATE_RETURNED, [
+                    'return_reason' => $validated['remarks'] ?? 'Returned by PMT',
+                    'return_source' => 'pmt',
+                ]);
+                $message = 'OPCR returned by PMT for revision.';
+            }
+
+            DB::commit();
+
+            return redirect()
+                ->route('opcr.workflows.show', $workflow)
+                ->with('success', $message);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('PMT review failed', [
+                'workflow_id' => $workflow->id,
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withInput()->with('error', 'PMT review failed: ' . $e->getMessage());
         }
     }
 
@@ -524,6 +656,18 @@ class OPCRController extends Controller
             return $context;
         }
 
+        if ($user->can('opcr.planning_review')) {
+            $context['role'] = 'Planning Reviewer';
+            $context['has_cross_office_access'] = true;
+            return $context;
+        }
+
+        if ($user->can('opcr.pmt_review')) {
+            $context['role'] = 'PMT Reviewer';
+            $context['has_cross_office_access'] = true;
+            return $context;
+        }
+
         $assignments = $user->officeAssignments()
             ->where('is_active', true)
             ->where(function ($query) {
@@ -616,6 +760,10 @@ class OPCRController extends Controller
         $context = $this->getUserOPCRRoleWithOffice($user, $workflow);
 
         if (in_array($context['role'], ['Super Admin', 'HR Admin'])) {
+            return;
+        }
+
+        if ($user->can('opcr.planning_review') || $user->can('opcr.pmt_review')) {
             return;
         }
 
@@ -722,10 +870,10 @@ class OPCRController extends Controller
 
             // Check if all required evaluation data is present
             if ($successIndicator &&
-                $successIndicator->accomplished_quantity !== null &&
+                $successIndicator->accomplished_quality !== null &&
                 $successIndicator->accomplished_efficiency !== null &&
                 $successIndicator->accomplished_timeliness !== null &&
-                $successIndicator->rating_quantity !== null &&
+                $successIndicator->rating_quality !== null &&
                 $successIndicator->rating_efficiency !== null &&
                 $successIndicator->rating_timeliness !== null &&
                 $successIndicator->average_rating !== null) {
@@ -809,26 +957,26 @@ class OPCRController extends Controller
     }
 
     /**
-     * Compute performance metrics for a target based on accomplished quantity
+     * Compute performance metrics for a target based on accomplished quality
      */
-    private function computeTargetPerformanceMetrics(PerformanceTarget $target, float $accomplishedQuantity): array
+    private function computeTargetPerformanceMetrics(PerformanceTarget $target, float $accomplishedQuality): array
     {
-        $targetQuantity = $target->target_quantity;
+        $targetQuality = $target->target_quality;
 
-        if (($targetQuantity === null || (float) $targetQuantity === 0.0) && $target->relationLoaded('successIndicator')) {
-            $targetQuantity = $target->successIndicator?->target_quantity;
-        } elseif ($targetQuantity === null || (float) $targetQuantity === 0.0) {
-            $targetQuantity = $target->successIndicator()->value('target_quantity');
+        if (($targetQuality === null || (float) $targetQuality === 0.0) && $target->relationLoaded('successIndicator')) {
+            $targetQuality = $target->successIndicator?->target_quality;
+        } elseif ($targetQuality === null || (float) $targetQuality === 0.0) {
+            $targetQuality = $target->successIndicator()->value('target_quality');
         }
 
-        if ($targetQuantity === null || (float) $targetQuantity === 0.0) {
+        if ($targetQuality === null || (float) $targetQuality === 0.0) {
             return [
                 'performance_percentage' => null,
                 'is_target_met' => false,
             ];
         }
 
-        $performancePercentage = round(($accomplishedQuantity / (float) $targetQuantity) * 100, 2);
+        $performancePercentage = round(($accomplishedQuality / (float) $targetQuality) * 100, 2);
 
         return [
             'performance_percentage' => $performancePercentage,
@@ -990,7 +1138,7 @@ class OPCRController extends Controller
                     ]);
                 }
 
-                $accomplishedQuantity = (float) $evaluationData['accomplished_quantity'];
+                $accomplishedQuality = (float) $evaluationData['accomplished_quality'];
                 $accomplishedEfficiency = trim($evaluationData['accomplished_efficiency']);
                 $accomplishedTimeliness = trim($evaluationData['accomplished_timeliness']);
                 $remarks = trim($evaluationData['remarks'] ?? '') ?: null;
@@ -999,7 +1147,7 @@ class OPCRController extends Controller
                     'workflow_id' => $workflow->id,
                     'target_id' => $target->id,
                     'success_indicator_id' => $successIndicator->id,
-                    'accomplished_quantity' => $accomplishedQuantity,
+                    'accomplished_quality' => $accomplishedQuality,
                     'accomplished_efficiency' => $accomplishedEfficiency,
                     'accomplished_timeliness' => $accomplishedTimeliness,
                     'evaluation_data' => $evaluationData,
@@ -1008,7 +1156,7 @@ class OPCRController extends Controller
                 Log::info('About to call updateAccomplishments', [
                     'success_indicator_id' => $successIndicator->id,
                     'accomplishments_array' => [
-                        'accomplished_quantity' => $accomplishedQuantity,
+                        'accomplished_quality' => $accomplishedQuality,
                         'accomplished_efficiency' => $accomplishedEfficiency,
                         'accomplished_timeliness' => $accomplishedTimeliness,
                         'remarks' => $remarks,
@@ -1016,7 +1164,7 @@ class OPCRController extends Controller
                 ]);
 
                 $updatedAccomplishments = $successIndicator->updateAccomplishments([
-                    'accomplished_quantity' => $accomplishedQuantity,
+                    'accomplished_quality' => $accomplishedQuality,
                     'accomplished_efficiency' => $accomplishedEfficiency,
                     'accomplished_timeliness' => $accomplishedTimeliness,
                     'remarks' => $remarks,
@@ -1028,7 +1176,7 @@ class OPCRController extends Controller
                 ]);
 
                 $updatedRatings = $successIndicator->updateQETRatings([
-                    'rating_quantity' => (int) $evaluationData['quantity_rating'],
+                    'rating_quality' => (int) $evaluationData['quality_rating'],
                     'rating_efficiency' => (int) $evaluationData['efficiency_rating'],
                     'rating_timeliness' => (int) $evaluationData['timeliness_rating'],
                     'remarks' => $remarks,
@@ -1059,16 +1207,16 @@ class OPCRController extends Controller
                     'workflow_id' => $workflow->id,
                     'target_id' => $target->id,
                     'success_indicator_id' => $successIndicator->id,
-                    'current_accomplished_quantity' => $successIndicator->accomplished_quantity,
+                    'current_accomplished_quality' => $successIndicator->accomplished_quality,
                     'current_accomplished_efficiency' => $successIndicator->accomplished_efficiency,
                     'current_accomplished_timeliness' => $successIndicator->accomplished_timeliness,
                 ]);
 
-                $metrics = $this->computeTargetPerformanceMetrics($target, $accomplishedQuantity);
+                $metrics = $this->computeTargetPerformanceMetrics($target, $accomplishedQuality);
 
                 $averageRating = round(
                     (
-                        $evaluationData['quantity_rating'] +
+                        $evaluationData['quality_rating'] +
                         $evaluationData['efficiency_rating'] +
                         $evaluationData['timeliness_rating']
                     ) / 3,
@@ -1078,7 +1226,7 @@ class OPCRController extends Controller
                 Log::info('Updating performance target', [
                     'workflow_id' => $workflow->id,
                     'target_id' => $target->id,
-                    'accomplished_quantity' => $accomplishedQuantity,
+                    'accomplished_quality' => $accomplishedQuality,
                     'accomplished_efficiency' => $accomplishedEfficiency,
                     'accomplished_timeliness' => $accomplishedTimeliness,
                     'performance_percentage' => $metrics['performance_percentage'],
@@ -1087,7 +1235,7 @@ class OPCRController extends Controller
                 ]);
 
                 $target->forceFill([
-                    'accomplished_quantity' => $accomplishedQuantity,
+                    'accomplished_quality' => $accomplishedQuality,
                     'accomplished_efficiency' => $accomplishedEfficiency,
                     'accomplished_timeliness' => $accomplishedTimeliness,
                     'performance_percentage' => $metrics['performance_percentage'],
@@ -1107,7 +1255,7 @@ class OPCRController extends Controller
                 Log::info('Performance target updated successfully', [
                     'workflow_id' => $workflow->id,
                     'target_id' => $target->id,
-                    'current_accomplished_quantity' => $target->accomplished_quantity,
+                    'current_accomplished_quality' => $target->accomplished_quality,
                     'current_accomplished_efficiency' => $target->accomplished_efficiency,
                     'current_accomplished_timeliness' => $target->accomplished_timeliness,
                     'performance_percentage' => $target->performance_percentage,
@@ -1119,12 +1267,12 @@ class OPCRController extends Controller
                     'supervisor_rating' => $averageRating,
                     'final_rating' => $averageRating,
                     'remarks' => $evaluationData['remarks'] ?? null,
-                    'rating_quantity' => (int) $evaluationData['quantity_rating'],
+                    'rating_quality' => (int) $evaluationData['quality_rating'],
                     'rating_efficiency' => (int) $evaluationData['efficiency_rating'],
                     'rating_timeliness' => (int) $evaluationData['timeliness_rating'],
                     'average_qet_rating' => $averageRating,
                     'adjectival_rating' => $this->getRatingCategory($averageRating),
-                    'accomplished_quantity' => $accomplishedQuantity,
+                    'accomplished_quality' => $accomplishedQuality,
                     'accomplished_efficiency' => $accomplishedEfficiency,
                     'accomplished_timeliness' => $accomplishedTimeliness,
                     'assessed_by' => $user->id,
@@ -1331,9 +1479,16 @@ class OPCRController extends Controller
             'final_rating' => 'nullable|integer|min:1|max:5',
             'performance_level' => 'nullable|string|in:exceeds_expectations,meets_expectations,needs_improvement,unsatisfactory',
             'approval_status' => 'required|string|in:approved,returned,rejected',
+            'hrmo_override' => 'sometimes|boolean',
+            'hrmo_override_reason' => 'required_if:hrmo_override,true|string|max:2000',
         ]);
 
         try {
+            $period = $workflow->period ?? $workflow->period()->first();
+            if ($period && $period->lce_deadline && now()->greaterThan($period->lce_deadline) && $validated['approval_status'] === 'approved') {
+                return back()->with('error', 'LCE approval deadline has passed for this period.');
+            }
+
             DB::beginTransaction();
             $user = Auth::user();
 
@@ -1367,6 +1522,20 @@ class OPCRController extends Controller
                 ->withInput()
                 ->with('error', 'Failed to process OPCR workflow: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Manually trigger IPCR cascading for an already approved workflow.
+     */
+    public function cascadeIpcr(Request $request, OPCRWorkflow $workflow): RedirectResponse
+    {
+        if ($workflow->workflow_state !== OPCRWorkflow::STATE_FINAL_APPROVAL) {
+            return back()->with('error', 'IPCR cascading is only available for approved workflows.');
+        }
+
+        event(new OpcrWorkflowApproved($workflow->fresh(), $request->user(), true));
+
+        return back()->with('status', 'IPCR cascading queued. After the queue job finishes, review the supervisor and head dashboards.');
     }
 
     /**
@@ -1419,6 +1588,12 @@ class OPCRController extends Controller
             ]);
         }
 
+        [$hrmoOverrideUsed, $hrmoOverrideReason, $ipcrAverage] = $this->enforceHrmoConsistency(
+            $workflow,
+            $finalOverallRating,
+            $validated
+        );
+
         // Update workflow with final ratings and approval data
         $workflow->update([
             'overall_rating' => $finalOverallRating,
@@ -1426,6 +1601,8 @@ class OPCRController extends Controller
             'final_rating_override' => $useOverride ? $finalOverallRating : null,
             'performance_level' => $performanceLevel,
             'rating_override_justification' => $useOverride ? $validated['final_remarks'] : null,
+            'hrmo_override' => $hrmoOverrideUsed,
+            'hrmo_override_reason' => $hrmoOverrideReason,
         ]);
 
         // Pass override information to syncPerformanceEvaluation
@@ -1465,6 +1642,8 @@ class OPCRController extends Controller
             'final_rating' => $finalOverallRating,
             'final_adjectival_rating' => $finalAdjectivalRating,
             'rating_override_used' => $useOverride,
+            'hrmo_override' => $hrmoOverrideUsed,
+            'ipcr_average_rating' => $ipcrAverage,
         ];
 
         if ($useOverride) {
@@ -1477,9 +1656,53 @@ class OPCRController extends Controller
 
         DB::commit();
 
+        event(new OpcrWorkflowApproved($workflow->fresh(), $user));
+
         return redirect()
             ->route('opcr.workflows.show', $workflow)
             ->with('success', 'OPCR workflow has been finally approved and archived.');
+    }
+
+    /**
+     * Enforce HRMO consistency: IPCR averages must not exceed OPCR rating unless overridden.
+     *
+     * @return array{0: bool, 1: ?string, 2: float|null} [overrideUsed, overrideReason, ipcrAverage]
+     *
+     * @throws ValidationException
+     */
+    private function enforceHrmoConsistency(OPCRWorkflow $workflow, float $finalOverallRating, array $validated): array
+    {
+        $ipcrAverage = $workflow->ipcrs()
+            ->whereNotNull('overall_score')
+            ->avg('overall_score');
+
+        $overrideUsed = (bool) ($validated['hrmo_override'] ?? false);
+        $overrideReason = $validated['hrmo_override_reason'] ?? null;
+
+        if ($ipcrAverage === null) {
+            return [$overrideUsed, $overrideReason, null];
+        }
+
+        $ipcrAverage = round($ipcrAverage, 2);
+
+        if ($ipcrAverage <= $finalOverallRating + 0.01) {
+            // No override needed if IPCR is not higher
+            return [false, null, $ipcrAverage];
+        }
+
+        if (!$overrideUsed) {
+            throw ValidationException::withMessages([
+                'hrmo_override' => "Average IPCR score ({$ipcrAverage}) exceeds OPCR rating (" . number_format($finalOverallRating, 2) . "). HRMO override with justification is required.",
+            ]);
+        }
+
+        if (!$overrideReason) {
+            throw ValidationException::withMessages([
+                'hrmo_override_reason' => 'Override justification is required when forcing approval.',
+            ]);
+        }
+
+        return [true, $overrideReason, $ipcrAverage];
     }
 
     /**
@@ -1493,6 +1716,7 @@ class OPCRController extends Controller
             'returned_by' => $user->id,
             'returned_at' => now(),
             'approval_status' => 'returned',
+            'return_source' => $validated['return_source'] ?? 'final_approval',
         ];
 
         $this->workflowService->transitionState($workflow, OPCRWorkflow::STATE_RETURNED, $workflowData);
@@ -1810,6 +2034,12 @@ class OPCRController extends Controller
         $pendingItems = [];
 
         switch ($userRole) {
+            case 'Planning Reviewer':
+                $pendingItems['planning_review'] = OPCRWorkflow::where('workflow_state', OPCRWorkflow::STATE_PLANNING_REVIEW)->count();
+                break;
+            case 'PMT Reviewer':
+                $pendingItems['pmt_review'] = OPCRWorkflow::where('workflow_state', OPCRWorkflow::STATE_PMT_REVIEW)->count();
+                break;
             case OfficeAssignment::ROLE_DEPARTMENT_HEAD:
                 $officeIds = $context['department_head_office_ids'];
 
@@ -1910,7 +2140,7 @@ class OPCRController extends Controller
             'period_start' => $period?->start_date ?? now()->startOfYear(),
             'period_end' => $period?->end_date ?? now()->endOfYear(),
             'overall_rating' => $summary['average_rating'],
-            'quality_rating' => $dimensionRatings['quantity'] ?? null,
+            'quality_rating' => $dimensionRatings['quality'] ?? null,
             'efficiency_rating' => $dimensionRatings['efficiency'] ?? null,
             'timeliness_rating' => $dimensionRatings['timeliness'] ?? null,
             'goal_achievement_percentage' => $summary['goal_achievement_percentage'] ?? 0,
@@ -1953,7 +2183,7 @@ class OPCRController extends Controller
         $totalRating = 0;
         $ratedTargets = 0;
         $targetsByRating = [];
-        $quantityRatings = [];
+        $qualityRatings = [];
         $efficiencyRatings = [];
         $timelinessRatings = [];
         $metTargets = 0;
@@ -1974,8 +2204,8 @@ class OPCRController extends Controller
             }
 
             if ($ratingRecord) {
-                if ($ratingRecord->rating_quantity !== null) {
-                    $quantityRatings[] = (float) $ratingRecord->rating_quantity;
+                if ($ratingRecord->rating_quality !== null) {
+                    $qualityRatings[] = (float) $ratingRecord->rating_quality;
                 }
                 if ($ratingRecord->rating_efficiency !== null) {
                     $efficiencyRatings[] = (float) $ratingRecord->rating_efficiency;
@@ -1992,7 +2222,7 @@ class OPCRController extends Controller
 
         $averageRating = $ratedTargets > 0 ? round($totalRating / $ratedTargets, 2) : 0;
         $dimensionRatings = [
-            'quantity' => !empty($quantityRatings) ? round(array_sum($quantityRatings) / count($quantityRatings), 2) : null,
+            'quality' => !empty($qualityRatings) ? round(array_sum($qualityRatings) / count($qualityRatings), 2) : null,
             'efficiency' => !empty($efficiencyRatings) ? round(array_sum($efficiencyRatings) / count($efficiencyRatings), 2) : null,
             'timeliness' => !empty($timelinessRatings) ? round(array_sum($timelinessRatings) / count($timelinessRatings), 2) : null,
         ];
@@ -2094,10 +2324,10 @@ class OPCRController extends Controller
         $totalRatings = [];
 
         foreach ($validated['evaluations'] as $evaluationData) {
-            if (isset($evaluationData['quantity_rating'], $evaluationData['efficiency_rating'], $evaluationData['timeliness_rating'])) {
+            if (isset($evaluationData['quality_rating'], $evaluationData['efficiency_rating'], $evaluationData['timeliness_rating'])) {
                 $averageRating = round(
                     (
-                        $evaluationData['quantity_rating'] +
+                        $evaluationData['quality_rating'] +
                         $evaluationData['efficiency_rating'] +
                         $evaluationData['timeliness_rating']
                     ) / 3,
@@ -2319,18 +2549,17 @@ class OPCRController extends Controller
             DB::beginTransaction();
 
             // Create the assignment
-            $assignment = OfficeAssignment::create([
-                'office_id' => $office->id,
-                'user_id' => $validated['user_id'],
-                'employee_id' => $validated['employee_id'],
-                'role' => $validated['role'],
-                'assigned_date' => $validated['assigned_date'] ?? now(),
-                'ended_date' => $validated['ended_date'] ?? null,
-                'is_active' => true,
-                'assigned_by' => auth()->id(),
-                'assigned_at' => now(),
-                'metadata' => $validated['metadata'] ?? [],
-            ]);
+                $assignment = OfficeAssignment::create([
+                    'office_id' => $office->id,
+                    'user_id' => $validated['user_id'],
+                    'employee_id' => $validated['employee_id'],
+                    'role' => $validated['role'],
+                    'assigned_date' => $validated['assigned_date'] ?? now(),
+                    'ended_date' => $validated['ended_date'] ?? null,
+                    'is_active' => true,
+                    'assigned_by' => auth()->id(),
+                    'metadata' => $validated['metadata'] ?? [],
+                ]);
 
             // Sync the employee's department with the office
             $this->syncEmployeeDepartment($assignment->employee_id);

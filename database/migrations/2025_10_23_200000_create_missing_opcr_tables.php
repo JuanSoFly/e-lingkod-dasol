@@ -43,13 +43,13 @@ return new class extends Migration
                 $table->string('category', 100)->nullable();
                 $table->string('type', 50)->nullable(); // Output, Outcome, etc.
                 $table->integer('weight')->default(1);
-                $table->integer('target_quantity')->nullable();
+                $table->integer('target_quality')->nullable();
                 $table->string('unit_of_measure', 50)->nullable();
                 $table->integer('target_quality_score')->nullable();
                 $table->integer('target_efficiency_score')->nullable();
                 $table->integer('target_timeliness_score')->nullable();
                 $table->date('target_date')->nullable();
-                $table->integer('accomplished_quantity')->nullable();
+                $table->integer('accomplished_quality')->nullable();
                 $table->integer('accomplished_quality_score')->nullable();
                 $table->integer('accomplished_efficiency_score')->nullable();
                 $table->integer('accomplished_timeliness_score')->nullable();

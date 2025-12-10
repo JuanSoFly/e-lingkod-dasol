@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class PDSExportController extends Controller
 {
@@ -134,6 +135,53 @@ class PDSExportController extends Controller
 
             return back()->with('error', 'Export failed due to an unexpected error. Please try again later or contact system administrator.');
         }
+    }
+
+    /**
+     * Export PDS data to PDF (CSC Form 212 layout)
+     */
+    public function exportPdf(Employee $employee)
+    {
+        // Authorization mirrors Excel export but allows blank PDS content
+        $this->authorize('export', [$employee, true]);
+
+        // System readiness checks (disk/db/memory)
+        $this->validateSystemRequirements();
+
+        // Eager load all panels to minimize queries
+        $employee->load([
+            'familyBackground',
+            'children',
+            'education',
+            'pdsEligibilities',
+            'workExperiences',
+            'voluntaryWork',
+            'employeeTrainings',
+            'otherInformation',
+            'references',
+            'questionnaire',
+            'activePhoto'
+        ]);
+
+        // Build normalized data set for the PDF view
+        $viewData = $this->buildPdsViewData($employee);
+
+        // Audit log
+        $this->createInitialAuditLog('single', [$employee->id], 'pdf');
+
+        $filename = $this->generatePdfFilename($employee);
+
+        // Render PDF and stream download
+        $pdf = Pdf::loadView('pds.export.pdf', $viewData)->setPaper('letter', 'portrait');
+        $output = $pdf->output();
+
+        $this->updateAuditLogAfterPdf($filename, strlen($output));
+
+        return response()->streamDownload(function () use ($output) {
+            echo $output;
+        }, $filename, [
+            'Content-Type' => 'application/pdf'
+        ]);
     }
 
     /**
@@ -548,6 +596,19 @@ class PDSExportController extends Controller
     }
 
     /**
+     * Generate filename for PDF export
+     */
+    protected function generatePdfFilename(Employee $employee): string
+    {
+        $timestamp = now()->format('Y_m_d_His');
+        $name = $this->filipinoService->cleanForExcel(
+            Str::slug($employee->last_name . '_' . $employee->first_name, '_')
+        );
+
+        return "PDS_{$name}_{$timestamp}.pdf";
+    }
+
+    /**
      * Generate filename for batch export
      */
     protected function generateBatchExportFilename(array $employeeIds, string $format): string
@@ -598,6 +659,24 @@ class PDSExportController extends Controller
             $auditLog->update([
                 'file_name' => $filename,
                 'file_size' => Storage::exists($filePath) ? Storage::size($filePath) : 0,
+            ]);
+        }
+    }
+
+    /**
+     * Update audit log after on-the-fly PDF generation (no stored file)
+     */
+    protected function updateAuditLogAfterPdf(string $filename, int $fileSize): void
+    {
+        $auditLog = ExportAuditLog::where('user_id', Auth::id())
+            ->whereNull('file_name')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($auditLog) {
+            $auditLog->update([
+                'file_name' => $filename,
+                'file_size' => $fileSize,
             ]);
         }
     }
@@ -751,6 +830,236 @@ class PDSExportController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Normalize all PDS panels for the PDF view
+     */
+    protected function buildPdsViewData(Employee $employee): array
+    {
+        $sanitize = fn($value) => $this->filipinoService->cleanForExcel($value ?? '');
+
+        // Family background
+        $family = $employee->familyBackground ?? new \App\Models\EmployeeFamilyBackground();
+
+        // Children (12 slots per CSC form)
+        $children = $employee->children->map(function ($child) use ($sanitize) {
+            return [
+                'name' => $sanitize($child->full_name ?? ($child->first_name ?? '')),
+                'birth_date' => $child->date_of_birth?->format('m/d/Y') ?? '',
+            ];
+        });
+        $children = $this->padCollection($children, 12, ['name' => '', 'birth_date' => '']);
+
+        // Education by level (fixed 5 slots)
+        $educationLabels = [
+            'Elementary' => 'ELEMENTARY',
+            'Secondary' => 'SECONDARY',
+            'Vocational' => 'VOCATIONAL / TRADE COURSE',
+            'College' => 'COLLEGE',
+            'Graduate Studies' => 'GRADUATE STUDIES',
+        ];
+        $education = collect(['Elementary', 'Secondary', 'Vocational', 'College', 'Graduate Studies'])->map(function ($level) use ($employee, $sanitize, $educationLabels) {
+            $record = $employee->education->where('education_level', $level)->first();
+            return [
+                'level' => $educationLabels[$level] ?? strtoupper($level),
+                'school_name' => $sanitize($record->school_name ?? ''),
+                'degree_course' => $sanitize($record->degree_course ?? $record->degree ?? ''),
+                'period_from' => $record?->period_from ? \Carbon\Carbon::parse($record->period_from)->format('Y') : '',
+                'period_to' => $record?->period_to ? \Carbon\Carbon::parse($record->period_to)->format('Y') : '',
+                'year_graduated' => $record->year_graduated ?? '',
+                'highest_level' => $sanitize($record->highest_level ?? ''),
+                'honors' => $sanitize($record->scholarship_honors ?? ''),
+            ];
+        });
+
+        // Civil service eligibility (7 slots typical)
+        $eligibilities = $employee->pdsEligibilities->map(function ($eligibility) use ($sanitize) {
+            return [
+                'eligibility_name' => $sanitize($eligibility->eligibility_name ?? $eligibility->career_service ?? ''),
+                'rating' => $eligibility->rating ?? '',
+                'exam_date' => $eligibility->date_of_examination?->format('m/d/Y') ?? $eligibility->date_acquired?->format('m/d/Y') ?? '',
+                'exam_place' => $sanitize($eligibility->place_of_examination ?? $eligibility->examination_place ?? ''),
+                'license_number' => $eligibility->license_number ?? '',
+                'validity_date' => $eligibility->date_of_validity?->format('m/d/Y') ?? '',
+            ];
+        });
+        $eligibilities = $this->padCollection($eligibilities, 7, [
+            'eligibility_name' => '', 'rating' => '', 'exam_date' => '', 'exam_place' => '', 'license_number' => '', 'validity_date' => ''
+        ]);
+
+        // Work experience (28 slots to mirror CSC form rows)
+        $workExperiences = $employee->workExperiences
+            ->sortByDesc('inclusive_date_from')
+            ->map(function ($work) use ($sanitize) {
+                return [
+                    'from' => $work->inclusive_date_from?->format('m/d/Y') ?? '',
+                    'to' => $work->inclusive_date_to?->format('m/d/Y') ?? '',
+                    'position' => $sanitize($work->position_title ?? $work->position ?? ''),
+                    'department' => $sanitize($work->department_agency_office ?? $work->company ?? ''),
+                    'monthly_salary' => $work->monthly_salary ?? $work->salary ?? '',
+                    'salary_grade' => $work->salary_grade_step ?? '',
+                    'appointment_status' => $sanitize($work->status_of_appointment ?? $work->status ?? ''),
+                    'is_government_service' => $work->is_government_service ? 'Yes' : 'No',
+                ];
+            });
+        $workExperiences = $this->padCollection($workExperiences, 28, [
+            'from' => '', 'to' => '', 'position' => '', 'department' => '', 'monthly_salary' => '', 'salary_grade' => '', 'appointment_status' => '', 'is_government_service' => ''
+        ]);
+
+        // Voluntary work (7 slots)
+        $voluntaryWork = $employee->voluntaryWork->map(function ($vol) use ($sanitize) {
+            return [
+                'organization' => $sanitize($vol->organization_name_address ?? ''),
+                'from' => $vol->inclusive_date_from?->format('m/d/Y') ?? '',
+                'to' => $vol->inclusive_date_to?->format('m/d/Y') ?? '',
+                'hours' => $vol->number_hours ?? '',
+                'position' => $sanitize($vol->position_nature_of_work ?? ''),
+            ];
+        });
+        $voluntaryWork = $this->padCollection($voluntaryWork, 7, [
+            'organization' => '', 'from' => '', 'to' => '', 'hours' => '', 'position' => ''
+        ]);
+
+        // Trainings / learning and development (21 slots)
+        $trainings = $employee->employeeTrainings
+            ->sortByDesc('inclusive_date_from')
+            ->map(function ($training) use ($sanitize) {
+                return [
+                    'title' => $sanitize($training->pds_training_title ?? $training->training_title ?? $training->trainingProgram?->name ?? ''),
+                    'from' => $training->pds_inclusive_date_from?->format('m/d/Y') ?? $training->inclusive_date_from?->format('m/d/Y') ?? '',
+                    'to' => $training->pds_inclusive_date_to?->format('m/d/Y') ?? $training->inclusive_date_to?->format('m/d/Y') ?? '',
+                    'hours' => $training->pds_number_of_hours ?? $training->hours_attended ?? $training->number_of_hours ?? '',
+                    'type' => $sanitize($training->pds_type_of_ld ?? $training->delivery_mode ?? ''),
+                    'conducted_by' => $sanitize($training->pds_conducted_sponsored_by ?? $training->trainer_name ?? ''),
+                ];
+            });
+        $trainings = $this->padCollection($trainings, 21, [
+            'title' => '', 'from' => '', 'to' => '', 'hours' => '', 'type' => '', 'conducted_by' => ''
+        ]);
+
+        // Other information
+        $otherInfo = [
+            'skills' => $sanitize(optional($employee->otherInformation->where('information_type', 'special_skills')->first())->description ?? ''),
+            'distinctions' => $sanitize(optional($employee->otherInformation->where('information_type', 'distinctions')->first())->description ?? ''),
+            'memberships' => $sanitize(optional($employee->otherInformation->where('information_type', 'memberships')->first())->description ?? ''),
+        ];
+
+        // References (3 slots)
+        $references = $employee->references->map(function ($reference) use ($sanitize) {
+            return [
+                'name' => $sanitize($reference->full_name ?? ''),
+                'address' => $sanitize($reference->address ?? ''),
+                'telephone' => $reference->telephone_no ?? '',
+            ];
+        });
+        $references = $this->padCollection($references, 3, ['name' => '', 'address' => '', 'telephone' => '']);
+
+        // Questionnaire
+        $questionnaire = $employee->questionnaire ?? new \App\Models\EmployeeQuestionnaire();
+        $q = fn($field) => $questionnaire->{$field} ?? '';
+        $questionnaireData = [
+            'q34_3rd_degree' => $q('field_34_yes_no'),
+            'q34b_4th_degree' => $q('field_34b_yes_no'),
+            'q35a_administrative_offense' => $q('field_35a_yes_no'),
+            'q35b_criminal_charge' => $q('field_35b_yes_no'),
+            'q36_conviction' => $q('field_36_yes_no'),
+            'q37_separation' => $q('field_37_yes_no'),
+            'q38a_election_candidacy' => $q('field_38a_yes_no'),
+            'q38b_resignation_campaign' => $q('field_38b_yes_no'),
+            'q39_immigrant_status' => $q('field_39_yes_no'),
+            'q40a_indigenous_group' => $q('field_40a_yes_no'),
+            'q40b_person_with_disability' => $q('field_40b_yes_no'),
+            'q40c_solo_parent' => $q('field_40c_yes_no'),
+            'details' => $questionnaire->question_details ?? [],
+        ];
+
+        // Images encoded for DomPDF
+        $photoData = $this->encodeImage(optional($employee->activePhoto)->photo_path ?? null);
+        $thumbmarkData = $this->encodeImage(optional($employee->activePhoto)->thumbmark_path ?? null);
+
+        $residentialAddress = [
+            'house_block_lot' => $sanitize($employee->res_house_block_lot_no ?? ''),
+            'street' => $sanitize($employee->res_street ?? ''),
+            'subdivision' => $sanitize($employee->res_subdivision_village ?? ''),
+            'barangay' => $sanitize($employee->res_barangay ?? ''),
+            'city_municipality' => $sanitize($employee->res_city_municipality ?? ''),
+            'province' => $sanitize($employee->res_province ?? ''),
+            'zip_code' => $sanitize($employee->res_zip_code ?? $employee->residential_zip_code ?? ''),
+        ];
+
+        $permanentAddress = [
+            'house_block_lot' => $sanitize($employee->perm_house_block_lot_no ?? ''),
+            'street' => $sanitize($employee->perm_street ?? ''),
+            'subdivision' => $sanitize($employee->perm_subdivision_village ?? ''),
+            'barangay' => $sanitize($employee->perm_barangay ?? ''),
+            'city_municipality' => $sanitize($employee->perm_city_municipality ?? ''),
+            'province' => $sanitize($employee->perm_province ?? ''),
+            'zip_code' => $sanitize($employee->perm_zip_code ?? $employee->permanent_zip_code ?? ''),
+        ];
+
+        return [
+            'employee' => $employee,
+            'family' => $family,
+            'children' => $children,
+            'education' => $education,
+            'eligibilities' => $eligibilities,
+            'workExperiences' => $workExperiences,
+            'voluntaryWork' => $voluntaryWork,
+            'trainings' => $trainings,
+            'otherInfo' => $otherInfo,
+            'referencesData' => $references,
+            'questionnaire' => $questionnaireData,
+            'photoData' => $photoData,
+            'thumbmarkData' => $thumbmarkData,
+            'generatedAt' => now(),
+            'preparedBy' => Auth::user(),
+            'residentialAddress' => $residentialAddress,
+            'permanentAddress' => $permanentAddress,
+        ];
+    }
+
+    /**
+     * Pad or truncate a collection to a fixed size
+     */
+    protected function padCollection($collection, int $size, array $padItem)
+    {
+        $items = collect($collection)->values();
+
+        if ($items->count() < $size) {
+            for ($i = $items->count(); $i < $size; $i++) {
+                $items->push($padItem);
+            }
+        }
+
+        return $items->take($size);
+    }
+
+    /**
+     * Encode an image path as base64 for DomPDF rendering
+     */
+    protected function encodeImage(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        try {
+            $absolute = Storage::path($path);
+            if (!file_exists($absolute)) {
+                return null;
+            }
+
+            $mime = mime_content_type($absolute) ?: 'image/png';
+            $data = base64_encode(file_get_contents($absolute));
+            return "data:{$mime};base64,{$data}";
+        } catch (\Exception $e) {
+            Log::warning('Failed to encode image for PDS PDF', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 
     /**

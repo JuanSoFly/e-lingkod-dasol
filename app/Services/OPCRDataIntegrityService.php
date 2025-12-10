@@ -185,7 +185,7 @@ class OPCRDataIntegrityService
             ->get();
 
         foreach ($ratings as $rating) {
-            $calculatedFinal = ($rating->quantity_rating + $rating->efficiency_rating + $rating->timeliness_rating) / 3;
+            $calculatedFinal = ($rating->quality_rating + $rating->efficiency_rating + $rating->timeliness_rating) / 3;
 
             // Allow for small floating point differences
             if (abs($rating->final_rating - $calculatedFinal) > 0.01) {
@@ -416,8 +416,8 @@ class OPCRDataIntegrityService
         // Check for ratings outside valid range (0-5)
         $invalidRatings = DB::table('performance_ratings')
             ->where(function ($query) {
-                $query->where('quantity_rating', '<', 0)
-                      ->orWhere('quantity_rating', '>', 5)
+                $query->where('quality_rating', '<', 0)
+                      ->orWhere('quality_rating', '>', 5)
                       ->orWhere('efficiency_rating', '<', 0)
                       ->orWhere('efficiency_rating', '>', 5)
                       ->orWhere('timeliness_rating', '<', 0)

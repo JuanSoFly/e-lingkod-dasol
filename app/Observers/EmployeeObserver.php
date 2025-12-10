@@ -3,8 +3,9 @@
 namespace App\Observers;
 
 use App\Models\Employee;
-use App\Services\OfficeAssignmentSynchronizationService;
 use App\Services\DepartmentSyncService;
+use App\Services\IdentityLinker;
+use App\Services\OfficeAssignmentSynchronizationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -22,6 +23,10 @@ class EmployeeObserver
      */
     public function updated(Employee $employee): void
     {
+        if ($employee->wasChanged(['email', 'user_id'])) {
+            $this->syncIdentityLink($employee);
+        }
+
         // Check if office_id was changed
         if ($employee->wasChanged('office_id')) {
             $oldOfficeId = $employee->getOriginal('office_id');
@@ -150,6 +155,57 @@ class EmployeeObserver
                     'error' => $e->getMessage()
                 ]);
             }
+        }
+
+        $this->syncIdentityLink($employee);
+    }
+
+    /**
+     * Handle the Employee "deleted" event.
+     */
+    public function deleted(Employee $employee): void
+    {
+        try {
+            app(IdentityLinker::class)->detachEmployee($employee);
+        } catch (\Throwable $e) {
+            Log::error('Failed to detach employee identity relationship', [
+                'employee_id' => $employee->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Handle the Employee "restored" event.
+     */
+    public function restored(Employee $employee): void
+    {
+        $this->syncIdentityLink($employee);
+
+        if (!$employee->office_id) {
+            return;
+        }
+
+        try {
+            app(OfficeAssignmentSynchronizationService::class)->synchronizeEmployee($employee, $employee->office_id);
+        } catch (\Throwable $e) {
+            Log::error('Failed to synchronize office assignments after employee restore', [
+                'employee_id' => $employee->id,
+                'office_id' => $employee->office_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function syncIdentityLink(Employee $employee): void
+    {
+        try {
+            app(IdentityLinker::class)->syncForEmployee($employee);
+        } catch (\Throwable $e) {
+            Log::error('Failed to synchronize employee identity link', [
+                'employee_id' => $employee->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

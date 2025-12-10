@@ -164,7 +164,7 @@ class OPCRManagementService
                         'code' => $siData['code'],
                         'title' => $siData['title'],
                         'description' => $siData['description'] ?? null,
-                        'target_quantity' => $siData['target_quantity'] ?? null,
+                        'target_quality' => $siData['target_quality'] ?? null,
                         'target_efficiency' => $siData['target_efficiency'] ?? null,
                         'target_timeliness' => $siData['target_timeliness'] ?? null,
                         'created_by' => Auth::id(),
@@ -327,7 +327,7 @@ class OPCRManagementService
             'target' => $targetData['target'] ?? ($indicator?->description ?? $indicator?->title ?? ''),
             'weight' => $targetData['weight'] ?? 1,
             'success_indicator' => $targetData['success_indicator'] ?? ($indicator?->title ?? $indicator?->description ?? ''),
-            'target_quantity' => $targetData['target_quantity'] ?? $indicator?->target_quantity,
+            'target_quality' => $targetData['target_quality'] ?? $indicator?->target_quality,
             'target_efficiency' => $targetData['target_efficiency'] ?? $indicator?->target_efficiency,
             'target_timeliness' => $targetData['target_timeliness'] ?? $indicator?->target_timeliness,
             'is_legacy_ipcr' => false,
@@ -377,14 +377,9 @@ class OPCRManagementService
                     break;
 
                 case 'final_approval':
-                    $workflow->update([
+                    $workflow->update(array_merge([
                         'workflow_state' => $newState,
-                        'approved_by' => Auth::id(),
-                        'approved_at' => now(),
-                        'approver_remarks' => $data['approver_remarks'] ?? null,
-                        'overall_rating' => $data['overall_rating'] ?? null,
-                        'overall_adjectival_rating' => $data['overall_adjectival_rating'] ?? null,
-                    ]);
+                    ], $data));
                     break;
 
                 case 'returned':
@@ -569,8 +564,8 @@ class OPCRManagementService
             'E1' => 'MFO Code',
             'F1' => 'MFO Description',
             'G1' => 'Success Indicator',
-            'H1' => 'Target Quantity',
-            'I1' => 'Accomplished Quantity',
+            'H1' => 'Target Quality',
+            'I1' => 'Accomplished Quality',
             'J1' => 'Target Efficiency',
             'K1' => 'Accomplished Efficiency',
             'L1' => 'Target Timeliness',
@@ -610,8 +605,8 @@ class OPCRManagementService
                     $sheet->setCellValue('E' . $row, $target->mfo->code ?? '');
                     $sheet->setCellValue('F' . $row, $target->mfo->description ?? '');
                     $sheet->setCellValue('G' . $row, $target->successIndicator->description ?? '');
-                    $sheet->setCellValue('H' . $row, $target->target_quantity ?? '');
-                    $sheet->setCellValue('I' . $row, $target->accomplished_quantity ?? '');
+                    $sheet->setCellValue('H' . $row, $target->target_quality ?? '');
+                    $sheet->setCellValue('I' . $row, $target->accomplished_quality ?? '');
                     $sheet->setCellValue('J' . $row, $target->target_efficiency ?? '');
                     $sheet->setCellValue('K' . $row, $target->accomplished_efficiency ?? '');
                     $sheet->setCellValue('L' . $row, $target->target_timeliness ?? '');

@@ -2,6 +2,12 @@
 
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    @if (session('status'))
+        <div class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800 border border-green-200">
+            {{ session('status') }}
+        </div>
+    @endif
+
     <!-- Header -->
     <div class="mb-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
@@ -82,6 +88,55 @@
                 </tbody>
             </table>
         </div>
+
+        @can('employee.manage')
+            <div class="mt-6 border-t border-gray-200 pt-4">
+                <h3 class="text-sm font-semibold text-gray-900 mb-3">Adjust Leave Credit</h3>
+                <form method="POST" action="{{ route('leave-card.update-credit', $employee->id) }}" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    @csrf
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Leave Type</label>
+                        <select name="leave_type_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select Leave Type</option>
+                            @foreach($leaveTypes as $type)
+                                <option value="{{ $type->id }}">{{ $type->name }} ({{ $type->code }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Year</label>
+                        <input type="number" name="year" value="{{ $year }}" min="2000" max="{{ date('Y') + 1 }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Effective Date</label>
+                        <input type="date" name="effective_date" value="{{ now()->format('Y-m-d') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Earned Credits</label>
+                        <input type="number" step="0.001" name="earned_credits" value="0" min="0" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Used Credits</label>
+                        <input type="number" step="0.001" name="used_credits" value="0" min="0" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Remaining Credits (optional)</label>
+                        <input type="number" step="0.001" name="remaining_credits" min="0" placeholder="Auto-compute if blank" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <div class="md:col-span-3 flex justify-end">
+                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Save Credit
+                        </button>
+                    </div>
+                </form>
+            </div>
+        @endcan
     </div>
 
     <!-- Leave Applications History -->

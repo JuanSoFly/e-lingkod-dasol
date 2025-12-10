@@ -5,10 +5,10 @@
                 {{ __('Edit Leave Policy') }}
             </h2>
             <div class="space-x-2">
-                <a href="{{ route('leave-policies.show', $leavePolicy) }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                <a href="{{ route('leave-policies.show', $leavePolicy) }}" class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">
                     View Policy
                 </a>
-                <a href="{{ route('leave-policies.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                <a href="{{ route('leave-policies.index') }}" class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">
                     Back to Policies
                 </a>
             </div>

@@ -26,15 +26,19 @@
                         </div>
                         <div class="flex items-center space-x-4">
                             <!-- Status Badge -->
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                                @if($workflow->workflow_state === 'draft') bg-gray-100 text-gray-800
-                                @elseif($workflow->workflow_state === 'committed') bg-blue-100 text-blue-800
-                                @elseif($workflow->workflow_state === 'in_progress') bg-yellow-100 text-yellow-800
-                                @elseif($workflow->workflow_state === 'evaluation') bg-orange-100 text-orange-800
-                                @elseif($workflow->workflow_state === 'final_approval') bg-purple-100 text-purple-800
-                                @elseif($workflow->workflow_state === 'approved') bg-green-100 text-green-800
-                                @elseif($workflow->workflow_state === 'returned') bg-red-100 text-red-800
-                                @endif">
+                            @php
+                                $stateClass = match($workflow->workflow_state) {
+                                    'planning_review' => 'bg-cyan-100 text-cyan-800',
+                                    'pmt_review' => 'bg-teal-100 text-teal-800',
+                                    'committed' => 'bg-blue-100 text-blue-800',
+                                    'in_progress' => 'bg-yellow-100 text-yellow-800',
+                                    'evaluation' => 'bg-orange-100 text-orange-800',
+                                    'final_approval' => 'bg-green-100 text-green-800',
+                                    'returned' => 'bg-red-100 text-red-800',
+                                    default => 'bg-gray-100 text-gray-800',
+                                };
+                            @endphp
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {{ $stateClass }}">
                                 {{ ucwords(str_replace('_', ' ', $workflow->workflow_state)) }}
                             </span>
 
@@ -57,6 +61,42 @@
                                 </a>
                             @endif
 
+                            @if($workflow->workflow_state === \App\Models\OPCRWorkflow::STATE_PLANNING_REVIEW && auth()->user()->can('opcr.planning_review'))
+                                <form method="POST" action="{{ route('opcr.workflows.planning.review', $workflow) }}" class="inline">
+                                    @csrf
+                                    <input type="hidden" name="action" value="approve">
+                                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-cyan-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                        Approve (Planning)
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('opcr.workflows.planning.review', $workflow) }}" class="inline ml-2">
+                                    @csrf
+                                    <input type="hidden" name="action" value="return">
+                                    <input type="hidden" name="remarks" value="Returned by Planning for revision">
+                                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                        Return (Planning)
+                                    </button>
+                                </form>
+                            @endif
+
+                            @if($workflow->workflow_state === \App\Models\OPCRWorkflow::STATE_PMT_REVIEW && auth()->user()->can('opcr.pmt_review'))
+                                <form method="POST" action="{{ route('opcr.workflows.pmt.review', $workflow) }}" class="inline">
+                                    @csrf
+                                    <input type="hidden" name="action" value="approve">
+                                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-teal-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                        Approve (PMT)
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('opcr.workflows.pmt.review', $workflow) }}" class="inline ml-2">
+                                    @csrf
+                                    <input type="hidden" name="action" value="return">
+                                    <input type="hidden" name="remarks" value="Returned by PMT for revision">
+                                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                        Return (PMT)
+                                    </button>
+                                </form>
+                            @endif
+
                             @if($canApprove)
                                 <a href="{{ route('opcr.workflows.review', $workflow) }}" class="inline-flex items-center px-4 py-2 bg-purple-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition ease-in-out duration-150">
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,6 +104,18 @@
                                     </svg>
                                     Review
                                 </a>
+                            @endif
+
+                            @if(auth()->user()->can('ipcr.cascade') && $workflow->workflow_state === \App\Models\OPCRWorkflow::STATE_FINAL_APPROVAL)
+                                <form method="POST" action="{{ route('opcr.workflows.cascade', $workflow) }}" class="inline">
+                                    @csrf
+                                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition ease-in-out duration-150" onclick="return confirm('Queue IPCR cascading for this OPCR?')">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9M4 20v-5h-.581m15.356-2a8.003 8.003 0 01-15.356 2" />
+                                        </svg>
+                                        Cascade IPCR
+                                    </button>
+                                </form>
                             @endif
 
                             @if(in_array($workflow->workflow_state, ['draft', 'returned']) && $canEdit)
@@ -87,7 +139,7 @@
                     @endif
 
                     <!-- Workflow Information -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <h4 class="text-sm font-medium text-gray-900">Office</h4>
                             <p class="text-sm text-gray-600">{{ $workflow->office->full_path }}</p>
@@ -101,6 +153,42 @@
                             <h4 class="text-sm font-medium text-gray-900">Performance Period</h4>
                             <p class="text-sm text-gray-600">{{ $workflow->period->year }} - {{ $workflow->period->semester }}</p>
                             <p class="text-xs text-gray-500">{{ $workflow->period->start_date->format('M d') }} - {{ $workflow->period->end_date->format('M d, Y') }}</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg space-y-2">
+                            <h4 class="text-sm font-medium text-gray-900">Deadlines</h4>
+                            <p class="text-xs text-gray-600">Planning: {{ $workflow->period->planning_deadline ? $workflow->period->planning_deadline->format('M d, Y') : 'Unset' }}</p>
+                            <p class="text-xs text-gray-600">PMT: {{ $workflow->period->pmt_deadline ? $workflow->period->pmt_deadline->format('M d, Y') : 'Unset' }}</p>
+                            <p class="text-xs text-gray-600">LCE: {{ $workflow->period->lce_deadline ? $workflow->period->lce_deadline->format('M d, Y') : 'Unset' }}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <div class="bg-white border border-gray-200 p-4 rounded-lg">
+                            <h4 class="text-sm font-medium text-gray-900">Planning Reviewer</h4>
+                            <p class="text-sm text-gray-700">{{ $workflow->planningReviewer?->employee?->full_name ?? 'Pending assignment' }}</p>
+                            <p class="text-xs text-gray-500">{{ $workflow->planning_reviewed_at ? $workflow->planning_reviewed_at->format('M d, Y h:i A') : 'Awaiting review' }}</p>
+                            @if($workflow->planning_remarks)
+                                <p class="text-xs text-gray-600 mt-1">Remarks: {{ $workflow->planning_remarks }}</p>
+                            @endif
+                        </div>
+                        <div class="bg-white border border-gray-200 p-4 rounded-lg">
+                            <h4 class="text-sm font-medium text-gray-900">PMT Recommendation</h4>
+                            <p class="text-sm text-gray-700">{{ $workflow->pmtRecommender?->employee?->full_name ?? 'Pending assignment' }}</p>
+                            <p class="text-xs text-gray-500">{{ $workflow->pmt_recommended_at ? $workflow->pmt_recommended_at->format('M d, Y h:i A') : 'Awaiting PMT action' }}</p>
+                            @if($workflow->pmt_remarks)
+                                <p class="text-xs text-gray-600 mt-1">Remarks: {{ $workflow->pmt_remarks }}</p>
+                            @endif
+                        </div>
+                        <div class="bg-white border border-gray-200 p-4 rounded-lg">
+                            <h4 class="text-sm font-medium text-gray-900">HRMO Consistency</h4>
+                            @php
+                                $ipcrAvg = $workflow->ipcrs()->whereNotNull('overall_score')->avg('overall_score');
+                            @endphp
+                            <p class="text-sm text-gray-700">IPCR Avg: {{ $ipcrAvg ? number_format($ipcrAvg, 2) : 'N/A' }}</p>
+                            <p class="text-xs text-gray-500">OPCR Rating: {{ $workflow->overall_rating ? number_format($workflow->overall_rating, 2) : 'N/A' }}</p>
+                            @if($workflow->hrmo_override)
+                                <p class="text-xs text-red-600 mt-1">Override used: {{ $workflow->hrmo_override_reason ?? '—' }}</p>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -123,7 +211,7 @@
                     <div class="space-y-6">
                         @foreach($workflow->targets as $index => $target)
                             @php
-                                $resolvedAccomplishedQuantity = $target->accomplished_quantity ?? $target->successIndicator->accomplished_quantity;
+                                $resolvedAccomplishedQuality = $target->accomplished_quality ?? $target->successIndicator->accomplished_quality;
                                 $resolvedAccomplishedEfficiency = $target->accomplished_efficiency ?? $target->successIndicator->accomplished_efficiency;
                                 $resolvedAccomplishedTimeliness = $target->accomplished_timeliness ?? $target->successIndicator->accomplished_timeliness;
                                 $resolvedPerformancePercentage = $target->performance_percentage ?? $target->successIndicator->performance_percentage;
@@ -153,18 +241,18 @@
 
                                 <!-- QET Details -->
                                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                    <!-- Quantity -->
+                                    <!-- Quality -->
                                     <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                        <h5 class="text-sm font-medium text-gray-900 mb-3">Quantity</h5>
+                                        <h5 class="text-sm font-medium text-gray-900 mb-3">Quality</h5>
                                         <div class="space-y-2">
                                             <div class="flex justify-between">
                                                 <span class="text-sm text-gray-600">Target:</span>
-                                                <span class="text-sm font-medium">{{ $target->target_quantity ?? 'N/A' }}</span>
+                                                <span class="text-sm font-medium">{{ $target->target_quality ?? 'N/A' }}</span>
                                             </div>
-                                            @if(!is_null($resolvedAccomplishedQuantity))
+                                            @if(!is_null($resolvedAccomplishedQuality))
                                                 <div class="flex justify-between">
                                                     <span class="text-sm text-gray-600">Accomplished:</span>
-                                                    <span class="text-sm font-medium">{{ $resolvedAccomplishedQuantity }}</span>
+                                                    <span class="text-sm font-medium">{{ $resolvedAccomplishedQuality }}</span>
                                                 </div>
                                                 @if(!is_null($resolvedPerformancePercentage))
                                                     <div class="flex justify-between">
@@ -175,10 +263,10 @@
                                                     </div>
                                                 @endif
                                             @endif
-                                            @if($target->rating_quantity !== null)
+                                            @if($target->rating_quality !== null)
                                                 <div class="flex justify-between">
                                                     <span class="text-sm text-gray-600">Rating:</span>
-                                                    <span class="text-sm font-medium">{{ $target->rating_quantity }}/5</span>
+                                                    <span class="text-sm font-medium">{{ $target->rating_quality }}/5</span>
                                                 </div>
                                             @endif
                                         </div>

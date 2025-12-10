@@ -328,8 +328,8 @@ class SampleIPCRSeeder extends Seeder
                     'approved_at' => now()->subDays(6),
                     'status' => 'approved',
                     'adjustment_type' => 'target_update',
-                    'original_values' => ['target_quantity' => 50],
-                    'proposed_values' => ['target_quantity' => 60],
+                    'original_values' => ['target_quality' => 50],
+                    'proposed_values' => ['target_quality' => 60],
                     'justification' => 'Expanded HRIS onboarding coverage.',
                     'decision_notes' => 'Approved with monitoring checkpoints.',
                 ]);

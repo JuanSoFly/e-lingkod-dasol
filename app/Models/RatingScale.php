@@ -103,7 +103,7 @@ class RatingScale extends Model
     public function getQETWeights(): array
     {
         return $this->qet_weights ?? [
-            'quantity' => 0.4,
+            'quality' => 0.4,
             'efficiency' => 0.3,
             'timeliness' => 0.3,
         ];
@@ -117,7 +117,7 @@ class RatingScale extends Model
         $weights = $this->getQETWeights();
 
         $weightedSum = (
-            ($qetRatings['quantity_rating'] * $weights['quantity']) +
+            ($qetRatings['quality_rating'] * $weights['quality']) +
             ($qetRatings['efficiency_rating'] * $weights['efficiency']) +
             ($qetRatings['timeliness_rating'] * $weights['timeliness'])
         );
@@ -214,7 +214,7 @@ class RatingScale extends Model
         return [
             'name' => 'required|string|max:100',
             'description' => 'nullable|string|max:255',
-            'qet_weights.quantity' => 'required|numeric|min:0|max:1',
+            'qet_weights.quality' => 'required|numeric|min:0|max:1',
             'qet_weights.efficiency' => 'required|numeric|min:0|max:1',
             'qet_weights.timeliness' => 'required|numeric|min:0|max:1',
             'rating_values' => 'required|array|min:2',

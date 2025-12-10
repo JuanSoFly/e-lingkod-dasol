@@ -23,8 +23,9 @@ class UpdateEmployeeRequest extends FormRequest
      */
     public function rules(): array
     {
-        $employeeId = $this->route('employee')->id;
-        $userId = $this->route('employee')->user->id ?? null;
+        $employee = $this->route('employee');
+        $employeeId = $employee->id;
+        $userId = optional($employee->user()->withTrashed()->first())->id;
 
         return [
             'employee_number' => ['required', 'string', 'max:255', Rule::unique('employees')->ignore($employeeId)],
@@ -36,7 +37,14 @@ class UpdateEmployeeRequest extends FormRequest
             'civil_status' => ['required', 'string'],
             'address' => ['required', 'string'],
             'contact_number' => ['required', 'string', 'max:20'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users')->ignore($userId)],
+            'email' => [
+                'required',
+                'string',
+                'lowercase',
+                'email',
+                'max:255',
+                Rule::unique('users')->ignore($userId)->whereNull('deleted_at'),
+            ],
             'position' => ['required', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
             'office_id' => ['nullable', 'exists:offices,id'],

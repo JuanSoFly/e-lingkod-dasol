@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::table('performance_targets', function (Blueprint $table) {
             // Add accomplished columns for OPCR evaluation
-            if (!Schema::hasColumn('performance_targets', 'accomplished_quantity')) {
-                $table->decimal('accomplished_quantity', 10, 2)->nullable()->after('is_target_met');
+            if (!Schema::hasColumn('performance_targets', 'accomplished_quality')) {
+                $table->decimal('accomplished_quality', 10, 2)->nullable()->after('is_target_met');
             }
             if (!Schema::hasColumn('performance_targets', 'accomplished_efficiency')) {
-                $table->string('accomplished_efficiency', 100)->nullable()->after('accomplished_quantity');
+                $table->string('accomplished_efficiency', 100)->nullable()->after('accomplished_quality');
             }
             if (!Schema::hasColumn('performance_targets', 'accomplished_timeliness')) {
                 $table->string('accomplished_timeliness', 100)->nullable()->after('accomplished_efficiency');
@@ -38,7 +38,7 @@ return new class extends Migration
     {
         Schema::table('performance_targets', function (Blueprint $table) {
             $table->dropColumn([
-                'accomplished_quantity',
+                'accomplished_quality',
                 'accomplished_efficiency',
                 'accomplished_timeliness',
                 'performance_percentage'
