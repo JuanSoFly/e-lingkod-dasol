@@ -2,7 +2,7 @@
 # This configures the build environment and deployment process
 
 [phases.setup]
-nixPkgs = ["...", "php83Extensions.redis"]
+nixPkgs = ["...", "php83Extensions.redis", "supervisor"]
 
 [phases.build]
 cmds = [
@@ -15,7 +15,7 @@ cmds = [
 ]
 
 [start]
-cmd = "bash -lc 'php artisan config:clear && php artisan route:clear && php artisan view:clear && php -S 0.0.0.0:$PORT -t public public/router.php'"
+cmd = "supervisord -c supervisord.conf"
 
 [variables]
 PHP_VERSION = "8.3"

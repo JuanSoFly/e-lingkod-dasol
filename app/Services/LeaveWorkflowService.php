@@ -50,8 +50,13 @@ class LeaveWorkflowService
                 $workflowSteps[] = $appStep;
             }
 
-            // Route to first step approvers
-            $this->routeToApprovers($application, $workflowSteps[0]);
+            // Route to first step approvers (handle potential parallel steps)
+            $firstStepOrder = $workflowSteps[0]->step_order;
+            $initialSteps = collect($workflowSteps)->where('step_order', $firstStepOrder);
+            
+            foreach ($initialSteps as $step) {
+                $this->routeToApprovers($application, $step);
+            }
 
             DB::commit();
 
@@ -92,10 +97,19 @@ class LeaveWorkflowService
             if ($this->isWorkflowComplete($application)) {
                 $this->completeWorkflow($application, $action === 'approved');
             } else {
-                // Route to next step
-                $nextStep = $this->getNextStep($application, $step);
-                if ($nextStep) {
-                    $this->routeToApprovers($application, $nextStep);
+                // Check if there are other pending steps with the SAME order (parallel steps)
+                $hasPendingParallelSteps = LeaveApplicationWorkflowStep::where('leave_application_id', $application->id)
+                    ->where('step_order', $step->step_order)
+                    ->where('status', 'pending')
+                    ->exists();
+
+                // Only proceed to next level if all parallel steps at current level are done
+                if (!$hasPendingParallelSteps) {
+                     // Route to next step(s)
+                    $nextSteps = $this->getNextSteps($application, $step);
+                    foreach ($nextSteps as $nextStep) {
+                        $this->routeToApprovers($application, $nextStep);
+                    }
                 }
             }
 
@@ -212,17 +226,29 @@ class LeaveWorkflowService
     }
 
     /**
-     * Get next workflow step
+     * Get next workflow steps (handling parallel steps)
+     * 
+     * @return \Illuminate\Database\Eloquent\Collection
      */
-    private function getNextStep(
+    private function getNextSteps(
         LeaveApplication $application,
         LeaveApplicationWorkflowStep $currentStep
-    ): ?LeaveApplicationWorkflowStep {
-        return LeaveApplicationWorkflowStep::where('leave_application_id', $application->id)
+    ) {
+        // Find the next step order greater than current
+        $nextOrderStep = LeaveApplicationWorkflowStep::where('leave_application_id', $application->id)
             ->where('step_order', '>', $currentStep->step_order)
-            ->where('status', 'pending')
             ->orderBy('step_order')
             ->first();
+
+        if (!$nextOrderStep) {
+            return collect([]);
+        }
+
+        // Return all steps with that next order
+        return LeaveApplicationWorkflowStep::where('leave_application_id', $application->id)
+            ->where('step_order', $nextOrderStep->step_order)
+            ->where('status', 'pending')
+            ->get();
     }
 
     /**
@@ -326,17 +352,19 @@ class LeaveWorkflowService
      */
     public function getPendingApprovals(User $user): array
     {
-        $applications = LeaveApplication::whereHas('workflowSteps', function ($query) use ($user) {
-            $query->where('status', 'pending')
-                ->whereHas('leaveWorkflowStep', function ($stepQuery) use ($user) {
-                    $stepQuery->whereJsonContains('approvers', [['user_id' => $user->id]]);
-                });
+        // Get all applications with any pending step
+        // We cannot rely on JSON query for role-based approvers (like Dept Head)
+        // so we fetch all pending and filter in PHP
+        $applications = LeaveApplication::whereHas('workflowSteps', function ($query) {
+            $query->where('status', 'pending');
         })
-        ->with(['employee', 'leaveType'])
+        ->with(['employee', 'leaveType', 'workflowSteps.leaveWorkflowStep'])
         ->orderBy('created_at')
         ->get();
 
-        return $applications->map(function ($app) {
+        return $applications->filter(function ($app) use ($user) {
+            return $this->canUserApproveApplication($app, $user);
+        })->map(function ($app) {
             return [
                 'id' => $app->id,
                 'employee_name' => $app->employee->full_name,
@@ -348,7 +376,7 @@ class LeaveWorkflowService
                 'applied_date' => $app->applied_date->format('Y-m-d'),
                 'current_step' => $this->getCurrentStep($app),
             ];
-        })->toArray();
+        })->values()->toArray();
     }
 
     /**
@@ -536,9 +564,17 @@ class LeaveWorkflowService
             return;
         }
 
-        $nextStep = $this->getNextStep($application, $step);
-        if ($nextStep) {
-            $this->routeToApprovers($application, $nextStep);
+        // Check if parallel steps are pending
+        $hasPendingParallelSteps = LeaveApplicationWorkflowStep::where('leave_application_id', $application->id)
+            ->where('step_order', $step->step_order)
+            ->where('status', 'pending')
+            ->exists();
+
+        if (!$hasPendingParallelSteps) {
+             $nextSteps = $this->getNextSteps($application, $step);
+             foreach ($nextSteps as $nextStep) {
+                 $this->routeToApprovers($application, $nextStep);
+             }
         }
     }
 
@@ -613,12 +649,20 @@ class LeaveWorkflowService
             }
         }
 
-        // Route to the next pending step (if any)
+        // Route to the next pending step(s) (if any)
         if (!empty($workflowSteps)) {
-            // Find the next pending step
-            $nextStep = collect($workflowSteps)->where('status', 'pending')->sortBy('step_order')->first();
-            if ($nextStep) {
-                $this->routeToApprovers($application, $nextStep);
+            // Find the minimum pending step order
+            $nextPending = collect($workflowSteps)->where('status', 'pending')->sortBy('step_order')->first();
+            
+            if ($nextPending) {
+                // Route to all steps with this order
+                $nextSteps = collect($workflowSteps)
+                    ->where('status', 'pending')
+                    ->where('step_order', $nextPending->step_order);
+                    
+                foreach ($nextSteps as $nextStep) {
+                    $this->routeToApprovers($application, $nextStep);
+                }
             }
         } else {
             // No more steps, complete the workflow

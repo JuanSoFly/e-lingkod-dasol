@@ -24,7 +24,8 @@ class LeaveWorkflowSeeder extends Seeder
             'approval_steps' => [
                 ['step_order' => 1, 'step_name' => 'Immediate Supervisor Recommendation', 'step_type' => 'role_based'],
                 ['step_order' => 2, 'step_name' => 'Department/Office Head Approval', 'step_type' => 'role_based'],
-                ['step_order' => 3, 'step_name' => 'Final Approval (Mayor, HR Admin, Super Admin)', 'step_type' => 'role_based'],
+                ['step_order' => 3, 'step_name' => 'Final Approval (Mayor)', 'step_type' => 'role_based'],
+                ['step_order' => 3, 'step_name' => 'HR Administrative Approval', 'step_type' => 'role_based'],
             ],
         ]);
 
@@ -60,16 +61,30 @@ class LeaveWorkflowSeeder extends Seeder
             'is_recommendation' => false,
         ]);
 
-        // Step 3: Final Approval - Multiple roles receive notifications
+        // Step 3a: Final Approval (Mayor)
         LeaveWorkflowStep::create([
             'leave_workflow_id' => $workflow->id,
             'step_order' => 3,
             'step_type' => 'role_based',
-            'step_name' => 'Final Approval (Mayor, HR Admin, Super Admin)',
+            'step_name' => 'Final Approval (Mayor)',
             'approvers' => [
                 ['role' => 'final_approver'],
+            ],
+            'required_all' => false,
+            'escalation_hours' => null,
+            'escalation_to' => [],
+            'sla_working_days' => 5,
+            'is_recommendation' => false,
+        ]);
+
+        // Step 3b: HR Administrative Approval
+        LeaveWorkflowStep::create([
+            'leave_workflow_id' => $workflow->id,
+            'step_order' => 3, // Same order as Mayor -> Parallel approval
+            'step_type' => 'role_based',
+            'step_name' => 'HR Administrative Approval',
+            'approvers' => [
                 ['role' => 'hr_admin'],
-                ['role' => 'super_admin'],
             ],
             'required_all' => false,
             'escalation_hours' => null,

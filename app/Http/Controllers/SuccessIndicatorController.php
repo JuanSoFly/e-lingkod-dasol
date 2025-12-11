@@ -151,7 +151,7 @@ class SuccessIndicatorController extends Controller
             ]);
 
             return redirect()
-                ->route('success-indicators.show', $indicator)
+                ->route('opcr.success-indicators.show', $indicator)
                 ->with('success', 'Success Indicator created successfully.');
 
         } catch (\Exception $e) {
@@ -264,7 +264,7 @@ class SuccessIndicatorController extends Controller
             ]);
 
             return redirect()
-                ->route('success-indicators.show', $indicator)
+                ->route('opcr.success-indicators.show', $indicator)
                 ->with('success', 'Success Indicator updated successfully.');
 
         } catch (\Exception $e) {
@@ -314,7 +314,7 @@ class SuccessIndicatorController extends Controller
             ]);
 
             return redirect()
-                ->route('success-indicators.index')
+                ->route('opcr.success-indicators.index')
                 ->with('success', 'Success Indicator deleted successfully.');
 
         } catch (\Exception $e) {

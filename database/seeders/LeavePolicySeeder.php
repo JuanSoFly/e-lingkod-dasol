@@ -88,7 +88,7 @@ class LeavePolicySeeder extends Seeder
             'allow_prorated_first_year' => true,
             'allow_negative_balance' => false,
             'allow_carryover' => true,
-            'max_carryover_days' => 10,
+            'max_carryover_days' => null,
             'carryover_expiry_date' => null,
             'min_advance_notice_days' => 3,
             'max_advance_notice_days' => null,
@@ -169,7 +169,7 @@ class LeavePolicySeeder extends Seeder
             'allow_prorated_first_year' => true,
             'allow_negative_balance' => false,
             'allow_carryover' => true,
-            'max_carryover_days' => 15,
+            'max_carryover_days' => null,
             'carryover_expiry_date' => null,
             'min_advance_notice_days' => 0, // can be immediate for emergencies
             'max_advance_notice_days' => null,

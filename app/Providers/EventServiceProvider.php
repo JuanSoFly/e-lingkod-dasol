@@ -17,6 +17,9 @@ class EventServiceProvider extends ServiceProvider
         OpcrWorkflowApproved::class => [
             CascadeOpcrToIpcr::class,
         ],
+        \App\Events\OPCR\OPCRWorkflowStateChanged::class => [
+            \App\Listeners\OPCR\SendOPCRStateNotification::class,
+        ],
     ];
 
     /**

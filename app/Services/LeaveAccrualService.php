@@ -53,7 +53,8 @@ class LeaveAccrualService
                             continue;
                         }
 
-                        // TODO: integrate LWOP/attendance deduction; for now full month accrual
+                        // TODO: integrate LWOP/attendance deduction; credits should be reduced if not in "actual service" (LWOP).
+                        // Reference: docs/leave-credits/lwop.md
                         $increment = $rate;
 
                         DB::transaction(function () use ($employee, $policy, $year, $month, $increment, &$created) {

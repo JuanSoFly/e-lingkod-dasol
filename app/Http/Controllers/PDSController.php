@@ -25,6 +25,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ViewErrorBag;
+use App\Services\PDSDataService;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class PDSController extends Controller
@@ -32,10 +33,12 @@ class PDSController extends Controller
     use AuthorizesRequests;
 
     private AuditTrailService $auditTrailService;
+    private PDSDataService $pdsDataService;
 
-    public function __construct(AuditTrailService $auditTrailService)
+    public function __construct(AuditTrailService $auditTrailService, PDSDataService $pdsDataService)
     {
         $this->auditTrailService = $auditTrailService;
+        $this->pdsDataService = $pdsDataService;
     }
 
     /**
@@ -63,7 +66,7 @@ class PDSController extends Controller
             $this->authorizePdsAccess($employee, 'view');
         }
 
-        $completionStatus = $employee->getPdsCompletionStatus();
+        $completionStatus = $this->pdsDataService->getCompletionStatus($employee);
 
         return view('pds.dashboard', compact('employee', 'completionStatus'));
     }
