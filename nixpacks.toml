@@ -2,7 +2,7 @@
 # This configures the build environment and deployment process
 
 [phases.setup]
-nixPkgs = ["...", "php83Extensions.redis", "supervisor"]
+nixPkgs = ["...", "php83Extensions.redis", "python3Packages.supervisor"]
 
 [phases.build]
 cmds = [
