@@ -76,3 +76,4 @@ config\database.php
 config\filesystems.php
 config\mail.php
 config\redis.php
+rollback/
