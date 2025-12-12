@@ -12,6 +12,8 @@ class NewEmployeeAccountCreated extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    public $afterCommit = true;
+
     protected $token;
 
     public function __construct($token)
