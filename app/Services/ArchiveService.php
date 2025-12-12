@@ -19,6 +19,7 @@ use App\Models\LeaveCredit;
 use App\Models\LeaveCard;
 use App\Models\LeaveCardEntry;
 use App\Models\LeaveApplicationWorkflowStep;
+use App\Models\OfficeAssignment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Spatie\Activitylog\Facades\Activity;
@@ -43,6 +44,12 @@ class ArchiveService
     {
         return DB::transaction(function () use ($employee, $archivedBy) {
             try {
+                // Pre-archival validation
+                $validation = $this->validateArchivalReadiness($employee);
+                if (!$validation['can_archive']) {
+                    throw new \Exception('Cannot archive employee: ' . implode(', ', $validation['blocking_issues']));
+                }
+
                 // Handle pending leave applications before archival
                 $pendingApplicationsResult = $this->handlePendingApplicationsDuringArchival($employee, $archivedBy);
 
@@ -72,6 +79,7 @@ class ArchiveService
                     'reason' => 'Employee archive operation',
                     'pending_applications_handled' => $pendingApplicationsResult,
                     'office_assignments_deactivated' => $assignmentCleanup,
+                    'validation_warnings' => $validation['warnings'],
                 ]);
 
                 Log::info('Employee archived successfully', [
@@ -492,6 +500,9 @@ class ArchiveService
     /**
      * Handle pending leave applications during employee archival
      */
+    /**
+     * Handle pending leave applications during employee archival
+     */
     private function handlePendingApplicationsDuringArchival(Employee $employee, ?User $archivedBy): array
     {
         $result = [
@@ -509,62 +520,79 @@ class ArchiveService
 
             $result['total_pending'] = $pendingApplications->count();
 
-            foreach ($pendingApplications as $application) {
-                try {
-                    // Determine appropriate action based on application status and age
-                    $daysSinceApplication = $application->applied_date
-                        ? now()->diffInDays($application->applied_date)
-                        : 0;
-
-                    // Auto-reject very old applications or auto-cancel recent ones
-                    if ($daysSinceApplication > 30 || $application->status === 'escalated') {
-                        $action = 'rejected';
-                        $reason = 'Auto-rejected: Employee has been archived';
-                    } else {
-                        $action = 'cancelled';
-                        $reason = 'Auto-cancelled: Employee has been archived';
-                    }
-
-                    // Update application status
-                    $application->update([
-                        'status' => $action,
-                        'remarks' => ($application->remarks ?? '') . "\n[{$reason}]",
-                    ]);
-
-                    // Cancel workflow steps
-                    $application->workflowSteps()
-                        ->whereIn('status', ['pending', 'escalated'])
-                        ->update([
-                            'status' => 'cancelled',
-                            'remarks' => 'Cancelled due to employee archival',
-                        ]);
-
-                    $result[$action]++;
-
-                    Log::info("Pending leave application {$action} during archival", [
-                        'employee_id' => $employee->id,
-                        'application_id' => $application->id,
-                        'leave_type' => $application->leaveType->name ?? 'Unknown',
-                        'days_requested' => $application->days_requested,
-                        'original_status' => $application->getOriginal('status'),
-                        'new_status' => $action,
-                        'archived_by' => $archivedBy?->id,
-                    ]);
-
-                } catch (\Exception $e) {
-                    $result['errors'][] = [
-                        'application_id' => $application->id,
-                        'error' => $e->getMessage(),
-                    ];
-
-                    Log::error('Failed to handle pending leave application during archival', [
-                        'employee_id' => $employee->id,
-                        'application_id' => $application->id,
-                        'error' => $e->getMessage(),
-                        'archived_by' => $archivedBy?->id,
-                    ]);
-                }
+            if ($pendingApplications->isEmpty()) {
+                return $result;
             }
+
+            // Identify applications to cancel vs reject
+            $toReject = $pendingApplications->filter(function ($app) {
+                $daysSince = $app->applied_date ? now()->diffInDays($app->applied_date) : 0;
+                return $daysSince > 30 || $app->status === 'escalated';
+            });
+
+            $toCancel = $pendingApplications->diff($toReject);
+
+            // Batch cancellation
+            if ($toCancel->isNotEmpty()) {
+                $count = $toCancel->count();
+                $ids = $toCancel->pluck('id')->toArray();
+
+                // Update applications
+                DB::table('leave_applications')
+                    ->whereIn('id', $ids)
+                    ->update([
+                        'status' => 'cancelled',
+                        'remarks' => DB::raw("CONCAT(COALESCE(remarks, ''), '\n[Auto-cancelled: Employee has been archived]')"),
+                        'updated_at' => now(),
+                    ]);
+
+                // Update workflow steps
+                DB::table('leave_application_workflow_steps')
+                    ->whereIn('leave_application_id', $ids)
+                    ->whereIn('status', ['pending', 'escalated'])
+                    ->update([
+                        'status' => 'cancelled',
+                        'remarks' => 'Cancelled due to employee archival',
+                        'updated_at' => now(),
+                    ]);
+
+                $result['cancelled'] = $count;
+            }
+
+            // Batch rejection
+            if ($toReject->isNotEmpty()) {
+                $count = $toReject->count();
+                $ids = $toReject->pluck('id')->toArray();
+
+                // Update applications
+                DB::table('leave_applications')
+                    ->whereIn('id', $ids)
+                    ->update([
+                        'status' => 'rejected',
+                        'remarks' => DB::raw("CONCAT(COALESCE(remarks, ''), '\n[Auto-rejected: Employee has been archived]')"),
+                        'updated_at' => now(),
+                    ]);
+
+                // Update workflow steps
+                DB::table('leave_application_workflow_steps')
+                    ->whereIn('leave_application_id', $ids)
+                    ->whereIn('status', ['pending', 'escalated'])
+                    ->update([
+                        'status' => 'cancelled',
+                        'remarks' => 'Cancelled due to employee archival',
+                        'updated_at' => now(),
+                    ]);
+
+                $result['rejected'] = $count;
+            }
+
+            Log::info("Handled pending leave applications during archival (Batch)", [
+                'employee_id' => $employee->id,
+                'total_pending' => $result['total_pending'],
+                'cancelled' => $result['cancelled'],
+                'rejected' => $result['rejected'],
+                'archived_by' => $archivedBy?->id,
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Failed to handle pending leave applications during archival', [
@@ -885,10 +913,49 @@ class ArchiveService
             return false;
         }
 
-        // Add any additional business rules here
-        // For example: check if employee has pending tasks, etc.
+        // Run readiness check
+        $validation = $this->validateArchivalReadiness($employee);
+        
+        return $validation['can_archive'];
+    }
 
-        return true;
+    /**
+     * Validate if an employee is ready for archival
+     * This checks for business rule blockers
+     */
+    public function validateArchivalReadiness(Employee $employee): array
+    {
+        $blockingIssues = [];
+        $warnings = [];
+
+        // 1. Check if employee is a Department Head
+        if ($employee->isDepartmentHead()) {
+            $blockingIssues[] = 'Employee is currently a Department Head. Reassign this role before archiving.';
+        }
+
+        // 2. Check for pending approvals (if they are an approver)
+        // Note: usage of 'workflow_steps' table would be more precise if we had the model readily available
+        // For now, checks if they are assigned as Final Approver or Assessor in any active office
+        if ($employee->user) {
+            $hasActiveRoles = OfficeAssignment::where('user_id', $employee->user_id)
+                ->whereIn('role', ['Final Approver', 'Assessor'])
+                ->where('is_active', true)
+                ->exists();
+            
+            if ($hasActiveRoles) {
+                $warnings[] = 'Employee has active Assessor/Approver roles. These will be deactivated upon archival.';
+            }
+        }
+
+        // 3. Check for unreturned government property/accountabilities
+        // Since we didn't find specific Asset models, we'll check for an open clearance if it exists
+        // Placeholder for future Asset/Clearance integration
+
+        return [
+            'can_archive' => empty($blockingIssues),
+            'blocking_issues' => $blockingIssues,
+            'warnings' => $warnings,
+        ];
     }
 
     /**

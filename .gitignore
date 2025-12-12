@@ -72,4 +72,5 @@ PRPs
 debug_auth.php
 mysql_redis_server.md
 nixpacks.toml.backupss
-rollback/
+ROLE_ANALYSIS.md
+backup

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Announcement;
 use App\Models\CareerProgression;
 use App\Models\DocumentRequest;
 use App\Models\Employee;
@@ -37,7 +38,7 @@ class EmployeeSelfServiceController extends Controller
         $notifications = $this->getPersonalNotifications($employee);
         $announcements = $this->getPersonalAnnouncements($employee);
 
-        return view('employee-portal.dashboard-old', compact('employee', 'metrics', 'notifications', 'announcements'));
+        return view('employee-portal.dashboard', compact('employee', 'metrics', 'notifications', 'announcements'));
     }
 
     /**
@@ -419,26 +420,12 @@ class EmployeeSelfServiceController extends Controller
     /**
      * Get personal announcements
      */
-    private function getPersonalAnnouncements(Employee $employee): array
+    private function getPersonalAnnouncements(Employee $employee)
     {
-        // This would typically come from a database table
-        // For now, returning static announcements
-        return [
-            [
-                'title' => 'System Maintenance Notice',
-                'message' => 'The HRIS system will undergo maintenance this weekend.',
-                'type' => 'warning',
-                'date' => now()->subDays(1),
-                'is_important' => false,
-            ],
-            [
-                'title' => 'Performance Review Period',
-                'message' => 'Annual performance review period has started. Please complete your self-assessments.',
-                'type' => 'info',
-                'date' => now()->subDays(3),
-                'is_important' => true,
-            ],
-        ];
+        return Announcement::active()
+            ->orderBy('is_important', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
     }
 
     /**

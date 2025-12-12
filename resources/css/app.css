@@ -1,9 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..1000&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Custom Mobile Utilities */
 @layer utilities {
+
     /* Prevent horizontal scroll on mobile */
     .no-overflow-x {
         overflow-x: hidden;
@@ -164,6 +166,233 @@
     }
 }
 
+/* CSC Validation Components */
+@layer components {
+    .validation-feedback {
+        @apply text-sm leading-5 mt-1;
+    }
+
+    .csc-compliance-indicator {
+        @apply transition-all duration-300 ease-in-out;
+    }
+
+    .csc-field-valid {
+        @apply relative;
+    }
+
+    .csc-field-valid::after {
+        content: '✓';
+        position: absolute;
+        right: 0.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: rgb(34 197 94);
+        font-weight: 700;
+    }
+
+    .csc-field-invalid::after {
+        content: '✗';
+        position: absolute;
+        right: 0.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: rgb(239 68 68);
+        font-weight: 700;
+    }
+
+    .required-indicator {
+        @apply text-red-600 font-bold ml-1;
+    }
+
+    .csc-help-text {
+        @apply text-xs text-gray-500 mt-1;
+    }
+
+    .csc-validation-summary {
+        background: linear-gradient(135deg, rgb(249 250 251) 0%, rgb(243 244 246) 100%);
+        @apply border border-gray-200 rounded-lg p-4 mb-4;
+    }
+
+    .csc-compliance-badge {
+        @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ease-in-out;
+    }
+
+    .csc-compliance-badge.compliant {
+        @apply bg-green-500 text-white;
+    }
+
+    .csc-compliance-badge.partial {
+        @apply bg-yellow-500 text-black;
+    }
+
+    .csc-compliance-badge.non-compliant {
+        @apply bg-red-500 text-white;
+    }
+
+    .notification-enter {
+        animation: slideInRight 0.3s ease-out;
+    }
+
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    /* Legacy timeline + modal utilities used in employee portal */
+    .timeline-simple .timeline-entry {
+        @apply py-3 border-l-2 border-gray-200 pl-5 mb-3 transition-all duration-200 ease-in-out;
+    }
+
+    .timeline-simple .timeline-entry:last-child {
+        border-left-color: transparent;
+    }
+
+    .timeline-simple .timeline-entry:hover {
+        border-left-color: rgb(59 130 246);
+        transform: translateX(2px);
+    }
+
+    /* Service record timeline */
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 1rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(to bottom, #e5e7eb, #d1d5db);
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 2rem;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -2.5rem;
+        top: 0.25rem;
+        width: 2rem;
+        height: 2rem;
+        background: white;
+        border: 2px solid #d1d5db;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .timeline-item.active .timeline-marker {
+        border-color: rgb(59 130 246);
+        background: rgb(59 130 246);
+        color: white;
+    }
+
+    .timeline-content {
+        background: #f9fafb;
+        padding: 1rem 1.25rem;
+        border-radius: 0.75rem;
+        border-left: 4px solid #e5e7eb;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .timeline-item.active .timeline-content {
+        border-left-color: rgb(59 130 246);
+        background: #eff6ff;
+    }
+
+    .timeline-content:hover {
+        transform: translateX(4px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .table-hover tbody tr:hover {
+        @apply bg-gray-50;
+    }
+
+    .badge {
+        @apply inline-flex items-center text-xs font-medium px-2 py-1 rounded-full;
+    }
+
+    .badge:hover {
+        transform: scale(1.05);
+        transition: transform 0.1s ease-in-out;
+    }
+
+    .modal-lg {
+        max-width: 900px;
+    }
+
+    .modal-content {
+        @apply bg-white rounded-xl shadow-2xl ring-1 ring-black/5;
+        border: none;
+    }
+
+    .modal-header {
+        @apply p-6;
+        border-bottom: 1px solid rgb(229 231 235);
+    }
+
+    .modal-body {
+        @apply p-6;
+    }
+
+    .modal-footer {
+        @apply p-6;
+        border-top: 1px solid rgb(229 231 235);
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: rgb(59 130 246);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .alert {
+        @apply border rounded-md p-3;
+    }
+
+    .alert-light {
+        @apply bg-gray-50 text-gray-700 border-gray-200;
+    }
+
+    .alert-info {
+        @apply bg-blue-50 text-blue-800 border-blue-200;
+    }
+
+    .alert-danger {
+        @apply bg-red-50 text-red-800 border-red-200;
+    }
+
+    .alert-success {
+        @apply bg-green-50 text-green-800 border-green-200;
+    }
+
+    .alert-warning {
+        @apply bg-yellow-50 text-yellow-800 border-yellow-200;
+    }
+
+    @media (max-width: 1024px) {
+        .table-responsive {
+            @apply rounded-lg border border-gray-200;
+        }
+    }
+}
+
 /* Fix Chart.js responsiveness */
 canvas {
     max-width: 100% !important;
@@ -172,13 +401,17 @@ canvas {
 
 /* Better mobile scrolling */
 @media (max-width: 640px) {
-    html, body {
+
+    html,
+    body {
         -webkit-overflow-scrolling: touch;
         overflow-x: hidden;
     }
 
     /* Prevent zoom on input focus */
-    input, select, textarea {
+    input,
+    select,
+    textarea {
         font-size: 16px;
     }
 

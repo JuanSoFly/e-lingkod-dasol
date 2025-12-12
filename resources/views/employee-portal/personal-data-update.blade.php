@@ -345,36 +345,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
-
-@push('styles')
-<style>
-.timeline-simple .timeline-entry {
-    padding: 0.5rem 0;
-    border-left: 2px solid #dee2e6;
-    padding-left: 1rem;
-    margin-bottom: 0.5rem;
-}
-
-.timeline-simple .timeline-entry:last-child {
-    border-left-color: transparent;
-}
-
-.table th {
-    font-weight: 600;
-    background-color: #f8f9fa;
-}
-
-.badge {
-    font-size: 0.75rem;
-}
-
-.modal-lg {
-    max-width: 900px;
-}
-
-.alert {
-    border: 1px solid;
-    border-radius: 0.375rem;
-}
-</style>
-@endpush

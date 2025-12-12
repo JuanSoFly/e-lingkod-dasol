@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
-// use App\Jobs\IndexDocumentContentJob; // TODO: Uncomment when implementing document search
+// use App\Jobs\IndexDocumentContentJob; // Removed unused OCR job
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -66,8 +66,7 @@ class EmployeeDocumentController extends Controller
             'file_size' => $uploadedFile->getSize(),
         ]);
 
-        // TODO: Implement document content indexing when needed
-        // IndexDocumentContentJob::dispatch($document);
+        // OCR functionality removed as per refactoring plan
 
         return back()->with('success', 'Document uploaded successfully.');
     }

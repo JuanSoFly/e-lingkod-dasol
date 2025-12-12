@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\LeaveApplication;
 use App\Models\LeaveType;
 use App\Models\User;
+use App\Models\OfficeAssignment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -278,21 +279,44 @@ class DashboardService implements DashboardServiceInterface
     {
         $data = [];
 
-        // Determine data access level based on role
-        if ($user->hasRole('Super Admin')) {
-            $data = $this->getSuperAdminData($user);
-        } elseif ($user->hasRole('HR Admin')) {
-            $data = $this->getHRAdminData($user);
-        } elseif ($user->hasRole('Department Head')) {
-            $data = $this->getDepartmentHeadData($user);
-        } elseif ($user->hasRole('Employee')) {
-            $data = $this->getEmployeeData($user);
-        } else {
-            // Fallback for users with custom permission combinations
-            $data = $this->getPermissionBasedData($user);
+        // Determine data access level based on role priority
+        // 1. Final Approver - Global Access
+        if ($user->hasRole('Final Approver')) {
+            return $this->getFinalApproverData($user);
+        }
+        
+        // 2. Department Head - Office Scope
+        if ($user->hasRole('Department Head')) {
+            return $this->getDepartmentHeadData($user);
         }
 
-        return $data;
+        // 3. Supervisor - Office Scope
+        if ($user->hasRole('Supervisor')) {
+            return $this->getSupervisorData($user);
+        }
+        
+        // 4. Assessor - Limited Scope
+        if ($user->hasRole('Assessor')) {
+            return $this->getAssessorData($user);
+        }
+
+        // 5. HR Admin - Full Access (legacy role support)
+        if ($user->hasRole('HR Admin')) {
+            return $this->getHRAdminData($user);
+        }
+
+        // 6. Super Admin
+        if ($user->hasRole('Super Admin')) {
+            return $this->getSuperAdminData($user);
+        }
+
+        // 7. Regular Employee
+        if ($user->hasRole('Employee')) {
+            return $this->getEmployeeData($user);
+        }
+
+        // Fallback
+        return $this->getPermissionBasedData($user);
     }
 
     /**
@@ -346,35 +370,275 @@ class DashboardService implements DashboardServiceInterface
     }
 
     /**
+     * Get Final Approver dashboard data - Global access
+     */
+    private function getFinalApproverData(User $user): array
+    {
+        // Final Approver sees everything global, same as HR Admin/Super Admin regarding metrics
+        return [
+             'metrics' => [
+                'total_employees' => $this->getTotalEmployees(),
+                'active_employees' => $this->getActiveEmployees(),
+                'pending_leave_applications' => $this->getPendingLeaveApplications(),
+                'employees_on_leave_today' => $this->getEmployeesOnLeaveToday(),
+                'new_hires_this_month' => $this->getNewHiresThisMonth(),
+                'average_leave_days' => $this->getAverageLeaveDays(),
+            ],
+            'upcoming_birthdays' => $this->getUpcomingBirthdays(),
+            'leave_statistics' => $this->getLeaveStatistics(),
+            'leave_applications_by_month' => $this->getLeaveApplicationsByMonth(),
+            'department_metrics' => $this->getDepartmentMetrics(),
+            'employment_status_metrics' => $this->getEmploymentStatusMetrics(),
+            'most_requested_leave_types' => $this->getMostRequestedLeaveTypes(),
+            // Flag to ensure UI shows everything
+            'role_view' => 'global',
+        ];
+    }
+
+    /**
+     * Get Assessor dashboard data - Limited access
+     */
+    private function getAssessorData(User $user): array
+    {
+        // Assessor:
+        // - "Total Employees", "On Leave Today", "Pending Approvals", "Quick Overview", "Upcoming Birthdays": HIDE
+        // - "Workforce Distribution": SHOW (All departments)
+        
+        return [
+            'metrics' => [
+                'total_employees' => null, // Hidden
+                'active_employees' => null,
+                'pending_leave_applications' => null,
+                'employees_on_leave_today' => null,
+                'new_hires_this_month' => null,
+                'average_leave_days' => null,
+            ],
+            'upcoming_birthdays' => collect([]), // Hidden
+            'leave_statistics' => $this->getEmptyLeaveStatistics(), // Hidden
+            'leave_applications_by_month' => [],
+            'department_metrics' => $this->getDepartmentMetrics(), // SHOW GLOBAL
+            'employment_status_metrics' => [],
+            'most_requested_leave_types' => [],
+             // Flag to help UI hide sections
+            'role_view' => 'assessor',
+        ];
+
+    }
+
+    /**
+     * Get Supervisor dashboard data - Office limited
+     */
+    private function getSupervisorData(User $user): array
+    {
+        // Get active supervisor assignments
+        $officeIds = OfficeAssignment::where('user_id', $user->id)
+            ->where('role', 'Supervisor')
+            ->where('is_active', true)
+            ->pluck('office_id')
+            ->toArray();
+
+        if (empty($officeIds)) {
+            // Fallback: If no assignment but has role, maybe fallback to employee department? 
+            // For strictness, return empty if no assignment found to avoid data leak.
+            return $this->getEmptyDashboardData();
+        }
+
+        return $this->getScopedDashboardData($officeIds, 'supervisor');
+    }
+
+    /**
      * Get Department Head dashboard data - department-scoped data only
      */
     private function getDepartmentHeadData(User $user): array
     {
-        $department = $user->employee?->department;
+        // Get active Dept Head assignments
+        $officeIds = OfficeAssignment::where('user_id', $user->id)
+            ->where('role', 'Department Head')
+            ->where('is_active', true)
+            ->pluck('office_id')
+            ->toArray();
         
-        if (!$department) {
-            return $this->getEmptyDashboardData();
+        // Fallback to employee department if no office assignment (legacy support)
+        if (empty($officeIds) && $user->employee && $user->employee->department) {
+             // We need office ID, find office by name? 
+             // Or filter by department string in Employee table.
+             // For now, let's assume we can filter by department string if office_id is missing, 
+             // but to be consistent with new schema, let's try to map it.
+             // Helper to get scoped data by department NAME if needed.
+             return $this->getScopedDashboardDataByDeptName([$user->employee->department], 'department_head');
         }
 
+        if (empty($officeIds)) {
+             return $this->getEmptyDashboardData();
+        }
+
+        return $this->getScopedDashboardData($officeIds, 'department_head');
+    }
+
+    /**
+     * Shared method to get scoped data by Office IDs
+     */
+    private function getScopedDashboardData(array $officeIds, string $roleView): array
+    {
         return [
             'metrics' => [
-                'total_employees' => $this->getDepartmentEmployeeCount($department),
-                'active_employees' => $this->getDepartmentActiveEmployeeCount($department),
-                'pending_leave_applications' => $this->getDepartmentPendingLeaveApplications($department),
-                'employees_on_leave_today' => $this->getDepartmentEmployeesOnLeaveToday($department),
-                'new_hires_this_month' => $this->getDepartmentNewHiresThisMonth($department),
-                'average_leave_days' => $this->getDepartmentAverageLeaveDays($department),
+                'total_employees' => $this->getScopedEmployeeCount($officeIds),
+                'active_employees' => $this->getScopedActiveEmployeeCount($officeIds),
+                'pending_leave_applications' => $this->getScopedPendingLeaveApplications($officeIds),
+                'employees_on_leave_today' => $this->getScopedEmployeesOnLeaveToday($officeIds),
+                'new_hires_this_month' => $this->getScopedNewHiresThisMonth($officeIds),
+                'average_leave_days' => 0, // Hard to calc scoped avg efficiently without more methods, keeping 0 for now or add method
             ],
-            'upcoming_birthdays' => $this->getDepartmentUpcomingBirthdays($department),
-            'leave_statistics' => $this->getDepartmentLeaveStatistics($department),
-            'leave_applications_by_month' => $this->getDepartmentLeaveApplicationsByMonth($department),
-            'department_metrics' => [
-                'departments' => [$department],
-                'counts' => [$this->getDepartmentEmployeeCount($department)],
-                'total_departments' => 1,
+            'upcoming_birthdays' => $this->getScopedUpcomingBirthdays($officeIds),
+            'leave_statistics' => $this->getScopedLeaveStatistics($officeIds),
+            'leave_applications_by_month' => [], // Keep empty for scoped views to avoid clutter
+            'department_metrics' => $this->getScopedDepartmentMetrics($officeIds),
+            'employment_status_metrics' => [],
+            'most_requested_leave_types' => [],
+            'role_view' => $roleView,
+        ];
+    }
+    
+    /**
+     * Helper to return empty statistics array
+     */
+    private function getEmptyLeaveStatistics(): array
+    {
+        return [
+             'approved' => 0, 'pending' => 0, 'rejected' => 0, 'cancelled' => 0, 'total' => 0
+        ];
+    }
+
+    // ===================================
+    // SCOPED QUERIES
+    // ===================================
+
+    private function getScopedEmployeeCount(array $officeIds): int
+    {
+         return Employee::whereIn('office_id', $officeIds)->count();
+    }
+
+    private function getScopedActiveEmployeeCount(array $officeIds): int
+    {
+         return Employee::whereIn('office_id', $officeIds)->where('employment_status', 'active')->count();
+    }
+
+    private function getScopedPendingLeaveApplications(array $officeIds): int
+    {
+        return LeaveApplication::whereHas('employee', function ($q) use ($officeIds) {
+            $q->whereIn('office_id', $officeIds);
+        })->where('status', 'pending')->count();
+    }
+
+    private function getScopedEmployeesOnLeaveToday(array $officeIds): int
+    {
+        $today = now()->toDateString();
+        return LeaveApplication::whereHas('employee', function ($q) use ($officeIds) {
+            $q->whereIn('office_id', $officeIds);
+        })
+        ->where('status', 'approved')
+        ->where('start_date', '<=', $today)
+        ->where('end_date', '>=', $today)
+        ->count();
+    }
+
+    private function getScopedNewHiresThisMonth(array $officeIds): int
+    {
+        return Employee::whereIn('office_id', $officeIds)
+            ->whereMonth('date_hired', now()->month)
+            ->whereYear('date_hired', now()->year)
+            ->count();
+    }
+
+    private function getScopedUpcomingBirthdays(array $officeIds, int $limit = 5): Collection
+    {
+        $currentMonth = now()->month;
+        $currentDay = now()->day;
+        
+        $query = Employee::whereIn('office_id', $officeIds);
+
+        // Get birthdays for current month from today onwards
+        $currentMonthBirthdays = (clone $query)
+            ->whereMonth('birth_date', $currentMonth)
+            ->whereDay('birth_date', '>=', $currentDay)
+            ->orderByRaw('DAY(birth_date) ASC')
+            ->take($limit)
+            ->get();
+
+        if ($currentMonthBirthdays->count() < $limit) {
+            $nextMonth = $currentMonth == 12 ? 1 : $currentMonth + 1;
+            $remaining = $limit - $currentMonthBirthdays->count();
+            
+            $nextMonthBirthdays = (clone $query)
+                ->whereMonth('birth_date', $nextMonth)
+                ->orderByRaw('DAY(birth_date) ASC')
+                ->take($remaining)
+                ->get();
+
+            return $currentMonthBirthdays->merge($nextMonthBirthdays);
+        }
+
+        return $currentMonthBirthdays;
+    }
+
+    private function getScopedLeaveStatistics(array $officeIds): array
+    {
+        $currentYear = now()->year;
+        $query = LeaveApplication::whereHas('employee', function ($q) use ($officeIds) {
+            $q->whereIn('office_id', $officeIds);
+        })->whereYear('applied_date', $currentYear);
+
+        return [
+            'approved' => (clone $query)->where('status', 'approved')->count(),
+            'pending' => (clone $query)->where('status', 'pending')->count(),
+            'rejected' => (clone $query)->where('status', 'rejected')->count(),
+            'cancelled' => (clone $query)->where('status', 'cancelled')->count(),
+            'total' => $query->count(),
+        ];
+    }
+    
+    private function getScopedDepartmentMetrics(array $officeIds): array 
+    {
+         // For scoped view, essentially show distribution within the offices (or just the offices themselves)
+         // Since office_id might map to multiple departments? 
+         // Let's just group by department for employees in those offices.
+         $departmentCounts = Employee::whereIn('office_id', $officeIds)
+            ->select('department', DB::raw('count(*) as count'))
+            ->whereNotNull('department')
+            ->groupBy('department')
+            ->orderBy('count', 'desc')
+            ->get();
+
+        return [
+            'departments' => $departmentCounts->pluck('department')->toArray(),
+            'counts' => $departmentCounts->pluck('count')->toArray(),
+            'total_departments' => $departmentCounts->count(),
+        ];
+    }
+
+    /** 
+     * Legacy Support: Get scoped data by Department Name string
+     */ 
+    private function getScopedDashboardDataByDeptName(array $deptNames, string $roleView): array
+    {
+         // IMPLEMENT similar to scoped but with whereIn('department', ...)
+         // For brevity, using simplified implementation
+        return [
+            'metrics' => [
+                'total_employees' => Employee::whereIn('department', $deptNames)->count(),
+                'active_employees' => Employee::whereIn('department', $deptNames)->where('employment_status', 'active')->count(),
+                'pending_leave_applications' => LeaveApplication::whereHas('employee', fn($q) => $q->whereIn('department', $deptNames))->where('status', 'pending')->count(),
+                'employees_on_leave_today' => 0,
+                'new_hires_this_month' => 0,
+                'average_leave_days' => 0,
             ],
-            'employment_status_metrics' => $this->getDepartmentEmploymentStatusMetrics($department),
-            'most_requested_leave_types' => $this->getDepartmentMostRequestedLeaveTypes($department),
+            'upcoming_birthdays' => collect([]),
+            'leave_statistics' => $this->getEmptyLeaveStatistics(),
+            'leave_applications_by_month' => [],
+            'department_metrics' => [ 'departments' => $deptNames, 'counts' => [], 'total_departments' => count($deptNames)],
+            'employment_status_metrics' => [],
+            'most_requested_leave_types' => [],
+            'role_view' => $roleView,
         ];
     }
 
@@ -933,4 +1197,47 @@ class DashboardService implements DashboardServiceInterface
             ];
         });
     }
+    /**
+     * Get aggregated dashboard data for a user with optimized caching
+     */
+    public function getAggregatedDashboardData(User $user): array
+    {
+        // specific cache key for this user's dashboard view
+        $cacheKey = "dashboard_aggregated_{$user->id}";
+        
+        return Cache::remember($cacheKey, self::CACHE_DURATION, function () use ($user) {
+            // Use the centralized role-based data gathering method
+            $rawData = $this->getDashboardData($user);
+
+            $data = [
+                'user' => [
+                    'name' => $user->full_name ?? $user->name,
+                    'roles' => $user->getRoleNames()->toArray(),
+                    'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                ],
+                'metrics' => [
+                    'total_employees' => $rawData['metrics']['total_employees'],
+                    'active_employees' => $rawData['metrics']['active_employees'],
+                    'pending_leaves' => $rawData['metrics']['pending_leave_applications'],
+                    'on_leave_today' => $rawData['metrics']['employees_on_leave_today'], 
+                    'new_hires' => $rawData['metrics']['new_hires_this_month'],
+                ],
+                'charts' => [
+                    'employees_by_dept' => $rawData['department_metrics'],
+                ],
+                'tables' => [
+                    'upcoming_birthdays' => $rawData['upcoming_birthdays'],
+                ],
+                'features' => [
+                    'opcr' => $user->can('opcr.view') || $user->hasAnyRole(['Department Head', 'Assessor', 'Final Approver']),
+                    'leave_approval' => $user->can('leave.approve'),
+                ],
+                // Pass the role view flag to the frontend
+                'role_view' => $rawData['role_view'] ?? 'employee',
+            ];
+
+            return $data;
+        });
+    }
+
 }

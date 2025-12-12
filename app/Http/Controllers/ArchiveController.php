@@ -132,6 +132,47 @@ class ArchiveController extends Controller
     }
 
     /**
+     * Archive the specified employee.
+     */
+    public function destroy(Employee $employee)
+    {
+        $this->authorize('employee.delete');
+
+        // Check if employee can be archived using new validation
+        $validation = $this->archiveService->validateArchivalReadiness($employee);
+        
+        if (!$validation['can_archive']) {
+             $errorMessage = 'Cannot archive employee: ' . implode(' ', $validation['blocking_issues']);
+             return redirect()->route('employees.index')
+                ->with('error', $errorMessage);
+        }
+
+        try {
+            $archivedEmployee = $this->archiveService->archiveEmployee($employee, auth()->user());
+            
+            $message = "Employee {$archivedEmployee->first_name} {$archivedEmployee->last_name} has been archived successfully.";
+            
+            // Add warnings if any
+            if (!empty($validation['warnings'])) {
+                $message .= " Note: " . implode(' ', $validation['warnings']);
+            }
+
+            return redirect()->route('employees.index')
+                ->with('success', $message);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to archive employee', [
+                'employee_id' => $employee->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->route('employees.index')
+                ->with('error', 'Failed to archive employee: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Permanently delete an archived employee (Super Admin only)
      */
     public function forceDelete(int $id, Request $request): JsonResponse

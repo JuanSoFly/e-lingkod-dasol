@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\OfficeAssignment;
 
 class LeaveApplicationService
 {
@@ -18,11 +19,45 @@ class LeaveApplicationService
     {
         $query = LeaveApplication::with(['employee', 'leaveType']);
 
-        if ($user->can('leave.approve') && $status === 'pending') {
-            // Get all pending applications
-            $query->where('status', 'pending');
+        // 1. Apply Status Filter
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        // 2. Apply Role-Based Scoping
+        if ($user->hasAnyRole(['Super Admin', 'HR Admin', 'Final Approver'])) {
+            // Global Access: View all applications
+            // No filtering required
+        } elseif ($user->hasAnyRole(['Department Head', 'Supervisor'])) {
+             // Manager Access: View applications from assigned offices
+             // Get active office assignments where user is a manager
+             $officeIds = OfficeAssignment::where('user_id', $user->id)
+                ->whereIn('role', ['Department Head', 'Supervisor'])
+                ->where('is_active', true)
+                ->pluck('office_id')
+                ->toArray();
+            
+             if (!empty($officeIds)) {
+                $query->where(function ($q) use ($officeIds, $user) {
+                    // Show employees in managed offices
+                    $q->whereHas('employee', function ($subQ) use ($officeIds) {
+                        $subQ->whereIn('office_id', $officeIds);
+                    });
+                    
+                    // Also include their own applications so they can see their own history
+                    if ($user->employee) {
+                        $q->orWhere('employee_id', $user->employee->id);
+                    }
+                });
+             } else {
+                 // Fallback if no valid assignments found, default to own
+                 if ($user->employee) {
+                     $query->where('employee_id', $user->employee->id);
+                 }
+             }
+
         } else {
-            // Employees see only their own applications
+            // Regular Employee Access: View only own applications
             if ($user->employee) {
                 $query->where('employee_id', $user->employee->id);
             }
@@ -30,10 +65,21 @@ class LeaveApplicationService
 
         $applications = $query->latest()->get();
 
-        // Filter applications based on workflow access for approvers
+        // 3. Special Handling for 'Pending' approvals
+        // Filter applications based on workflow access for approvers to only see what they can act on
         if ($user->can('leave.approve') && $status === 'pending') {
             $workflowService = app(\App\Services\LeaveWorkflowService::class);
             $applications = $applications->filter(function ($application) use ($user, $workflowService) {
+                // If they are admin, they can likely view all, but for workflow actions, strictly check
+                // For 'viewing' list, Admins usually want to see ALL pending, not just ones waiting on them.
+                // However, the original code filtered strictly. 
+                // Let's keep strict filtering for "Pending Approvals" context (actionable items)
+                // BUT if they are Super Admin/HR Admin, they might want to monitor ALL pending.
+                
+                if ($user->hasAnyRole(['Super Admin', 'HR Admin'])) {
+                    return true;
+                }
+                
                 return $workflowService->canUserApproveApplication($application, $user);
             });
         }

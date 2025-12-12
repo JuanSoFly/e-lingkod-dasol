@@ -130,9 +130,21 @@ class DocumentManagementService
     /**
      * Create automatic links for a document
      */
+    /**
+     * Create automatic links for a document
+     */
     public function createAutomaticLinks(EmployeeDocument $document, User $creator): array
     {
-        $links = DocumentLink::createAutomaticLinks($document, $creator);
+        // Instantiate the Service with strategies
+        // In a real app, this should be done via ServiceProvider dependency injection
+        $linkingService = new \App\Services\Document\DocumentLinkingService([
+            new \App\Services\Document\Strategies\Linking\LeaveApplicationLinkStrategy(),
+            new \App\Services\Document\Strategies\Linking\TrainingCertificateLinkStrategy(),
+            new \App\Services\Document\Strategies\Linking\EducationCredentialLinkStrategy(), 
+            // Add other strategies here
+        ]);
+
+        $links = $linkingService->findAndCreateLinks($document, $creator);
 
         Log::info('Automatic links created for document', [
             'document_id' => $document->id,

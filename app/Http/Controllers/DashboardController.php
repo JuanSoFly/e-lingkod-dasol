@@ -88,8 +88,8 @@ class DashboardController extends Controller
         }
         
         try {
-            // Get role-based dashboard data with proper authorization
-            $dashboardData = $this->dashboardService->getDashboardData($user);
+            // New Aggregated Data Fetch
+            $data = $this->dashboardService->getAggregatedDashboardData($user);
             
             // Log successful dashboard access
             Log::info('Dashboard accessed successfully', [
@@ -97,52 +97,55 @@ class DashboardController extends Controller
                 'roles' => $user->getRoleNames(),
             ]);
             
-            // Extract legacy data structure for backward compatibility
-            $totalEmployees = $dashboardData['metrics']['total_employees'] ?? 0;
-            $departments = $dashboardData['department_metrics']['departments'] ?? [];
-            $counts = $dashboardData['department_metrics']['counts'] ?? [];
-            $employeesByDept = array_combine($departments, $counts) ?: [];
-            $pendingLeaveApps = $dashboardData['metrics']['pending_leave_applications'] ?? 0;
-            $leaveToday = $dashboardData['metrics']['employees_on_leave_today'] ?? 0;
-            $upcomingBirthdays = $dashboardData['upcoming_birthdays'] ?? collect([]);
+            // Prepare legacy compatibility variables for view
+            // TODO: Remap these in the view refactor step to use $data directly
+            $totalEmployees = $data['metrics']['total_employees'] ?? 0;
+            $pendingLeaveApps = $data['metrics']['pending_leaves'] ?? 0;
+            $leaveToday = $data['metrics']['on_leave_today'] ?? 0;
+            $upcomingBirthdays = $data['tables']['upcoming_birthdays'] ?? collect([]);
             
-                      // Get OPCR-specific data if user has OPCR permissions
+            $employeesByDept = [];
+            if (isset($data['charts']['employees_by_dept'])) {
+                 $depts = $data['charts']['employees_by_dept']['departments'] ?? [];
+                 $counts = $data['charts']['employees_by_dept']['counts'] ?? [];
+                 if (!empty($depts) && !empty($counts)) {
+                     $employeesByDept = array_combine($depts, $counts);
+                 }
+            }
+
+            // Get OPCR-specific data if applicable
             $opcrData = [];
-            if ($user->can('opcr.view') || $user->hasAnyRole(['Department Head', 'Assessor', 'Final Approver'])) {
+            if ($data['features']['opcr']) {
                 try {
                     $opcrData = $this->getOPCRDashboardData($user);
                 } catch (\Exception $e) {
-                    \Log::error('OPCR dashboard data retrieval failed', [
+                    Log::error('OPCR dashboard data retrieval failed', [
                         'user_id' => $user->id,
-                        'user_email' => $user->email,
-                        'user_roles' => $user->getRoleNames()->toArray(),
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
+                        'error' => $e->getMessage()
                     ]);
-                    $opcrData = [];
                 }
             }
 
             return view('dashboard', [
-                // Legacy data for existing blade templates
+                // New structured data
+                'dashboardData' => $data,
+
+                // Compatibility vars
                 'totalEmployees' => $totalEmployees,
                 'employeesByDept' => $employeesByDept,
                 'pendingLeaveApps' => $pendingLeaveApps,
                 'leaveToday' => $leaveToday,
                 'upcomingBirthdays' => $upcomingBirthdays,
 
-                // Enhanced data for future use
-                'dashboardData' => $dashboardData,
-
-                // OPCR-specific data
+                // OPCR Data
                 'opcrData' => $opcrData,
 
-                // User context for role-based UI rendering
+                // Flags
                 'userRole' => $user->getRoleNames()->first(),
                 'canViewAllEmployees' => $user->can('employee.view') && ($user->hasRole(['HR Admin', 'Super Admin'])),
-                'canApproveLeaves' => $user->can('leave.approve'),
+                'canApproveLeaves' => $data['features']['leave_approval'],
                 'canGenerateReports' => $user->can('reports.generate'),
-                'canViewOPCR' => $user->can('opcr.view'),
+                'canViewOPCR' => $data['features']['opcr'],
                 'canManageOPCR' => $user->can('opcr.manage'),
                 'canAssessOPCR' => $user->can('opcr.assess'),
                 'canApproveOPCR' => $user->can('opcr.final_approve'),
@@ -158,13 +161,11 @@ class DashboardController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Prevent redirect loop - check if current route is dashboard
             if (request()->routeIs('dashboard')) {
-                return redirect()->route('login')->with('error', 'Dashboard temporarily unavailable. Please try again.');
+                return redirect()->route('login')->with('error', 'Dashboard temporarily unavailable.');
             }
 
-            // Return error view or redirect with error message
-            return redirect()->back()->with('error', 'Unable to load dashboard data. Please try again later.');
+            return redirect()->back()->with('error', 'Unable to load dashboard data.');
         }
     }
 

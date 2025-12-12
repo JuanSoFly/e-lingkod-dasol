@@ -437,11 +437,19 @@ class BenefitContribution extends Model
     public static function calculateMonthlyContributionsForEmployee(Employee $employee, int $year, int $month, float $basicSalary, float $additionalCompensation = 0): array
     {
         $contributions = [];
+        $complianceService = app(\App\Services\GovernmentComplianceService::class);
 
         $governmentBenefits = $employee->governmentBenefits()->active()->get();
 
         foreach ($governmentBenefits as $benefit) {
-            $calculation = $benefit->calculateMonthlyContribution($basicSalary, $additionalCompensation);
+            $calculation = $complianceService->calculateMonthlyContribution(
+                $benefit->benefit_type,
+                $basicSalary,
+                $additionalCompensation,
+                $benefit->employee_contribution_rate,
+                $benefit->employer_contribution_rate,
+                $benefit->monthly_contribution_cap
+            );
 
             $contributions[] = [
                 'government_benefit_id' => $benefit->id,

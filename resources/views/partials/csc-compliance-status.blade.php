@@ -7,6 +7,10 @@ $warnings = $completenessCheck['warnings'] ?? [];
 $employee = $employee ?? null;
 @endphp
 
+@once
+    @vite('resources/js/pages/csc-compliance-status.js')
+@endonce
+
 <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
     <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold text-gray-800">
@@ -106,15 +110,15 @@ $employee = $employee ?? null;
     <div class="mt-6 flex flex-wrap gap-3">
         @if($employee)
             <a href="{{ route('pds.questionnaire', $employee) }}"
-               class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+               class="inline-flex items-center justify-center btn-responsive btn-touch border border-gray-300 rounded-md shadow-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                 </svg>
                 Edit CSC Fields
             </a>
 
-            <button onclick="validateAndGeneratePDF('{{ $employee->id }}')"
-                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white {{ $isCSCCompliant ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed' }}
+            <button onclick="validateAndGeneratePDF('{{ $employee->id }}', event)"
+                    class="inline-flex items-center justify-center btn-responsive btn-touch border border-transparent rounded-md shadow-sm font-medium text-white {{ $isCSCCompliant ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed' }}
                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     {{ !$isCSCCompliant ? 'disabled' : '' }}>
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -123,8 +127,8 @@ $employee = $employee ?? null;
                 Generate PDS PDF
             </button>
 
-            <button onclick="refreshCSCStatus('{{ $employee->id }}')"
-                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <button onclick="refreshCSCStatus('{{ $employee->id }}', event)"
+                    class="inline-flex items-center justify-center btn-responsive btn-touch border border-gray-300 rounded-md shadow-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                 </svg>
@@ -172,84 +176,6 @@ $employee = $employee ?? null;
         </details>
     </div>
 </div>
-
-<script>
-async function validateAndGeneratePDF(employeeId) {
-    if (!window.CSCValidation) {
-        window.location.href = `/pds/${employeeId}/generate-pdf`;
-        return;
-    }
-
-    const complianceStatus = window.CSCValidation.getCSCComplianceStatus();
-
-    if (!complianceStatus.is_valid) {
-        showCSCNotification('Please fix validation errors before generating PDF', 'error');
-        return;
-    }
-
-    if (complianceStatus.completeness_percentage < 100) {
-        const message = 'Your CSC Form No. 212 is not fully compliant. Some required fields are missing. Continue anyway?';
-        const confirmed = window.confirmDialog
-            ? await window.confirmDialog({
-                title: 'Proceed with Incomplete CSC Form',
-                message,
-                confirmLabel: 'Continue',
-                cancelLabel: 'Review First'
-            })
-            : window.confirm(message);
-
-        if (!confirmed) {
-            return;
-        }
-    }
-
-    // Show loading state
-    const button = event.target;
-    const originalText = button.innerHTML;
-    button.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Generating PDF...';
-    button.disabled = true;
-
-    // Generate PDF
-    window.location.href = `/pds/${employeeId}/generate-pdf`;
-
-    // Restore button after delay
-    setTimeout(() => {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    }, 3000);
-}
-
-function refreshCSCStatus(employeeId) {
-    const button = event.target;
-    const originalText = button.innerHTML;
-    button.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Refreshing...';
-    button.disabled = true;
-
-    // Fetch updated status
-    fetch(`/pds/${employeeId}/validate-csc`)
-        .then(response => response.json())
-        .then(data => {
-            // Update the UI with new data
-            if (data.is_csc_compliant) {
-                showCSCNotification('CSC compliance status updated successfully!', 'success');
-            } else {
-                showCSCNotification('CSC compliance status updated. Please check missing fields.', 'warning');
-            }
-
-            // Reload page to show updated status
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        })
-        .catch(error => {
-            console.error('Error refreshing CSC status:', error);
-            showCSCNotification('Error refreshing CSC status. Please try again.', 'error');
-        })
-        .finally(() => {
-            button.innerHTML = originalText;
-            button.disabled = false;
-        });
-}
 
 @php
 function formatCSCFieldName($field) {

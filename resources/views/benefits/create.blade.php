@@ -1,125 +1,121 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Add New Government Benefit Enrollment') }}
-            </h2>
-            <a href="{{ route('benefits.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                Back to Benefits
-            </a>
-        </div>
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Add New Government Benefit Enrollment') }}
+        </h2>
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200">
+                <div class="p-6 text-gray-900">
                     <form method="POST" action="{{ route('benefits.store') }}" class="space-y-6">
                         @csrf
 
-                        <!-- Employee Selection -->
-                        <div>
-                            <label for="employee_id" class="block text-sm font-medium text-gray-700">Employee <span class="text-red-500">*</span></label>
-                            <select name="employee_id" id="employee_id" required 
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('employee_id') border-red-500 @enderror">
-                                <option value="">Select Employee</option>
-                                @foreach($employees as $employee)
-                                    <option value="{{ $employee->id }}" {{ old('employee_id') == $employee->id ? 'selected' : '' }}>
-                                        {{ $employee->last_name }}, {{ $employee->first_name }} {{ $employee->middle_name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('employee_id')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
+                        <!-- Display General Errors -->
+                        @if ($errors->any())
+                            <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm text-red-700">
+                                            {{ $errors->first('error') ?: 'Please check the form for errors.' }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
 
-                        <!-- Benefit Type -->
-                        <div>
-                            <label for="benefit_type" class="block text-sm font-medium text-gray-700">Benefit Type <span class="text-red-500">*</span></label>
-                            <select name="benefit_type" id="benefit_type" required 
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('benefit_type') border-red-500 @enderror">
-                                <option value="">Select Benefit Type</option>
-                                @foreach($benefitTypes as $type)
-                                    <option value="{{ $type }}" {{ old('benefit_type') == $type ? 'selected' : '' }}>
-                                        {{ $type }}
-                                        @if($type == 'GSIS') - Government Service Insurance System
-                                        @elseif($type == 'PhilHealth') - Universal Health Coverage
-                                        @elseif($type == 'Pag-IBIG') - Home Development Mutual Fund
-                                        @elseif($type == 'SSS') - Social Security System
-                                        @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('benefit_type')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Employee Selection -->
+                            <div>
+                                <x-input-label for="employee_id" :value="__('Employee')" />
+                                <select name="employee_id" id="employee_id" required 
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">Select Employee</option>
+                                    @foreach($employees as $employee)
+                                        <option value="{{ $employee->id }}" {{ old('employee_id') == $employee->id ? 'selected' : '' }}>
+                                            {{ $employee->last_name }}, {{ $employee->first_name }} {{ $employee->middle_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('employee_id')" class="mt-2" />
+                            </div>
 
-                        <!-- Member Number -->
-                        <div>
-                            <label for="member_number" class="block text-sm font-medium text-gray-700">Member Number <span class="text-red-500">*</span></label>
-                            <input type="text" name="member_number" id="member_number" value="{{ old('member_number') }}" required
-                                   placeholder="Enter member number (e.g., GSIS-1234567)"
-                                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('member_number') border-red-500 @enderror">
-                            @error('member_number')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
+                            <!-- Benefit Type -->
+                            <div>
+                                <x-input-label for="benefit_type" :value="__('Benefit Type')" />
+                                <select name="benefit_type" id="benefit_type" required 
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">Select Benefit Type</option>
+                                    @foreach($benefitTypes as $type)
+                                        <option value="{{ $type }}" {{ old('benefit_type') == $type ? 'selected' : '' }}>
+                                            {{ $type }}
+                                            @if($type == 'GSIS') - Government Service Insurance System
+                                            @elseif($type == 'PhilHealth') - Universal Health Coverage
+                                            @elseif($type == 'Pag-IBIG') - Home Development Mutual Fund
+                                            @elseif($type == 'SSS') - Social Security System
+                                            @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('benefit_type')" class="mt-2" />
+                            </div>
 
-                        <!-- Enrollment Date -->
-                        <div>
-                            <label for="enrollment_date" class="block text-sm font-medium text-gray-700">Enrollment Date <span class="text-red-500">*</span></label>
-                            <input type="date" name="enrollment_date" id="enrollment_date" value="{{ old('enrollment_date') }}" required
-                                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('enrollment_date') border-red-500 @enderror">
-                            @error('enrollment_date')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
+                            <!-- Member Number -->
+                            <div>
+                                <x-input-label for="member_number" :value="__('Member Number')" />
+                                <x-text-input id="member_number" class="block mt-1 w-full" type="text" name="member_number" :value="old('member_number')" required placeholder="Enter member number (e.g., GSIS-1234567)" />
+                                <x-input-error :messages="$errors->get('member_number')" class="mt-2" />
+                            </div>
 
-                        <!-- Enrollment Status -->
-                        <div>
-                            <label for="enrollment_status" class="block text-sm font-medium text-gray-700">Enrollment Status <span class="text-red-500">*</span></label>
-                            <select name="enrollment_status" id="enrollment_status" required 
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('enrollment_status') border-red-500 @enderror">
-                                <option value="active" {{ old('enrollment_status') == 'active' ? 'selected' : '' }}>Active</option>
-                                <option value="inactive" {{ old('enrollment_status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
-                                <option value="pending" {{ old('enrollment_status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="suspended" {{ old('enrollment_status') == 'suspended' ? 'selected' : '' }}>Suspended</option>
-                            </select>
-                            @error('enrollment_status')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
+                            <!-- Enrollment Date -->
+                            <div>
+                                <x-input-label for="enrollment_date" :value="__('Enrollment Date')" />
+                                <x-text-input id="enrollment_date" class="block mt-1 w-full" type="date" name="enrollment_date" :value="old('enrollment_date')" required />
+                                <x-input-error :messages="$errors->get('enrollment_date')" class="mt-2" />
+                            </div>
 
-                        <!-- Coverage Type -->
-                        <div>
-                            <label for="coverage_type" class="block text-sm font-medium text-gray-700">Coverage Type</label>
-                            <select name="coverage_type" id="coverage_type" 
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('coverage_type') border-red-500 @enderror">
-                                <option value="basic" {{ old('coverage_type') == 'basic' ? 'selected' : '' }}>Basic</option>
-                                <option value="premium" {{ old('coverage_type') == 'premium' ? 'selected' : '' }}>Premium</option>
-                                <option value="dependent" {{ old('coverage_type') == 'dependent' ? 'selected' : '' }}>Dependent</option>
-                                <option value="family" {{ old('coverage_type') == 'family' ? 'selected' : '' }}>Family</option>
-                            </select>
-                            @error('coverage_type')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
+                            <!-- Enrollment Status -->
+                            <div>
+                                <x-input-label for="enrollment_status" :value="__('Enrollment Status')" />
+                                <select name="enrollment_status" id="enrollment_status" required 
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="active" {{ old('enrollment_status') == 'active' ? 'selected' : '' }}>Active</option>
+                                    <option value="inactive" {{ old('enrollment_status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                                    <option value="pending" {{ old('enrollment_status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                                    <option value="suspended" {{ old('enrollment_status') == 'suspended' ? 'selected' : '' }}>Suspended</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('enrollment_status')" class="mt-2" />
+                            </div>
 
-                        <!-- Coverage Amount -->
-                        <div>
-                            <label for="coverage_amount" class="block text-sm font-medium text-gray-700">Coverage Amount (PHP)</label>
-                            <input type="number" name="coverage_amount" id="coverage_amount" value="{{ old('coverage_amount') }}" 
-                                   step="0.01" min="0" placeholder="0.00"
-                                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('coverage_amount') border-red-500 @enderror">
-                            @error('coverage_amount')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
+                            <!-- Coverage Type -->
+                            <div>
+                                <x-input-label for="coverage_type" :value="__('Coverage Type')" />
+                                <select name="coverage_type" id="coverage_type" 
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="basic" {{ old('coverage_type') == 'basic' ? 'selected' : '' }}>Basic</option>
+                                    <option value="premium" {{ old('coverage_type') == 'premium' ? 'selected' : '' }}>Premium</option>
+                                    <option value="dependent" {{ old('coverage_type') == 'dependent' ? 'selected' : '' }}>Dependent</option>
+                                    <option value="family" {{ old('coverage_type') == 'family' ? 'selected' : '' }}>Family</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('coverage_type')" class="mt-2" />
+                            </div>
+
+                            <!-- Coverage Amount -->
+                            <div>
+                                <x-input-label for="coverage_amount" :value="__('Coverage Amount (PHP)')" />
+                                <x-text-input id="coverage_amount" class="block mt-1 w-full" type="number" name="coverage_amount" :value="old('coverage_amount')" step="0.01" min="0" placeholder="0.00" />
+                                <x-input-error :messages="$errors->get('coverage_amount')" class="mt-2" />
+                            </div>
                         </div>
 
                         <!-- Information Panel -->
-                        <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+                        <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mt-6">
                             <h4 class="text-sm font-medium text-blue-800 mb-2">Government Benefits Information</h4>
                             <div class="text-sm text-blue-700 space-y-1">
                                 <p><strong>GSIS:</strong> For government employees - retirement, life insurance, and other benefits</p>
@@ -130,15 +126,15 @@
                         </div>
 
                         <!-- Action Buttons -->
-                        <div class="flex items-center justify-end space-x-4 pt-4">
-                            <a href="{{ route('benefits.index') }}" 
-                               class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
-                                Cancel
+                        <div class="flex items-center justify-end space-x-4 pt-4 border-t border-gray-100">
+                            <a href="{{ route('benefits.index') }}">
+                                <x-secondary-button>
+                                    {{ __('Cancel') }}
+                                </x-secondary-button>
                             </a>
-                            <button type="submit" 
-                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                Create Benefit Enrollment
-                            </button>
+                            <x-primary-button>
+                                {{ __('Create Benefit Enrollment') }}
+                            </x-primary-button>
                         </div>
                     </form>
                 </div>

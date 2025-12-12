@@ -125,153 +125,6 @@ class GovernmentBenefit extends Model
     // Helper Methods
 
     /**
-     * Calculate monthly contribution based on salary and benefit type
-     */
-    public function calculateMonthlyContribution(float $basicSalary, float $additionalCompensation = 0): array
-    {
-        $totalCompensation = $basicSalary + $additionalCompensation;
-        $contributionBase = $this->getContributionBase($totalCompensation);
-        
-        $employeeContribution = $contributionBase * ($this->employee_contribution_rate / 100);
-        $employerContribution = $contributionBase * ($this->employer_contribution_rate / 100);
-        
-        // Apply monthly cap if set
-        if ($this->monthly_contribution_cap) {
-            $employeeContribution = min($employeeContribution, $this->monthly_contribution_cap);
-            $employerContribution = min($employerContribution, $this->monthly_contribution_cap);
-        }
-        
-        return [
-            'contribution_base' => $contributionBase,
-            'employee_contribution' => round($employeeContribution, 2),
-            'employer_contribution' => round($employerContribution, 2),
-            'total_contribution' => round($employeeContribution + $employerContribution, 2),
-        ];
-    }
-
-    /**
-     * Get contribution base amount based on benefit type and salary
-     */
-    private function getContributionBase(float $totalCompensation): float
-    {
-        // Apply benefit-specific salary caps and rules
-        switch ($this->benefit_type) {
-            case 'GSIS':
-                // GSIS typically has no salary cap for contributions
-                return $totalCompensation;
-                
-            case 'PhilHealth':
-                // PhilHealth has premium contribution brackets
-                return min($totalCompensation, $this->getPhilHealthSalaryCap());
-                
-            case 'Pag-IBIG':
-                // Pag-IBIG has specific salary caps
-                return min($totalCompensation, $this->getPagIbigSalaryCap());
-                
-            case 'SSS':
-                // SSS has contribution brackets
-                return min($totalCompensation, $this->getSssSalaryCap());
-                
-            default:
-                return $totalCompensation;
-        }
-    }
-
-    /**
-     * Get PhilHealth salary cap for contribution calculation
-     */
-    private function getPhilHealthSalaryCap(): float
-    {
-        // 2024 PhilHealth premium contribution cap
-        return 80000; // Monthly salary cap
-    }
-
-    /**
-     * Get Pag-IBIG salary cap for contribution calculation
-     */
-    private function getPagIbigSalaryCap(): float
-    {
-        // 2024 Pag-IBIG contribution cap
-        return 5000; // Monthly salary cap for 2% rate
-    }
-
-    /**
-     * Get SSS salary cap for contribution calculation
-     */
-    private function getSssSalaryCap(): float
-    {
-        // 2024 SSS contribution cap
-        return 25000; // Monthly salary cap
-    }
-
-    /**
-     * Check if employee is eligible for specific benefit
-     */
-    public function isEligibleForBenefit(): bool
-    {
-        if (!$this->employee) {
-            return false;
-        }
-
-        switch ($this->benefit_type) {
-            case 'GSIS':
-                return $this->isEligibleForGsis();
-            case 'PhilHealth':
-                return $this->isEligibleForPhilHealth();
-            case 'Pag-IBIG':
-                return $this->isEligibleForPagIbig();
-            case 'SSS':
-                return $this->isEligibleForSss();
-            default:
-                return false;
-        }
-    }
-
-    /**
-     * Check GSIS eligibility (government employees)
-     */
-    private function isEligibleForGsis(): bool
-    {
-        return in_array($this->employee->employment_status, [
-            'permanent',
-            'temporary',
-            'contractual',
-            'casual'
-        ]);
-    }
-
-    /**
-     * Check PhilHealth eligibility (universal coverage)
-     */
-    private function isEligibleForPhilHealth(): bool
-    {
-        // PhilHealth has universal coverage - all employees eligible
-        return true;
-    }
-
-    /**
-     * Check Pag-IBIG eligibility
-     */
-    private function isEligibleForPagIbig(): bool
-    {
-        // All employees with compensation are eligible
-        return $this->employee->employment_status !== 'terminated';
-    }
-
-    /**
-     * Check SSS eligibility (private sector or contractual)
-     */
-    private function isEligibleForSss(): bool
-    {
-        // For government agencies, SSS typically for contractual/casual employees
-        return in_array($this->employee->employment_status, [
-            'contractual',
-            'casual',
-            'temporary'
-        ]);
-    }
-
-    /**
      * Get loan payment schedule
      */
     public function getLoanPaymentSchedule(): array
@@ -305,68 +158,16 @@ class GovernmentBenefit extends Model
     }
 
     /**
-     * Update contribution rates based on current government regulations
-     */
-    public function updateContributionRates(): void
-    {
-        $rates = $this->getCurrentContributionRates();
-        
-        $this->update([
-            'employee_contribution_rate' => $rates['employee_rate'],
-            'employer_contribution_rate' => $rates['employer_rate'],
-            'monthly_contribution_cap' => $rates['monthly_cap'] ?? null,
-        ]);
-    }
-
-    /**
-     * Get current contribution rates for the benefit type
-     */
-    private function getCurrentContributionRates(): array
-    {
-        // Return current rates based on benefit type
-        // These should be updated annually or as regulations change
-        
-        switch ($this->benefit_type) {
-            case 'GSIS':
-                return [
-                    'employee_rate' => 9.00, // 9% employee share
-                    'employer_rate' => 12.00, // 12% employer share
-                ];
-                
-            case 'PhilHealth':
-                return [
-                    'employee_rate' => 2.75, // 2.75% employee share
-                    'employer_rate' => 2.75, // 2.75% employer share
-                    'monthly_cap' => 2200.00, // Maximum monthly premium
-                ];
-                
-            case 'Pag-IBIG':
-                return [
-                    'employee_rate' => 2.00, // 2% employee share
-                    'employer_rate' => 2.00, // 2% employer share
-                    'monthly_cap' => 100.00, // Maximum monthly contribution
-                ];
-                
-            case 'SSS':
-                return [
-                    'employee_rate' => 4.5, // 4.5% employee share
-                    'employer_rate' => 8.5, // 8.5% employer share (includes EC)
-                    'monthly_cap' => 1125.00, // Maximum monthly contribution
-                ];
-                
-            default:
-                return [
-                    'employee_rate' => 0,
-                    'employer_rate' => 0,
-                ];
-        }
-    }
-
-    /**
      * Get benefit summary for dashboard
      */
     public function getBenefitSummary(): array
     {
+        // Ideally this should also be moved to a View Service or Presenter, but keeping it here for now as it's view-related.
+        // We will need to inject the service if we want to use getComplianceStatus here, or we can just keep the logic minimal.
+        // For now, I'll instantiate the service or use the App container to get it effectively.
+        // However, making Models depend on Services is bad practice.
+        // I will simplify this method to only return data it has, and let the Controller/Service assemble the full summary.
+        
         return [
             'benefit_type' => $this->benefit_type,
             'member_number' => $this->member_number,
@@ -377,7 +178,7 @@ class GovernmentBenefit extends Model
             'active_claims' => $this->active_claims_count,
             'last_contribution' => $this->benefitContributions()->latest('payroll_date')->first()?->payroll_date,
             'total_contributions_ytd' => $this->getTotalContributionsYTD(),
-            'compliance_status' => $this->getComplianceStatus(),
+            // 'compliance_status' => ... // Removed, should be calculated by service
         ];
     }
 
@@ -389,25 +190,5 @@ class GovernmentBenefit extends Model
         return $this->benefitContributions()
             ->where('contribution_year', now()->year)
             ->sum('total_contribution_amount');
-    }
-
-    /**
-     * Get compliance status
-     */
-    public function getComplianceStatus(): string
-    {
-        $overdueContributions = $this->benefitContributions()
-            ->where('payment_status', 'overdue')
-            ->count();
-            
-        if ($overdueContributions > 0) {
-            return 'non_compliant';
-        }
-        
-        if ($this->processing_status === 'requires_verification') {
-            return 'requires_attention';
-        }
-        
-        return 'compliant';
     }
 }

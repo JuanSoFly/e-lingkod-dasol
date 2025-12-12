@@ -213,17 +213,33 @@ class EnsureMigrations
     private function isDatabaseQuickCheck(): bool
     {
         try {
-            // Use a very short timeout for quick connectivity check
-            $originalTimeout = DB::connection()->getPdo()->getAttribute(\PDO::ATTR_TIMEOUT);
-            DB::connection()->getPdo()->setAttribute(\PDO::ATTR_TIMEOUT, 2);
+            $pdo = DB::connection()->getPdo();
+            $originalTimeout = null;
+            $supportsTimeout = false;
+
+            try {
+                // Use a very short timeout for quick connectivity check
+                $originalTimeout = $pdo->getAttribute(\PDO::ATTR_TIMEOUT);
+                $pdo->setAttribute(\PDO::ATTR_TIMEOUT, 2);
+                $supportsTimeout = true;
+            } catch (\Exception $e) {
+                // Driver doesn't support timeout attributes, continue without them
+            }
 
             $result = DB::connection()->select('SELECT 1');
 
-            // Restore original timeout
-            DB::connection()->getPdo()->setAttribute(\PDO::ATTR_TIMEOUT, $originalTimeout);
+            if ($supportsTimeout && $originalTimeout !== null) {
+                try {
+                    // Restore original timeout
+                    $pdo->setAttribute(\PDO::ATTR_TIMEOUT, $originalTimeout);
+                } catch (\Exception $e) {
+                    // Ignore errors when restoring timeout
+                }
+            }
 
             return true;
         } catch (\Exception $e) {
+            Log::error('Quick DB check failed: ' . $e->getMessage());
             return false;
         }
     }

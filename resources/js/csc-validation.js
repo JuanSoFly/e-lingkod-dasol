@@ -477,7 +477,7 @@ class CSCValidation {
     showNotification(message, type = 'info') {
         // Create notification element
         const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm ${
+        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm notification-enter ${
             type === 'error' ? 'bg-red-500 text-white' :
             type === 'warning' ? 'bg-yellow-500 text-black' :
             type === 'success' ? 'bg-green-500 text-white' :
@@ -559,10 +559,265 @@ class CSCValidation {
     }
 }
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    window.CSCValidation = new CSCValidation();
-});
+const shouldInitCSCValidation = () => {
+    return Boolean(
+        document.querySelector('[data-csc-enabled="true"]') ||
+        window.location.pathname.includes('/pds/') ||
+        window.location.pathname.includes('/questionnaire')
+    );
+};
+
+const enhanceFormFields = () => {
+    const govIdFields = ['sss_number', 'gsis_number', 'philhealth_number', 'pagibig_number', 'tin_number'];
+    govIdFields.forEach((fieldId) => {
+        const field = document.getElementById(fieldId);
+        if (field && !field.hasAttribute('data-csc-validate')) {
+            field.setAttribute('data-csc-validate', 'government_id');
+            field.setAttribute('data-id-type', fieldId.replace('_number', ''));
+            field.classList.add('csc-field');
+        }
+    });
+
+    const dateFields = document.querySelectorAll('input[type="date"], input[name*="date"], input[name*="birth_date"]');
+    dateFields.forEach((field) => {
+        if (!field.hasAttribute('data-csc-validate')) {
+            field.setAttribute('data-csc-validate', 'date');
+            field.setAttribute('data-format', 'date');
+            field.classList.add('csc-field');
+        }
+    });
+
+    const phoneFields = document.querySelectorAll('input[name*="telephone"], input[name*="phone"], input[name*="mobile"]');
+    phoneFields.forEach((field) => {
+        if (!field.hasAttribute('data-csc-validate')) {
+            field.setAttribute('data-csc-validate', 'telephone');
+            field.classList.add('csc-field');
+        }
+    });
+
+    const salaryFields = document.querySelectorAll('input[name*="salary_grade"], input[name*="step"]');
+    salaryFields.forEach((field) => {
+        if (!field.hasAttribute('data-csc-validate')) {
+            field.setAttribute('data-csc-validate', 'salary_grade');
+            field.setAttribute('data-format', 'salary-grade');
+            field.classList.add('csc-field');
+        }
+    });
+
+    const cscFields = [
+        'field_34_relationship',
+        'field_35_charges',
+        'field_36_candidate',
+        'field_37_resignation',
+        'field_38_immigrant',
+        'field_39_yes_no',
+        'field_41_indigenous_member',
+        'field_41_pwd_member',
+        'field_41_solo_parent_member',
+    ];
+
+    cscFields.forEach((fieldId) => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.classList.add('csc-field');
+        }
+    });
+
+    const conditionalPairs = [
+        { radio: 'q34_related', field: 'field_34_relationship' },
+        { radio: 'q35_charges', field: 'field_35_charges' },
+        { radio: 'q36_candidate', field: 'field_36_candidate' },
+        { radio: 'q37_resignation', field: 'field_37_resignation' },
+        { radio: 'q38_immigrant', field: 'field_38_immigrant' },
+    ];
+
+    conditionalPairs.forEach(({ radio, field }) => {
+        const radioButtons = document.querySelectorAll(`input[name="${radio}"]`);
+        const targetField = document.getElementById(field);
+
+        if (radioButtons.length > 0 && targetField) {
+            radioButtons.forEach((radioButton) => {
+                radioButton.setAttribute('data-csc-conditional', `#${field}`);
+            });
+
+            const formGroup = targetField.closest('.form-group, .mb-4, .form-group');
+            if (formGroup) {
+                const label = formGroup.querySelector('label');
+                if (label && !label.querySelector('.required-indicator')) {
+                    const indicator = document.createElement('span');
+                    indicator.className = 'required-indicator';
+                    indicator.textContent = '*';
+                    indicator.style.display = 'none';
+                    label.appendChild(indicator);
+                }
+            }
+        }
+    });
+};
+
+const getComplianceClass = (percentage) => {
+    if (percentage === 100) return 'compliant';
+    if (percentage >= 70) return 'partial';
+    return 'non-compliant';
+};
+
+const formatFieldName = (fieldId) => {
+    const fieldNames = {
+        field_34_relationship: 'Relationship to appointing authority',
+        field_35_charges: 'Administrative/criminal charges details',
+        field_36_candidate: 'Candidacy details',
+        field_37_resignation: 'Resignation to campaign details',
+        field_38_immigrant: 'Immigrant status details',
+        field_39_yes_no: 'Immigrant status (Field 39)',
+        field_41_indigenous_member: 'Indigenous group membership',
+        field_41_pwd_member: 'PWD membership',
+        field_41_solo_parent_member: 'Solo parent membership',
+    };
+
+    return (
+        fieldNames[fieldId] ||
+        fieldId.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+    );
+};
+
+const updateValidationSummary = () => {
+    const summaryContainer = document.getElementById('csc-validation-summary');
+    if (!summaryContainer || !window.CSCValidation) return;
+
+    const complianceStatus = window.CSCValidation.getCSCComplianceStatus();
+
+    summaryContainer.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">CSC Form No. 212 Compliance Status</h3>
+            <span class="csc-compliance-badge ${getComplianceClass(complianceStatus.completeness_percentage)}">
+                ${complianceStatus.completeness_percentage}% Complete
+            </span>
+        </div>
+
+        <div class="mb-4">
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-300"
+                     style="width: ${complianceStatus.completeness_percentage}%"></div>
+            </div>
+        </div>
+
+        ${complianceStatus.missing_fields.length > 0 ? `
+            <div class="text-sm text-red-600">
+                <p class="font-semibold mb-2">Missing Required Fields:</p>
+                <ul class="list-disc list-inside space-y-1">
+                    ${complianceStatus.missing_fields.map(field =>
+                        `<li>${formatFieldName(field)}</li>`
+                    ).join('')}
+                </ul>
+            </div>
+        ` : `
+            <div class="text-sm text-green-600">
+                <p class="font-semibold">✅ All required CSC fields are complete!</p>
+            </div>
+        `}
+
+        <div class="mt-4 text-xs text-gray-500">
+            <p>CSC Form No. 212 compliance ensures your Personal Data Sheet meets Civil Service Commission requirements.</p>
+        </div>
+    `;
+};
+
+const setupValidationSummary = () => {
+    let summaryContainer = document.getElementById('csc-validation-summary');
+
+    if (!summaryContainer) {
+        summaryContainer = document.createElement('div');
+        summaryContainer.id = 'csc-validation-summary';
+        summaryContainer.className = 'csc-validation-summary';
+
+        const form = document.querySelector('form');
+        if (form) {
+            form.insertBefore(summaryContainer, form.firstChild);
+        }
+    }
+
+    const cscFields = document.querySelectorAll('.csc-field');
+    cscFields.forEach((field) => {
+        field.addEventListener('blur', updateValidationSummary);
+        field.addEventListener('input', updateValidationSummary);
+    });
+
+    updateValidationSummary();
+};
+
+const setupAutoSave = () => {
+    const cscFields = document.querySelectorAll('.csc-field');
+
+    cscFields.forEach((field) => {
+        let saveTimeout;
+
+        field.addEventListener('blur', () => {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                if (field.value && field.value.trim() !== '') {
+                    const isValid = field.classList.contains('border-green-500') ||
+                        !field.classList.contains('border-red-500');
+
+                    if (isValid) {
+                        // Placeholder for future auto-save.
+                    }
+                }
+            }, 2000);
+        });
+    });
+};
+
+const initializeCSCValidation = () => {
+    enhanceFormFields();
+    setupValidationSummary();
+    setupAutoSave();
+};
+
+const validateCSCFormBeforeSubmit = (formSelector) => {
+    if (!window.CSCValidation) return true;
+
+    const isValid = window.CSCValidation.validateForm(formSelector);
+    const complianceStatus = window.CSCValidation.getCSCComplianceStatus();
+
+    if (!isValid) {
+        window.CSCValidation.showNotification('Please fix validation errors before submitting', 'error');
+        return false;
+    }
+
+    if (complianceStatus.completeness_percentage < 100) {
+        window.CSCValidation.showNotification('Form is not fully CSC compliant. Missing required fields.', 'warning');
+        return false;
+    }
+
+    return true;
+};
+
+const showCSCNotification = (message, type = 'info', duration = 5000) => {
+    if (!window.CSCValidation) return;
+    window.CSCValidation.showNotification(message, type, duration);
+};
+
+const bootCSCValidation = () => {
+    if (!shouldInitCSCValidation()) {
+        return;
+    }
+
+    if (!window.CSCValidation) {
+        window.CSCValidation = new CSCValidation();
+    }
+
+    initializeCSCValidation();
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootCSCValidation);
+} else {
+    bootCSCValidation();
+}
+
+window.validateCSCFormBeforeSubmit = validateCSCFormBeforeSubmit;
+window.showCSCNotification = showCSCNotification;
+window.updateValidationSummary = updateValidationSummary;
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {

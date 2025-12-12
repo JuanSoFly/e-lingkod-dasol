@@ -12,10 +12,9 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['Google Sans Flex', 'Google Sans', 'Figtree', ...defaultTheme.fontFamily.sans],
             },
             screens: {
-                'xlg': '896px',
             },
         },
     },

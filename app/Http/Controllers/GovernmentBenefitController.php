@@ -9,14 +9,23 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
+use App\Services\GovernmentComplianceService;
+
 class GovernmentBenefitController extends Controller
 {
+    protected $complianceService;
+
+    public function __construct(GovernmentComplianceService $complianceService)
+    {
+        $this->complianceService = $complianceService;
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $benefits = GovernmentBenefit::with(['employee', 'verifiedBy'])
+        $benefits = GovernmentBenefit::with(['employee:id,first_name,last_name', 'verifiedBy:id,name']) // Optimized eager loading
             ->when(request('benefit_type'), function ($query, $type) {
                 return $query->byBenefitType($type);
             })
@@ -88,12 +97,28 @@ class GovernmentBenefitController extends Controller
             'coverage_amount' => 'nullable|numeric|min:0',
         ]);
 
-        $validated['created_by'] = Auth::id();
-        
-        $benefit = GovernmentBenefit::create($validated);
-        
-        return redirect()->route('benefits.show', $benefit)
-            ->with('success', 'Government benefit enrollment created successfully.');
+        try {
+            $employee = Employee::findOrFail($validated['employee_id']);
+            
+            if (!$this->complianceService->isEligibleForBenefit($employee, $validated['benefit_type'])) {
+                return back()->withInput()->withErrors(['employee_id' => "This employee is not eligible for {$validated['benefit_type']} based on their employment status."]);
+            }
+
+            // Calculate initial contribution rates
+            $rates = $this->complianceService->getCurrentContributionRates($validated['benefit_type']);
+            $validated['employee_contribution_rate'] = $rates['employee_rate'];
+            $validated['employer_contribution_rate'] = $rates['employer_rate'];
+            $validated['monthly_contribution_cap'] = $rates['monthly_cap'];
+
+            $validated['created_by'] = Auth::id();
+            
+            $benefit = GovernmentBenefit::create($validated);
+            
+            return redirect()->route('benefits.show', $benefit)
+                ->with('success', 'Government benefit enrollment created successfully.');
+        } catch (\Exception $e) {
+            return back()->withInput()->withErrors(['error' => 'An error occurred while creating the benefit enrollment: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -103,7 +128,10 @@ class GovernmentBenefitController extends Controller
     {
         $benefit->load(['employee', 'benefitContributions', 'verifiedBy', 'createdBy']);
         
-        return view('benefits.show', compact('benefit'));
+        // Compliance status check via service
+        $complianceStatus = $this->complianceService->getComplianceStatus($benefit);
+
+        return view('benefits.show', compact('benefit', 'complianceStatus'));
     }
 
     /**
@@ -132,12 +160,24 @@ class GovernmentBenefitController extends Controller
             'coverage_amount' => 'nullable|numeric|min:0',
         ]);
 
-        $validated['updated_by'] = Auth::id();
-        
-        $benefit->update($validated);
-        
-        return redirect()->route('benefits.show', $benefit)
-            ->with('success', 'Government benefit enrollment updated successfully.');
+        try {
+            // Check eligibility if employee or benefit type changed (though usually these shouldn't change for an existing record easily without re-creation, but good to check)
+            if ($benefit->employee_id != $validated['employee_id'] || $benefit->benefit_type != $validated['benefit_type']) {
+                $employee = Employee::findOrFail($validated['employee_id']);
+                if (!$this->complianceService->isEligibleForBenefit($employee, $validated['benefit_type'])) {
+                    return back()->withInput()->withErrors(['employee_id' => "This employee is not eligible for {$validated['benefit_type']} based on their employment status."]);
+                }
+            }
+
+            $validated['updated_by'] = Auth::id();
+            
+            $benefit->update($validated);
+            
+            return redirect()->route('benefits.show', $benefit)
+                ->with('success', 'Government benefit enrollment updated successfully.');
+        } catch (\Exception $e) {
+             return back()->withInput()->withErrors(['error' => 'An error occurred while updating the benefit enrollment: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -145,9 +185,13 @@ class GovernmentBenefitController extends Controller
      */
     public function destroy(GovernmentBenefit $benefit)
     {
-        $benefit->delete();
-        
-        return redirect()->route('benefits.index')
-            ->with('success', 'Government benefit enrollment deleted successfully.');
+        try {
+            $benefit->delete();
+            
+            return redirect()->route('benefits.index')
+                ->with('success', 'Government benefit enrollment deleted successfully.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed to delete benefit enrollment.']);
+        }
     }
 }

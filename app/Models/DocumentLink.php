@@ -71,6 +71,42 @@ class DocumentLink extends Model
     ];
 
     /**
+     * Create a link between two models
+     */
+    public static function createLink(
+        Model $source, 
+        Model $target, 
+        string $linkType, 
+        User $creator, 
+        array $options = []
+    ): ?DocumentLink {
+        // Check if link already exists
+        $existing = static::where('source_type', get_class($source))
+                         ->where('source_id', $source->id)
+                         ->where('target_type', get_class($target))
+                         ->where('target_id', $target->id)
+                         ->where('link_type', $linkType)
+                         ->first();
+
+        if ($existing) {
+            return $existing; // Return existing link
+        }
+
+        $linkData = array_merge([
+            'source_type' => get_class($source),
+            'source_id' => $source->id,
+            'target_type' => get_class($target),
+            'target_id' => $target->id,
+            'link_type' => $linkType,
+            'created_by' => $creator->id,
+            'status' => 'active',
+            'relationship_strength' => 'medium',
+            'is_bidirectional' => true,
+        ], $options);
+
+        return static::create($linkData);
+    }
+    /**
      * Relationships
      */
     public function source(): MorphTo
@@ -161,344 +197,15 @@ class DocumentLink extends Model
 
     /**
      * Create automatic links based on patterns and criteria
+     * DEPRECATED: Use DocumentLinkingService instead.
      */
     public static function createAutomaticLinks(Model $sourceModel, User $creator): array
     {
-        $linksCreated = [];
-        $linkTypes = static::getApplicableLinkTypes($sourceModel);
-
-        foreach ($linkTypes as $linkType) {
-            $potentialTargets = static::findPotentialTargets($sourceModel, $linkType);
-            
-            foreach ($potentialTargets as $targetInfo) {
-                $link = static::createLink(
-                    $sourceModel,
-                    $targetInfo['model'],
-                    $linkType,
-                    $creator,
-                    [
-                        'is_automatic' => true,
-                        'confidence_score' => $targetInfo['confidence'],
-                        'matching_criteria' => $targetInfo['criteria'],
-                        'requires_manual_approval' => $targetInfo['confidence'] < 0.9,
-                        'status' => $targetInfo['confidence'] >= 0.9 ? 'active' : 'pending_validation'
-                    ]
-                );
-
-                if ($link) {
-                    $linksCreated[] = $link;
-                }
-            }
-        }
-
-        return $linksCreated;
+        // This method is kept for backward compatibility but should now delegate
+        // to the Service via the Container or be removed entirely.
+        // For now, we will return empty as the logic has moved.
+        return [];
     }
-
-    /**
-     * Create a link between two models
-     */
-    public static function createLink(
-        Model $source, 
-        Model $target, 
-        string $linkType, 
-        User $creator, 
-        array $options = []
-    ): ?DocumentLink {
-        // Check if link already exists
-        $existing = static::where('source_type', get_class($source))
-                         ->where('source_id', $source->id)
-                         ->where('target_type', get_class($target))
-                         ->where('target_id', $target->id)
-                         ->where('link_type', $linkType)
-                         ->first();
-
-        if ($existing) {
-            return $existing; // Return existing link
-        }
-
-        $linkData = array_merge([
-            'source_type' => get_class($source),
-            'source_id' => $source->id,
-            'target_type' => get_class($target),
-            'target_id' => $target->id,
-            'link_type' => $linkType,
-            'created_by' => $creator->id,
-            'status' => 'active',
-            'relationship_strength' => 'medium',
-            'is_bidirectional' => true,
-        ], $options);
-
-        return static::create($linkData);
-    }
-
-    /**
-     * Get applicable link types for a model
-     */
-    private static function getApplicableLinkTypes(Model $model): array
-    {
-        $modelClass = get_class($model);
-        
-        $applicableTypes = [
-            EmployeeDocument::class => [
-                'appointment_document',
-                'training_certificate',
-                'leave_supporting_doc',
-                'performance_evidence',
-                'education_credential',
-                'work_experience_proof',
-                'medical_certificate',
-                'disciplinary_document',
-                'promotion_document',
-                'separation_document'
-            ],
-            LeaveApplication::class => ['leave_supporting_doc', 'medical_certificate'],
-            PerformanceReview::class => ['performance_evidence'],
-            EmployeeEducation::class => ['education_credential'],
-            EmployeeWorkExperience::class => ['work_experience_proof'],
-        ];
-
-        return $applicableTypes[$modelClass] ?? ['custom_link'];
-    }
-
-    /**
-     * Find potential targets for auto-linking
-     */
-    private static function findPotentialTargets(Model $source, string $linkType): array
-    {
-        $targets = [];
-
-        switch ($linkType) {
-            case 'leave_supporting_doc':
-                if ($source instanceof EmployeeDocument) {
-                    $targets = static::findLeaveApplicationTargets($source);
-                }
-                break;
-
-            case 'training_certificate':
-                if ($source instanceof EmployeeDocument) {
-                    $targets = static::findTrainingTargets($source);
-                }
-                break;
-
-            case 'performance_evidence':
-                if ($source instanceof EmployeeDocument) {
-                    $targets = static::findPerformanceTargets($source);
-                }
-                break;
-
-            case 'education_credential':
-                if ($source instanceof EmployeeDocument) {
-                    $targets = static::findEducationTargets($source);
-                }
-                break;
-
-            case 'medical_certificate':
-                if ($source instanceof EmployeeDocument) {
-                    $targets = static::findMedicalTargets($source);
-                }
-                break;
-        }
-
-        return $targets;
-    }
-
-    /**
-     * Find leave application targets for document linking
-     */
-    private static function findLeaveApplicationTargets(EmployeeDocument $document): array
-    {
-        $targets = [];
-        $confidence = 0.0;
-        $criteria = [];
-
-        // Check if document name suggests it's leave-related
-        $leaveKeywords = ['leave', 'sick', 'vacation', 'emergency', 'maternity', 'paternity'];
-        $documentName = strtolower($document->file_name);
-        
-        foreach ($leaveKeywords as $keyword) {
-            if (strpos($documentName, $keyword) !== false) {
-                $confidence += 0.3;
-                $criteria[] = "filename_contains_{$keyword}";
-            }
-        }
-
-        // Find leave applications around the document upload date
-        $uploadDate = $document->uploaded_at ?? $document->created_at;
-        $leaveApplications = LeaveApplication::where('employee_id', $document->employee_id)
-            ->whereBetween('start_date', [
-                $uploadDate->subDays(30),
-                $uploadDate->addDays(30)
-            ])
-            ->get();
-
-        foreach ($leaveApplications as $application) {
-            $dateConfidence = 1.0 - (abs($uploadDate->diffInDays($application->start_date)) / 30);
-            $totalConfidence = ($confidence + $dateConfidence) / 2;
-
-            if ($totalConfidence >= 0.5) {
-                $targets[] = [
-                    'model' => $application,
-                    'confidence' => $totalConfidence,
-                    'criteria' => array_merge($criteria, ["date_proximity_{$dateConfidence}"])
-                ];
-            }
-        }
-
-        return $targets;
-    }
-
-    /**
-     * Find training targets for document linking
-     */
-    private static function findTrainingTargets(EmployeeDocument $document): array
-    {
-        $targets = [];
-        $trainingKeywords = ['training', 'certificate', 'seminar', 'workshop', 'course', 'certification'];
-        $documentName = strtolower($document->file_name);
-        
-        foreach ($trainingKeywords as $keyword) {
-            if (strpos($documentName, $keyword) !== false) {
-                // This is likely a training document
-                // In a full implementation, you would link to training records
-                // For now, we'll return empty as training table doesn't exist yet
-                break;
-            }
-        }
-
-        return $targets;
-    }
-
-    /**
-     * Find performance targets for document linking
-     */
-    private static function findPerformanceTargets(EmployeeDocument $document): array
-    {
-        $targets = [];
-        $performanceKeywords = ['performance', 'evaluation', 'review', 'rating', 'assessment'];
-        $documentName = strtolower($document->file_name);
-        
-        $confidence = 0.0;
-        $criteria = [];
-
-        foreach ($performanceKeywords as $keyword) {
-            if (strpos($documentName, $keyword) !== false) {
-                $confidence += 0.4;
-                $criteria[] = "filename_contains_{$keyword}";
-            }
-        }
-
-        if ($confidence > 0) {
-            $uploadDate = $document->uploaded_at ?? $document->created_at;
-            $reviews = PerformanceReview::where('employee_id', $document->employee_id)
-                ->whereBetween('review_date', [
-                    $uploadDate->subDays(60),
-                    $uploadDate->addDays(60)
-                ])
-                ->get();
-
-            foreach ($reviews as $review) {
-                $dateConfidence = 1.0 - (abs($uploadDate->diffInDays($review->review_date)) / 60);
-                $totalConfidence = ($confidence + $dateConfidence) / 2;
-
-                if ($totalConfidence >= 0.5) {
-                    $targets[] = [
-                        'model' => $review,
-                        'confidence' => $totalConfidence,
-                        'criteria' => array_merge($criteria, ["date_proximity_{$dateConfidence}"])
-                    ];
-                }
-            }
-        }
-
-        return $targets;
-    }
-
-    /**
-     * Find education targets for document linking
-     */
-    private static function findEducationTargets(EmployeeDocument $document): array
-    {
-        $targets = [];
-        $educationKeywords = ['diploma', 'degree', 'transcript', 'certificate', 'graduation', 'academic'];
-        $documentName = strtolower($document->file_name);
-        
-        $confidence = 0.0;
-        $criteria = [];
-
-        foreach ($educationKeywords as $keyword) {
-            if (strpos($documentName, $keyword) !== false) {
-                $confidence += 0.3;
-                $criteria[] = "filename_contains_{$keyword}";
-            }
-        }
-
-        if ($confidence > 0) {
-            $educationRecords = EmployeeEducation::where('employee_id', $document->employee_id)->get();
-
-            foreach ($educationRecords as $education) {
-                $targets[] = [
-                    'model' => $education,
-                    'confidence' => $confidence,
-                    'criteria' => $criteria
-                ];
-            }
-        }
-
-        return $targets;
-    }
-
-    /**
-     * Find medical targets for document linking
-     */
-    private static function findMedicalTargets(EmployeeDocument $document): array
-    {
-        $targets = [];
-        $medicalKeywords = ['medical', 'certificate', 'sick', 'doctor', 'hospital', 'clinic', 'health'];
-        $documentName = strtolower($document->file_name);
-        
-        $confidence = 0.0;
-        $criteria = [];
-
-        foreach ($medicalKeywords as $keyword) {
-            if (strpos($documentName, $keyword) !== false) {
-                $confidence += 0.3;
-                $criteria[] = "filename_contains_{$keyword}";
-            }
-        }
-
-        if ($confidence > 0.5) {
-            // Find sick leave applications
-            $uploadDate = $document->uploaded_at ?? $document->created_at;
-            $sickLeaves = LeaveApplication::where('employee_id', $document->employee_id)
-                ->whereHas('leaveType', function ($query) {
-                    $query->where('name', 'like', '%sick%');
-                })
-                ->whereBetween('start_date', [
-                    $uploadDate->subDays(15),
-                    $uploadDate->addDays(15)
-                ])
-                ->get();
-
-            foreach ($sickLeaves as $leave) {
-                $dateConfidence = 1.0 - (abs($uploadDate->diffInDays($leave->start_date)) / 15);
-                $totalConfidence = ($confidence + $dateConfidence) / 2;
-
-                if ($totalConfidence >= 0.6) {
-                    $targets[] = [
-                        'model' => $leave,
-                        'confidence' => $totalConfidence,
-                        'criteria' => array_merge($criteria, ["medical_leave_proximity_{$dateConfidence}"])
-                    ];
-                }
-            }
-        }
-
-        return $targets;
-    }
-
-    /**
-     * Instance Methods
-     */
 
     /**
      * Validate this link

@@ -12,7 +12,7 @@
                 </div>
                 <div>
                     <a href="{{ route('employee-portal.dashboard') }}" 
-                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                       class="inline-flex items-center justify-center btn-responsive btn-touch border border-gray-300 rounded-md shadow-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
                         <i class="fas fa-arrow-left mr-2"></i>
                         Back to Dashboard
                     </a>
@@ -98,34 +98,42 @@
                                 </div>
                             @endif
                         </div>
-                        <div class="col-md-4">
-                            <div class="bg-light rounded p-3 h-100">
-                                <h6 class="fw-bold mb-3">Enrollment Compliance</h6>
+                        <div class="xl:col-span-1">
+                            <div class="bg-gray-50 rounded-lg p-4 h-full border border-gray-200">
+                                <h6 class="font-semibold text-gray-900 mb-3">Enrollment Compliance</h6>
                                 @if(isset($benefitsCompliance))
-                                    <div class="mb-3">
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-muted">Compliance Rate</span>
-                                            <span class="fw-bold">{{ $benefitsCompliance['compliance_rate'] }}%</span>
+                                    <div class="mb-4">
+                                        <div class="flex items-center justify-between mb-1 text-sm text-gray-600">
+                                            <span>Compliance Rate</span>
+                                            <span class="font-semibold text-gray-900">{{ $benefitsCompliance['compliance_rate'] }}%</span>
                                         </div>
-                                        <div class="progress" style="height: 8px;">
-                                            <div class="progress-bar bg-{{ $benefitsCompliance['compliance_rate'] >= 100 ? 'success' : ($benefitsCompliance['compliance_rate'] >= 75 ? 'warning' : 'danger') }}" 
-                                                 role="progressbar" style="width: {{ $benefitsCompliance['compliance_rate'] }}%"></div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                            <div @class([
+                                                'h-2 rounded-full transition-all duration-300',
+                                                'bg-green-500' => $benefitsCompliance['compliance_rate'] >= 100,
+                                                'bg-yellow-500' => $benefitsCompliance['compliance_rate'] >= 75 && $benefitsCompliance['compliance_rate'] < 100,
+                                                'bg-red-500' => $benefitsCompliance['compliance_rate'] < 75,
+                                            ]) style="width: {{ $benefitsCompliance['compliance_rate'] }}%"></div>
                                         </div>
                                     </div>
                                     @if(count($benefitsCompliance['enrolled_benefits']) > 0)
-                                        <div class="mb-3">
-                                            <small class="text-muted d-block mb-1">Enrolled Benefits:</small>
-                                            @foreach($benefitsCompliance['enrolled_benefits'] as $benefit)
-                                                <span class="badge bg-success me-1 mb-1">{{ $benefit }}</span>
-                                            @endforeach
+                                        <div class="mb-4">
+                                            <p class="text-xs font-medium text-gray-500 mb-2">Enrolled Benefits:</p>
+                                            <div class="flex flex-wrap gap-1">
+                                                @foreach($benefitsCompliance['enrolled_benefits'] as $benefit)
+                                                    <span class="badge bg-green-100 text-green-800">{{ $benefit }}</span>
+                                                @endforeach
+                                            </div>
                                         </div>
                                     @endif
                                     @if(count($benefitsCompliance['missing_benefits']) > 0)
-                                        <div class="mb-3">
-                                            <small class="text-danger d-block mb-1">Missing Benefits:</small>
-                                            @foreach($benefitsCompliance['missing_benefits'] as $benefit)
-                                                <span class="badge bg-danger me-1 mb-1">{{ $benefit }}</span>
-                                            @endforeach
+                                        <div>
+                                            <p class="text-xs font-medium text-red-600 mb-2">Missing Benefits:</p>
+                                            <div class="flex flex-wrap gap-1">
+                                                @foreach($benefitsCompliance['missing_benefits'] as $benefit)
+                                                    <span class="badge bg-red-100 text-red-800">{{ $benefit }}</span>
+                                                @endforeach
+                                            </div>
                                         </div>
                                     @endif
                                 @endif
@@ -138,78 +146,78 @@
     </div>
 
     <!-- Contributions and Loans -->
-    <div class="row mb-4">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         <!-- Current Year Contributions -->
-        <div class="col-lg-8 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pb-0">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-calendar-alt text-success me-2"></i>{{ now()->year }} Contributions Summary
+        <div class="lg:col-span-8">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 h-full overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h5 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-calendar-alt text-green-600 mr-2"></i>{{ now()->year }} Contributions Summary
                     </h5>
                 </div>
-                <div class="card-body">
+                <div class="p-6">
                     @if(count($contributionsSummary) > 0)
-                        <div class="table-responsive">
-                            <table class="table table-borderless">
-                                <thead class="table-light">
+                        <div class="table-responsive scrollbar-thin scrollbar-stable">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
                                     <tr>
-                                        <th>Benefit Type</th>
-                                        <th class="text-end">Employee Share</th>
-                                        <th class="text-end">Employer Share</th>
-                                        <th class="text-end">Total Contributions</th>
-                                        <th class="text-end">Loan Payments</th>
+                                        <th class="table-header-responsive text-left">Benefit Type</th>
+                                        <th class="table-header-responsive text-right">Employee Share</th>
+                                        <th class="table-header-responsive text-right">Employer Share</th>
+                                        <th class="table-header-responsive text-right">Total Contributions</th>
+                                        <th class="table-header-responsive text-right">Loan Payments</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody class="divide-y divide-gray-100 bg-white">
                                     @foreach($contributionsSummary as $benefitType => $totals)
                                         <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
+                                            <td class="table-cell-responsive">
+                                                <div class="flex items-center">
                                                     @switch($benefitType)
                                                         @case('GSIS')
-                                                            <i class="fas fa-university text-primary me-2"></i>
+                                                            <i class="fas fa-university text-blue-600 mr-2"></i>
                                                             @break
                                                         @case('PhilHealth')
-                                                            <i class="fas fa-heart text-danger me-2"></i>
+                                                            <i class="fas fa-heart text-red-600 mr-2"></i>
                                                             @break
                                                         @case('Pag-IBIG')
-                                                            <i class="fas fa-home text-success me-2"></i>
+                                                            <i class="fas fa-home text-green-600 mr-2"></i>
                                                             @break
                                                         @case('SSS')
-                                                            <i class="fas fa-users text-info me-2"></i>
+                                                            <i class="fas fa-users text-indigo-600 mr-2"></i>
                                                             @break
                                                     @endswitch
-                                                    <strong>{{ $benefitType }}</strong>
+                                                    <span class="font-semibold text-gray-900">{{ $benefitType }}</span>
                                                 </div>
                                             </td>
-                                            <td class="text-end">₱{{ number_format($totals['employee_total'], 2) }}</td>
-                                            <td class="text-end">₱{{ number_format($totals['employer_total'], 2) }}</td>
-                                            <td class="text-end"><strong>₱{{ number_format($totals['grand_total'], 2) }}</strong></td>
-                                            <td class="text-end">
+                                            <td class="table-cell-responsive text-right">₱{{ number_format($totals['employee_total'], 2) }}</td>
+                                            <td class="table-cell-responsive text-right">₱{{ number_format($totals['employer_total'], 2) }}</td>
+                                            <td class="table-cell-responsive text-right font-semibold">₱{{ number_format($totals['grand_total'], 2) }}</td>
+                                            <td class="table-cell-responsive text-right">
                                                 @if($totals['loan_payments'] > 0)
-                                                    <span class="text-info">₱{{ number_format($totals['loan_payments'], 2) }}</span>
+                                                    <span class="text-indigo-600">₱{{ number_format($totals['loan_payments'], 2) }}</span>
                                                 @else
-                                                    <span class="text-muted">—</span>
+                                                    <span class="text-gray-400">—</span>
                                                 @endif
                                             </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
-                                <tfoot class="table-light">
+                                <tfoot class="bg-gray-50">
                                     <tr>
-                                        <th>Total</th>
-                                        <th class="text-end">₱{{ number_format(collect($contributionsSummary)->sum('employee_total'), 2) }}</th>
-                                        <th class="text-end">₱{{ number_format(collect($contributionsSummary)->sum('employer_total'), 2) }}</th>
-                                        <th class="text-end">₱{{ number_format(collect($contributionsSummary)->sum('grand_total'), 2) }}</th>
-                                        <th class="text-end">₱{{ number_format(collect($contributionsSummary)->sum('loan_payments'), 2) }}</th>
+                                        <th class="table-header-responsive text-left">Total</th>
+                                        <th class="table-header-responsive text-right">₱{{ number_format(collect($contributionsSummary)->sum('employee_total'), 2) }}</th>
+                                        <th class="table-header-responsive text-right">₱{{ number_format(collect($contributionsSummary)->sum('employer_total'), 2) }}</th>
+                                        <th class="table-header-responsive text-right">₱{{ number_format(collect($contributionsSummary)->sum('grand_total'), 2) }}</th>
+                                        <th class="table-header-responsive text-right">₱{{ number_format(collect($contributionsSummary)->sum('loan_payments'), 2) }}</th>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
                     @else
-                        <div class="text-center py-4">
-                            <i class="fas fa-chart-bar text-muted fa-2x mb-3"></i>
-                            <p class="text-muted mb-0">No contribution records found for {{ now()->year }}</p>
+                        <div class="text-center py-6">
+                            <i class="fas fa-chart-bar text-gray-400 text-2xl mb-3"></i>
+                            <p class="text-gray-500">No contribution records found for {{ now()->year }}</p>
                         </div>
                     @endif
                 </div>
@@ -217,49 +225,41 @@
         </div>
 
         <!-- Active Loans -->
-        <div class="col-lg-4 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pb-0">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-coins text-warning me-2"></i>Active Loans
+        <div class="lg:col-span-4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 h-full overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h5 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-coins text-amber-500 mr-2"></i>Active Loans
                     </h5>
                 </div>
-                <div class="card-body">
+                <div class="p-6">
                     @if(isset($activeLoansSummary) && $activeLoansSummary['total_active_loans'] > 0)
-                        <div class="mb-3">
-                            <div class="row">
-                                <div class="col-6">
-                                    <div class="text-center">
-                                        <h4 class="text-primary mb-0">{{ $activeLoansSummary['total_active_loans'] }}</h4>
-                                        <small class="text-muted">Active Loans</small>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="text-center">
-                                        <h4 class="text-danger mb-0">₱{{ number_format($activeLoansSummary['total_outstanding_balance'], 2) }}</h4>
-                                        <small class="text-muted">Outstanding</small>
-                                    </div>
-                                </div>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="text-center">
+                                <h4 class="text-2xl font-bold text-blue-600">{{ $activeLoansSummary['total_active_loans'] }}</h4>
+                                <p class="text-xs text-gray-500">Active Loans</p>
+                            </div>
+                            <div class="text-center">
+                                <h4 class="text-2xl font-bold text-red-600">₱{{ number_format($activeLoansSummary['total_outstanding_balance'], 2) }}</h4>
+                                <p class="text-xs text-gray-500">Outstanding</p>
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <div class="text-center">
-                                <h5 class="text-info mb-0">₱{{ number_format($activeLoansSummary['total_monthly_payments'], 2) }}</h5>
-                                <small class="text-muted">Monthly Payment</small>
-                            </div>
+                        <div class="mb-4 text-center">
+                            <h5 class="text-lg font-semibold text-indigo-600">₱{{ number_format($activeLoansSummary['total_monthly_payments'], 2) }}</h5>
+                            <p class="text-xs text-gray-500">Monthly Payment</p>
                         </div>
                         @if(count($activeLoansSummary['loans_by_type']) > 0)
-                            <div class="border-top pt-3">
-                                <h6 class="fw-bold mb-3">Loan Breakdown</h6>
+                            <div class="border-t border-gray-200 pt-4">
+                                <h6 class="text-sm font-semibold text-gray-900 mb-3">Loan Breakdown</h6>
                                 @foreach($activeLoansSummary['loans_by_type'] as $loanType => $loanDetails)
-                                    <div class="mb-2">
-                                        <div class="d-flex justify-content-between">
-                                            <span class="fw-bold">{{ $loanType }}</span>
+                                    <div class="mb-3 last:mb-0">
+                                        <div class="flex justify-between">
+                                            <span class="text-sm font-semibold text-gray-900">{{ $loanType }}</span>
                                         </div>
-                                        <div class="d-flex justify-content-between text-muted small">
+                                        <div class="flex justify-between text-xs text-gray-500 mt-0.5">
                                             <span>Outstanding: ₱{{ number_format($loanDetails['outstanding_balance'], 2) }}</span>
                                         </div>
-                                        <div class="d-flex justify-content-between text-muted small">
+                                        <div class="flex justify-between text-xs text-gray-500">
                                             <span>Monthly: ₱{{ number_format($loanDetails['monthly_payment'], 2) }}</span>
                                             @if($loanDetails['maturity_date'])
                                                 <span>Due: {{ \Carbon\Carbon::parse($loanDetails['maturity_date'])->format('M Y') }}</span>
@@ -270,9 +270,9 @@
                             </div>
                         @endif
                     @else
-                        <div class="text-center py-4">
-                            <i class="fas fa-check-circle text-success fa-2x mb-3"></i>
-                            <p class="text-muted mb-0">No active loans</p>
+                        <div class="text-center py-6">
+                            <i class="fas fa-check-circle text-green-500 text-2xl mb-3"></i>
+                            <p class="text-gray-500">No active loans</p>
                         </div>
                     @endif
                 </div>
@@ -281,59 +281,61 @@
     </div>
 
     <!-- Leave Balances -->
-    <div class="row mb-4">
-        <div class="col-lg-8 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pb-0">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-calendar-check text-info me-2"></i>Leave Balances
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+        <div class="lg:col-span-8">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 h-full overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h5 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-calendar-check text-indigo-600 mr-2"></i>Leave Balances
                     </h5>
                 </div>
-                <div class="card-body">
+                <div class="p-6">
                     @if(count($leaveBalances) > 0)
-                        <div class="table-responsive">
-                            <table class="table table-borderless">
-                                <thead class="table-light">
+                        <div class="table-responsive scrollbar-thin scrollbar-stable">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
                                     <tr>
-                                        <th>Leave Type</th>
-                                        <th class="text-center">Earned</th>
-                                        <th class="text-center">Used</th>
-                                        <th class="text-center">Balance</th>
-                                        <th class="text-center">Year</th>
+                                        <th class="table-header-responsive text-left">Leave Type</th>
+                                        <th class="table-header-responsive text-center">Earned</th>
+                                        <th class="table-header-responsive text-center">Used</th>
+                                        <th class="table-header-responsive text-center">Balance</th>
+                                        <th class="table-header-responsive text-center">Year</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody class="divide-y divide-gray-100 bg-white">
                                     @foreach($leaveBalances as $balance)
                                         <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <i class="fas fa-calendar text-primary me-2"></i>
-                                                    <strong>{{ $balance['leave_type'] }}</strong>
+                                            <td class="table-cell-responsive">
+                                                <div class="flex items-center">
+                                                    <i class="fas fa-calendar text-blue-600 mr-2"></i>
+                                                    <span class="font-semibold text-gray-900">{{ $balance['leave_type'] }}</span>
                                                 </div>
                                             </td>
-                                            <td class="text-center">{{ $balance['earned'] }}</td>
-                                            <td class="text-center">
+                                            <td class="table-cell-responsive text-center">{{ $balance['earned'] }}</td>
+                                            <td class="table-cell-responsive text-center">
                                                 @if($balance['used'] > 0)
-                                                    <span class="text-warning">{{ $balance['used'] }}</span>
+                                                    <span class="text-amber-600 font-semibold">{{ $balance['used'] }}</span>
                                                 @else
-                                                    <span class="text-muted">0</span>
+                                                    <span class="text-gray-500">0</span>
                                                 @endif
                                             </td>
-                                            <td class="text-center">
-                                                <strong class="text-{{ $balance['balance'] > 0 ? 'success' : 'danger' }}">
-                                                    {{ $balance['balance'] }}
-                                                </strong>
+                                            <td class="table-cell-responsive text-center">
+                                                <span @class([
+                                                    'font-semibold',
+                                                    'text-green-600' => $balance['balance'] > 0,
+                                                    'text-red-600' => $balance['balance'] <= 0,
+                                                ])>{{ $balance['balance'] }}</span>
                                             </td>
-                                            <td class="text-center">{{ $balance['year'] }}</td>
+                                            <td class="table-cell-responsive text-center">{{ $balance['year'] }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
                     @else
-                        <div class="text-center py-4">
-                            <i class="fas fa-calendar-times text-muted fa-2x mb-3"></i>
-                            <p class="text-muted mb-0">No leave balance records found</p>
+                        <div class="text-center py-6">
+                            <i class="fas fa-calendar-times text-gray-400 text-2xl mb-3"></i>
+                            <p class="text-gray-500">No leave balance records found</p>
                         </div>
                     @endif
                 </div>
@@ -341,22 +343,22 @@
         </div>
 
         <!-- Leave Utilization -->
-        <div class="col-lg-4 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pb-0">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-chart-pie text-primary me-2"></i>{{ now()->year }} Leave Usage
+        <div class="lg:col-span-4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 h-full overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h5 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-chart-pie text-blue-600 mr-2"></i>{{ now()->year }} Leave Usage
                     </h5>
                 </div>
-                <div class="card-body">
+                <div class="p-6">
                     @if(count($leaveUtilization) > 0)
                         @foreach($leaveUtilization as $utilization)
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="fw-bold">{{ $utilization['leave_type'] }}</span>
-                                    <span class="badge bg-primary">{{ $utilization['total_days'] }} days</span>
+                            <div class="mb-3 last:mb-0">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-sm font-semibold text-gray-900">{{ $utilization['leave_type'] }}</span>
+                                    <span class="badge bg-blue-100 text-blue-800">{{ $utilization['total_days'] }} days</span>
                                 </div>
-                                <div class="d-flex justify-content-between text-muted small">
+                                <div class="flex justify-between text-xs text-gray-500">
                                     <span>{{ $utilization['applications_count'] }} application(s)</span>
                                 </div>
                                 @if(!$loop->last)
@@ -364,16 +366,14 @@
                                 @endif
                             </div>
                         @endforeach
-                        <div class="border-top pt-3 mt-3">
-                            <div class="text-center">
-                                <h5 class="text-primary mb-0">{{ collect($leaveUtilization)->sum('total_days') }}</h5>
-                                <small class="text-muted">Total Days Used</small>
-                            </div>
+                        <div class="border-t border-gray-200 pt-4 mt-4 text-center">
+                            <h5 class="text-xl font-bold text-blue-600">{{ collect($leaveUtilization)->sum('total_days') }}</h5>
+                            <p class="text-xs text-gray-500">Total Days Used</p>
                         </div>
                     @else
-                        <div class="text-center py-4">
-                            <i class="fas fa-calendar-plus text-success fa-2x mb-3"></i>
-                            <p class="text-muted mb-0">No leave taken this year</p>
+                        <div class="text-center py-6">
+                            <i class="fas fa-calendar-plus text-green-500 text-2xl mb-3"></i>
+                            <p class="text-gray-500">No leave taken this year</p>
                         </div>
                     @endif
                 </div>
@@ -383,71 +383,28 @@
 
     <!-- Overdue Contributions Alert -->
     @if(isset($overdueContributions) && $overdueContributions['total_overdue_count'] > 0)
-        <div class="row">
-            <div class="col-12">
-                <div class="alert alert-warning border-0 shadow-sm">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0 me-3">
-                            <i class="fas fa-exclamation-triangle fa-2x"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h5 class="alert-heading mb-2">Overdue Contributions</h5>
-                            <p class="mb-2">
-                                You have <strong>{{ $overdueContributions['total_overdue_count'] }}</strong> overdue contribution(s) 
-                                totaling <strong>₱{{ number_format($overdueContributions['total_overdue_amount'], 2) }}</strong>.
-                            </p>
-                            @if($overdueContributions['total_penalties'] > 0)
-                                <p class="mb-2 text-danger">
-                                    Accumulated penalties: <strong>₱{{ number_format($overdueContributions['total_penalties'], 2) }}</strong>
-                                </p>
-                            @endif
-                            <p class="mb-0">
-                                <small class="text-muted">Please contact HR or Payroll department to resolve these overdue contributions.</small>
-                            </p>
-                        </div>
-                    </div>
+        <div class="mt-6">
+            <div class="alert alert-warning border-0 shadow-sm flex items-start">
+                <div class="shrink-0 mr-4">
+                    <i class="fas fa-exclamation-triangle text-2xl"></i>
+                </div>
+                <div class="flex-1">
+                    <h5 class="text-lg font-semibold text-yellow-900 mb-2">Overdue Contributions</h5>
+                    <p class="text-sm text-yellow-900 mb-2">
+                        You have <strong>{{ $overdueContributions['total_overdue_count'] }}</strong> overdue contribution(s) 
+                        totaling <strong>₱{{ number_format($overdueContributions['total_overdue_amount'], 2) }}</strong>.
+                    </p>
+                    @if($overdueContributions['total_penalties'] > 0)
+                        <p class="text-sm text-red-700 mb-2">
+                            Accumulated penalties: <strong>₱{{ number_format($overdueContributions['total_penalties'], 2) }}</strong>
+                        </p>
+                    @endif
+                    <p class="text-xs text-gray-600">
+                        Please contact HR or Payroll department to resolve these overdue contributions.
+                    </p>
                 </div>
             </div>
         </div>
     @endif
 </div>
 @endsection
-
-@push('styles')
-<style>
-.card {
-    transition: transform 0.2s ease-in-out;
-}
-
-.card:hover {
-    transform: translateY(-2px);
-}
-
-.table th {
-    font-weight: 600;
-    background-color: #f8f9fa;
-}
-
-.badge {
-    font-size: 0.75rem;
-}
-
-.progress {
-    background-color: #e9ecef;
-}
-
-.border {
-    border-color: #dee2e6 !important;
-}
-
-.alert {
-    border-radius: 0.375rem;
-}
-
-.text-primary { color: #0d6efd !important; }
-.text-success { color: #198754 !important; }
-.text-info { color: #0dcaf0 !important; }
-.text-warning { color: #ffc107 !important; }
-.text-danger { color: #dc3545 !important; }
-</style>
-@endpush

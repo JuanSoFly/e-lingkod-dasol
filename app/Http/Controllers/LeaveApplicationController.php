@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LeaveApplication;
 use App\Models\LeaveType;
 use App\Models\Employee;
+use App\Models\OfficeAssignment; // Add import
 use App\Models\LeaveCredit;
 use App\Models\User;
 use App\Services\LeaveApplicationService;
@@ -285,14 +286,17 @@ class LeaveApplicationController extends Controller
 
         $user = Auth::user();
         $canViewAllCards = $this->userCanViewAllLeaveCards($user);
-        $canViewOfficeCards = $this->userHasDepartmentHeadOfficeScope($user);
-        $userOfficeId = optional($user->employee)->office_id;
+        $canViewOfficeCards = $this->userHasManagerScope($user); // Check if they are Dept Head OR Supervisor
+        // $userOfficeId removed as we use getManagerOfficeIds now
 
         // HR users without employee ID should see employee selection list
+        // Update: Also separate logic for Supervisors/Dept Heads who need to pick an employee from their list
         if (($canViewAllCards || $canViewOfficeCards) && !$employeeId) {
             $employees = Employee::query()
-                ->when($canViewOfficeCards && !$canViewAllCards && $userOfficeId, function ($query) use ($userOfficeId) {
-                    $query->where('office_id', $userOfficeId);
+                ->when($canViewOfficeCards && !$canViewAllCards, function ($query) use ($user) {
+                     // Get all managed office IDs
+                     $officeIds = $this->getManagerOfficeIds($user);
+                     $query->whereIn('office_id', $officeIds);
                 })
                 ->when($request->filled('search'), function ($query) use ($request) {
                     $search = $request->get('search');
@@ -429,7 +433,7 @@ class LeaveApplicationController extends Controller
 
         $user = Auth::user();
         $canViewAllCards = $this->userCanViewAllLeaveCards($user);
-        $canViewOfficeCards = $this->userHasDepartmentHeadOfficeScope($user);
+        $canViewOfficeCards = $this->userHasManagerScope($user);
 
         // Use provided employee ID or current user
         $targetEmployeeId = ($canViewAllCards || $canViewOfficeCards)
@@ -482,11 +486,31 @@ class LeaveApplicationController extends Controller
     }
 
     /**
-     * Department Head visibility is limited to their own office.
+     * Check if user has Department Head or Supervisor role with active assignments.
      */
-    private function userHasDepartmentHeadOfficeScope(User $user): bool
+    private function userHasManagerScope(User $user): bool
     {
-        return $user->hasRole('Department Head') && optional($user->employee)->office_id !== null;
+        if (!$user->hasAnyRole(['Department Head', 'Supervisor'])) {
+            return false;
+        }
+        
+        // Check for active assignments
+        return OfficeAssignment::where('user_id', $user->id)
+            ->whereIn('role', ['Department Head', 'Supervisor'])
+            ->where('is_active', true)
+            ->exists();
+    }
+
+    /**
+     * Get IDs of offices managed by the user
+     */
+    private function getManagerOfficeIds(User $user): array
+    {
+        return OfficeAssignment::where('user_id', $user->id)
+            ->whereIn('role', ['Department Head', 'Supervisor'])
+            ->where('is_active', true)
+            ->pluck('office_id')
+            ->toArray();
     }
 
     /**
@@ -498,9 +522,9 @@ class LeaveApplicationController extends Controller
             return true;
         }
 
-        if ($this->userHasDepartmentHeadOfficeScope($user)) {
-            $viewerOfficeId = optional($user->employee)->office_id;
-            return $viewerOfficeId && (int) $employee->office_id === (int) $viewerOfficeId;
+        if ($this->userHasManagerScope($user)) {
+             $managedOfficeIds = $this->getManagerOfficeIds($user);
+             return in_array($employee->office_id, $managedOfficeIds);
         }
 
         return optional($user->employee)->id === $employee->id;

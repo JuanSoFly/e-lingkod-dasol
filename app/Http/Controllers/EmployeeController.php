@@ -359,21 +359,33 @@ class EmployeeController extends Controller
     /**
      * Archive the specified employee.
      */
+    /**
+     * Archive the specified employee.
+     */
     public function destroy(Employee $employee)
     {
         $this->authorize('employee.delete');
 
-        // Check if employee can be archived
-        if (!$this->archiveService->canArchive($employee)) {
-            return redirect()->route('employees.index')
-                ->with('error', 'This employee cannot be archived at this time.');
+        // Check if employee can be archived using new validation
+        $validation = $this->archiveService->validateArchivalReadiness($employee);
+        
+        if (!$validation['can_archive']) {
+             $errorMessage = 'Cannot archive employee: ' . implode(' ', $validation['blocking_issues']);
+             return redirect()->route('employees.index')
+                ->with('error', $errorMessage);
         }
 
         try {
             $archivedEmployee = $this->archiveService->archiveEmployee($employee, auth()->user());
+            
+            $message = "Employee {$archivedEmployee->first_name} {$archivedEmployee->last_name} has been archived successfully. You can restore them from the archive if needed.";
+             // Add warnings if any
+            if (!empty($validation['warnings'])) {
+                $message .= " Note: " . implode(' ', $validation['warnings']);
+            }
 
             return redirect()->route('employees.index')
-                ->with('success', "Employee {$archivedEmployee->first_name} {$archivedEmployee->last_name} has been archived successfully. You can restore them from the archive if needed.");
+                ->with('success', $message);
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Failed to archive employee', [

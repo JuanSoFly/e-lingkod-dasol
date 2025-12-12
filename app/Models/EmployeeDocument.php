@@ -25,16 +25,10 @@ class EmployeeDocument extends Model
         'uploaded_at',
         'file_size',
         'mime_type',
-        'extracted_content',
-        'content_indexed_at',
-        'content_hash',
-        'search_metadata',
     ];
 
     protected $casts = [
         'uploaded_at' => 'datetime',
-        'content_indexed_at' => 'datetime',
-        'search_metadata' => 'array',
         'storage_disk' => 'string',
     ];
 

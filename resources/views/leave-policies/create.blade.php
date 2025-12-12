@@ -1,187 +1,226 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Create Leave Policy') }}
-            </h2>
-            <a href="{{ route('leave-policies.index') }}" class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 sm:w-auto">
-                Back to Policies
-            </a>
-        </div>
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Create Leave Policy') }}
+        </h2>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    
-                    <!-- Information Header -->
-                    <div class="mb-8 p-4 border rounded-lg bg-blue-50">
-                        <h3 class="font-medium text-blue-700 mb-2">Leave Policy Configuration</h3>
-                        <p class="text-sm text-blue-600">
-                            Configure leave policies that comply with Philippine government regulations. These policies will automatically calculate leave balances, handle pro-rated allocations for new employees, and enforce approval workflows.
-                        </p>
+    <div class="space-y-6">
+        <div class="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Policy Configuration</h3>
+                <p class="text-sm text-gray-500 mt-1">Configure leave policy rules and eligibility</p>
+            </div>
+            <div class="p-6">
+                <!-- Information Alert -->
+                <div class="mb-8 p-4 border rounded-lg bg-blue-50 border-blue-100">
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-medium text-blue-800">About Leave Policies</h4>
+                            <p class="mt-1 text-sm text-blue-700">
+                                These policies will automatically calculate leave balances, handle pro-rated allocations for new employees, and enforce approval workflows. Ensure all settings comply with government regulations.
+                            </p>
+                        </div>
                     </div>
+                </div>
 
-                    <form method="POST" action="{{ route('leave-policies.store') }}" class="space-y-6">
-                        @csrf
+                <form method="POST" action="{{ route('leave-policies.store') }}" class="space-y-6">
+                    @csrf
 
-                        <!-- Basic Information -->
-                        <div class="border-b border-gray-200 pb-6">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <x-input-label for="name" :value="__('Policy Name')" />
-                                    <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" 
-                                                  :value="old('name')" required autofocus 
-                                                  placeholder="e.g., Vacation Leave for Permanent Employees" />
-                                    <x-input-error class="mt-2" :messages="$errors->get('name')" />
-                                </div>
-
-                                <div>
-                                    <x-input-label for="leave_type_id" :value="__('Leave Type')" />
-                                    <select id="leave_type_id" name="leave_type_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
-                                        <option value="">Select Leave Type</option>
-                                        @foreach($leaveTypes as $leaveType)
-                                            <option value="{{ $leaveType->id }}" {{ old('leave_type_id') == $leaveType->id ? 'selected' : '' }}>
-                                                {{ $leaveType->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <x-input-error class="mt-2" :messages="$errors->get('leave_type_id')" />
-                                </div>
+                    <!-- Basic Information Section -->
+                    <div class="space-y-6">
+                        <div class="border-b border-gray-200 pb-4">
+                            <h4 class="text-base font-medium text-gray-900">Basic Information</h4>
+                            <p class="text-sm text-gray-500 mt-1">Essential details about the leave policy</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <x-input-label for="name" :value="__('Policy Name')" />
+                                <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" 
+                                              :value="old('name')" required autofocus 
+                                              placeholder="e.g., Vacation Leave for Regulars" />
+                                <x-input-error class="mt-2" :messages="$errors->get('name')" />
                             </div>
 
-                            <div class="mt-6">
+                            <div>
+                                <x-input-label for="leave_type_id" :value="__('Leave Type')" />
+                                <select id="leave_type_id" name="leave_type_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+                                    <option value="">Select Leave Type</option>
+                                    @foreach($leaveTypes as $leaveType)
+                                        <option value="{{ $leaveType->id }}" {{ old('leave_type_id') == $leaveType->id ? 'selected' : '' }}>
+                                            {{ $leaveType->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error class="mt-2" :messages="$errors->get('leave_type_id')" />
+                            </div>
+
+                            <div class="md:col-span-2">
                                 <x-input-label for="description" :value="__('Description')" />
                                 <textarea id="description" name="description" rows="3" 
-                                          class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                                          placeholder="Describe the purpose and conditions of this leave policy">{{ old('description') }}</textarea>
+                                          class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                          placeholder="Describe the purpose, eligibility, and restrictions of this policy">{{ old('description') }}</textarea>
                                 <x-input-error class="mt-2" :messages="$errors->get('description')" />
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Policy Rules -->
-                        <div class="border-b border-gray-200 pb-6">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">Policy Rules</h3>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <x-input-label for="max_days_per_year" :value="__('Maximum Days Per Year')" />
-                                    <x-text-input id="max_days_per_year" name="max_days_per_year" type="number" 
-                                                  step="0.5" min="0" class="mt-1 block w-full" 
-                                                  :value="old('max_days_per_year')" required 
-                                                  placeholder="e.g., 15" />
-                                    <p class="mt-1 text-sm text-gray-600">Total days allowed per calendar year</p>
-                                    <x-input-error class="mt-2" :messages="$errors->get('max_days_per_year')" />
-                                </div>
-
-                                <div>
-                                    <x-input-label for="accrual_method" :value="__('Accrual Method')" />
-                                    <select id="accrual_method" name="accrual_method" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
-                                        <option value="">Select Accrual Method</option>
-                                        @foreach($accrualMethods as $method)
-                                            <option value="{{ $method }}" {{ old('accrual_method') == $method ? 'selected' : '' }}>
-                                                {{ ucfirst($method) }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <p class="mt-1 text-sm text-gray-600">How leave credits are earned</p>
-                                    <x-input-error class="mt-2" :messages="$errors->get('accrual_method')" />
-                                </div>
+                    <!-- Policy Rules Section -->
+                    <div class="space-y-6">
+                        <div class="border-b border-gray-200 pb-4">
+                            <h4 class="text-base font-medium text-gray-900">Credit & Accrual Rules</h4>
+                            <p class="text-sm text-gray-500 mt-1">Define how leave credits are earned and limited</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <x-input-label for="max_days_per_year" :value="__('Maximum Days Per Year')" />
+                                <x-text-input id="max_days_per_year" name="max_days_per_year" type="number" 
+                                              step="0.5" min="0" class="mt-1 block w-full" 
+                                              :value="old('max_days_per_year')" required 
+                                              placeholder="e.g., 15" />
+                                <p class="mt-1 text-xs text-gray-500">Total days allowed per calendar year</p>
+                                <x-input-error class="mt-2" :messages="$errors->get('max_days_per_year')" />
                             </div>
 
-                            <div class="mt-6">
+                            <div>
+                                <x-input-label for="accrual_method" :value="__('Accrual Method')" />
+                                <select id="accrual_method" name="accrual_method" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+                                    <option value="">Select Accrual Method</option>
+                                    @foreach($accrualMethods as $method)
+                                        <option value="{{ $method }}" {{ old('accrual_method') == $method ? 'selected' : '' }}>
+                                            {{ ucfirst($method) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-1 text-xs text-gray-500">How leave credits are earned over time</p>
+                                <x-input-error class="mt-2" :messages="$errors->get('accrual_method')" />
+                            </div>
+
+                            <div>
                                 <x-input-label for="effective_start_date" :value="__('Effective Start Date')" />
                                 <x-text-input id="effective_start_date" name="effective_start_date" type="date" 
                                               class="mt-1 block w-full" :value="old('effective_start_date')" required />
-                                <p class="mt-1 text-sm text-gray-600">When this policy becomes active</p>
                                 <x-input-error class="mt-2" :messages="$errors->get('effective_start_date')" />
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Employment Status -->
-                        <div class="border-b border-gray-200 pb-6">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">Applicable Employment Status</h3>
-                            <p class="text-sm text-gray-600 mb-4">Select which employment statuses this policy applies to:</p>
-                            
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                @foreach($employmentStatuses as $status)
-                                    <div class="flex items-center">
+                    <!-- Eligibility Section -->
+                    <div class="space-y-6">
+                        <div class="border-b border-gray-200 pb-4">
+                            <h4 class="text-base font-medium text-gray-900">Employment Eligibility</h4>
+                            <p class="text-sm text-gray-500 mt-1">Who can avail this leave policy?</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            @foreach($employmentStatuses as $status)
+                                <label class="relative flex items-start p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors {{ in_array($status, old('employment_statuses', [])) ? 'bg-blue-50 border-blue-200' : 'border-gray-200' }}">
+                                    <div class="min-w-0 flex-1 text-sm">
+                                        <div class="font-medium text-gray-700 select-none">
+                                            {{ ucfirst($status) }}
+                                        </div>
+                                    </div>
+                                    <div class="ml-3 flex items-center h-5">
                                         <input id="employment_status_{{ $status }}" name="employment_statuses[]" 
                                                type="checkbox" value="{{ $status }}" 
-                                               class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
                                                {{ in_array($status, old('employment_statuses', [])) ? 'checked' : '' }}>
-                                        <label for="employment_status_{{ $status }}" class="ml-2 text-sm text-gray-700">
-                                            {{ ucfirst($status) }}
-                                        </label>
                                     </div>
-                                @endforeach
-                            </div>
-                            <x-input-error class="mt-2" :messages="$errors->get('employment_statuses')" />
+                                </label>
+                            @endforeach
                         </div>
+                        <x-input-error class="mt-2" :messages="$errors->get('employment_statuses')" />
+                    </div>
 
-                        <!-- Policy Options -->
-                        <div class="border-b border-gray-200 pb-6">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">Policy Options</h3>
-                            
-                            <div class="space-y-4">
-                                <div class="flex items-center">
+                    <!-- Configuration Options -->
+                    <div class="space-y-6">
+                        <div class="border-b border-gray-200 pb-4">
+                            <h4 class="text-base font-medium text-gray-900">Configuration Options</h4>
+                            <p class="text-sm text-gray-500 mt-1">Additional settings for this policy</p>
+                        </div>
+                        
+                        <div class="bg-gray-50 rounded-lg p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
                                     <input id="is_active" name="is_active" type="checkbox" 
-                                           class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                           class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
                                            {{ old('is_active', true) ? 'checked' : '' }}>
-                                    <label for="is_active" class="ml-2 text-sm text-gray-700">
-                                        <span class="font-medium">Active Policy</span>
-                                        <p class="text-gray-600">Enable this policy for leave applications</p>
-                                    </label>
                                 </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="is_active" class="font-medium text-gray-700">Active Policy</label>
+                                    <p class="text-gray-500">Enable this policy for immediate use.</p>
+                                </div>
+                            </div>
 
-                                <div class="flex items-center">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
                                     <input id="is_government_policy" name="is_government_policy" type="checkbox" 
-                                           class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                           class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
                                            {{ old('is_government_policy') ? 'checked' : '' }}>
-                                    <label for="is_government_policy" class="ml-2 text-sm text-gray-700">
-                                        <span class="font-medium">Government Policy</span>
-                                        <p class="text-gray-600">This policy is mandated by government regulations</p>
-                                    </label>
                                 </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="is_government_policy" class="font-medium text-gray-700">Government Mandated</label>
+                                    <p class="text-gray-500">Flag as a government-regulated policy.</p>
+                                </div>
+                            </div>
 
-                                <div class="flex items-center">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
                                     <input id="requires_approval" name="requires_approval" type="checkbox" 
-                                           class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                           class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
                                            {{ old('requires_approval', true) ? 'checked' : '' }}>
-                                    <label for="requires_approval" class="ml-2 text-sm text-gray-700">
-                                        <span class="font-medium">Requires Approval</span>
-                                        <p class="text-gray-600">Leave applications must be approved by supervisors</p>
-                                    </label>
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="requires_approval" class="font-medium text-gray-700">Requires Approval</label>
+                                    <p class="text-gray-500">Supervisor approval needed for applications.</p>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Policy Preview -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h4 class="font-medium text-gray-900 mb-2">Policy Summary</h4>
-                            <p class="text-sm text-gray-600">
-                                This policy will be applied to leave applications and balance calculations according to the rules specified above. 
-                                All changes to leave policies will affect future leave calculations but will not retroactively modify existing leave records.
-                            </p>
+                    <!-- Form Actions -->
+                    <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                        <div class="text-xs text-gray-500 italic">
+                            All fields marked with an asterisk (*) are required.
                         </div>
-
-                        <!-- Form Actions -->
-                        <div class="flex items-center justify-end space-x-4 pt-6">
-                            <a href="{{ route('leave-policies.index') }}" 
-                               class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
-                                Cancel
+                        <div class="flex items-center space-x-4">
+                            <a href="{{ route('leave-policies.index') }}">
+                                <x-secondary-button>
+                                    {{ __('Cancel') }}
+                                </x-secondary-button>
                             </a>
-                            <button type="submit" 
-                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                Create Leave Policy
-                            </button>
+                            <x-primary-button>
+                                {{ __('Create Policy') }}
+                            </x-primary-button>
                         </div>
-                    </form>
-                </div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        // Optional: Add visual toggle for checkbox cards
+        document.querySelectorAll('input[type="checkbox"][name="employment_statuses[]"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const label = this.closest('label');
+                if (this.checked) {
+                    label.classList.add('bg-blue-50', 'border-blue-200');
+                    label.classList.remove('border-gray-200');
+                } else {
+                    label.classList.remove('bg-blue-50', 'border-blue-200');
+                    label.classList.add('border-gray-200');
+                }
+            });
+        });
+    </script>
+    @endpush
 </x-app-layout>
