@@ -8,14 +8,13 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
 
-class NewEmployeeAccountCreated extends Notification implements ShouldQueue
+class NewEmployeeAccountCreated extends Notification
 {
-    use Queueable;
+    protected $token;
 
     public function __construct($token)
     {
         $this->token = $token;
-        $this->afterCommit = true;
     }
 
     public function via($notifiable)
