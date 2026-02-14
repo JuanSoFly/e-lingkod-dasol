@@ -112,6 +112,8 @@ class AuditTrailController extends Controller
      */
     public function download(string $filename)
     {
+        // Sanitize filename to prevent path traversal attacks
+        $filename = basename($filename);
         $filePath = storage_path('app/exports/audit-trail/' . $filename);
 
         if (!file_exists($filePath)) {

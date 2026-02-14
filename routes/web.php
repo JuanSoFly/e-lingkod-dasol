@@ -50,8 +50,6 @@ Route::get('/health', function () {
     return response()->json([
         'status' => 'healthy',
         'timestamp' => now()->toISOString(),
-        'version' => app()->version(),
-        'environment' => app()->environment(),
     ]);
 })->name('health');
 
@@ -423,7 +421,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Office Assignment Administration Routes
-    Route::prefix('admin/office-assignments')->name('admin.office-assignments.')->middleware('verified')->group(function () {
+    Route::prefix('admin/office-assignments')->name('admin.office-assignments.')->middleware(['verified', 'role:Admin|HR'])->group(function () {
         Route::get('/', [OfficeAssignmentController::class, 'index'])->name('index');
         Route::get('/create', [OfficeAssignmentController::class, 'create'])->name('create');
         Route::post('/', [OfficeAssignmentController::class, 'store'])->name('store');
@@ -510,7 +508,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Audit Trail Management (moved outside OPCR admin group)
-    Route::prefix('admin/audit-trail')->name('admin.audit-trail.')->middleware(['auth', 'verified'])->group(function () {
+    Route::prefix('admin/audit-trail')->name('admin.audit-trail.')->middleware(['auth', 'verified', 'permission:audit.view'])->group(function () {
         Route::get('/', [AuditTrailController::class, 'index'])->name('index');
         Route::get('/export', [AuditTrailController::class, 'export'])->name('export');
         Route::get('/downloads/{filename}', [AuditTrailController::class, 'download'])->name('download');

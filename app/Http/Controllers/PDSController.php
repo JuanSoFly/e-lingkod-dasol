@@ -714,18 +714,12 @@ public function updateQuestionnaire(Request $request, Employee $employee)
 {
     $this->authorizePdsAccess($employee, 'update');
 
-    // Enable comprehensive logging for debugging
+    // Log questionnaire update without sensitive PII
     \Log::info('PDS updateQuestionnaire - Starting process', [
         'employee_id' => $employee->id,
         'user_id' => auth()->id(),
-        'request_method' => $request->method(),
-        'request_url' => $request->fullUrl(),
-        'incoming_data' => $request->all(),
         'timestamp' => now()->toDateTimeString()
     ]);
-
-    // Enable query logging for database operations
-    \DB::enableQueryLog();
 
     try {
         // Base validation rules

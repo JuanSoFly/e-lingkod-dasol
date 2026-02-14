@@ -1739,11 +1739,12 @@ class DashboardAnalyticsService
         }
 
         // Calculate improvement by office
-        $improvements = OPCRWorkflow::select([
-            'offices.name as office_name',
-            DB::raw('AVG(CASE WHEN opcr_workflows.period_id = ' . $periodId . ' THEN opcr_workflows.overall_rating END) as current_rating'),
-            DB::raw('AVG(CASE WHEN opcr_workflows.period_id = ' . $previousPeriod->id . ' THEN opcr_workflows.overall_rating END) as previous_rating')
-        ])
+        $improvements = OPCRWorkflow::selectRaw(
+            'offices.name as office_name, ' .
+            'AVG(CASE WHEN opcr_workflows.period_id = ? THEN opcr_workflows.overall_rating END) as current_rating, ' .
+            'AVG(CASE WHEN opcr_workflows.period_id = ? THEN opcr_workflows.overall_rating END) as previous_rating',
+            [(int) $periodId, (int) $previousPeriod->id]
+        )
             ->join('offices', 'opcr_workflows.office_id', '=', 'offices.id')
             ->whereNotNull('opcr_workflows.overall_rating')
             ->whereIn('opcr_workflows.period_id', [$periodId, $previousPeriod->id])
