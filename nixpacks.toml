@@ -2,7 +2,7 @@
 # This configures the build environment and deployment process
 
 [phases.setup]
-nixPkgs = ["...", "php83Extensions.redis", "python3Packages.supervisor"]
+nixPkgs = ["...", "php83Extensions.redis", "python3Packages.supervisor", "nginx", "gettext"]
 
 [phases.build]
 cmds = [
@@ -11,11 +11,12 @@ cmds = [
     "mkdir -p storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache",
     "chmod -R 755 storage bootstrap/cache",
     "chmod -R 777 storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache",
-    "php artisan storage:link"
+    "php artisan storage:link",
+    "chmod +x start.sh"
 ]
 
 [start]
-cmd = "supervisord -c supervisord.conf"
+cmd = "bash start.sh"
 
 [variables]
 PHP_VERSION = "8.3"
@@ -35,7 +36,7 @@ LOG_DEPRECATIONS_CHANNEL = "null"
 VIEW_COMPILED_PATH = "storage/framework/views"
 
 # PHP Configuration
-PHP_MEMORY_LIMIT = "512M"
+PHP_MEMORY_LIMIT = "256M"
 PHP_MAX_EXECUTION_TIME = "300"
 PHP_UPLOAD_MAX_FILESIZE = "64M"
 PHP_POST_MAX_SIZE = "64M"
