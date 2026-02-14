@@ -60,7 +60,7 @@
                                 @if($employee->date_hired)
                                     <div class="flex items-center text-gray-600">
                                         <i class="fas fa-clock text-gray-400 mr-2 w-4"></i>
-                                        <span><span class="font-medium">Service:</span> {{ $employee->date_hired->diffInYears(now()) }} years</span>
+                                        <span><span class="font-medium">Service:</span> {{ $employee->formatted_service_duration }}</span>
                                     </div>
                                 @endif
                             </div>

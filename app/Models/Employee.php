@@ -809,6 +809,36 @@ class Employee extends Model
     }
 
     /**
+     * Get human-readable formatted service duration (e.g., "2 years, 3 months")
+     */
+    public function getFormattedServiceDurationAttribute(): string
+    {
+        if (!$this->date_hired) {
+            return 'N/A';
+        }
+
+        $hired = Carbon::parse($this->date_hired);
+        $diff = $hired->diff(now());
+
+        $parts = [];
+
+        if ($diff->y > 0) {
+            $parts[] = $diff->y . ' ' . ($diff->y === 1 ? 'year' : 'years');
+        }
+
+        if ($diff->m > 0) {
+            $parts[] = $diff->m . ' ' . ($diff->m === 1 ? 'month' : 'months');
+        }
+
+        if ($diff->y === 0 && $diff->m === 0) {
+            $days = max($diff->d, 1);
+            $parts[] = $days . ' ' . ($days === 1 ? 'day' : 'days');
+        }
+
+        return implode(', ', $parts);
+    }
+
+    /**
      * Get current performance rating (latest evaluation)
      */
     public function getCurrentPerformanceRatingAttribute()
