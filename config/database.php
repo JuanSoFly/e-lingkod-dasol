@@ -169,6 +169,15 @@ return [
             'database' => env('REDIS_CACHE_DB', '1'),
         ],
 
+        'session' => [
+            'url' => env('REDIS_URL'),
+            'host' => env('REDIS_HOST', 'shuttle.proxy.rlwy.net'),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD', 'RBLzgGDriUQCeJsaPlbxTdpryYmUxnOG'),
+            'port' => env('REDIS_PORT', '41198'),
+            'database' => env('REDIS_SESSION_DB', '3'),
+        ],
+
     ],
 
 ];

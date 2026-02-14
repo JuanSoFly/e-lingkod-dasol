@@ -8,14 +8,42 @@ class AddBatchUuidColumnToActivityLogTable extends Migration
 {
     public function up()
     {
-        Schema::connection(config('activitylog.database_connection'))->table(config('activitylog.table_name'), function (Blueprint $table) {
-            $table->uuid('batch_uuid')->nullable()->after('properties');
+        $connection = config('activitylog.database_connection');
+        $tableName = config('activitylog.table_name');
+
+        if (! Schema::connection($connection)->hasTable($tableName)) {
+            return;
+        }
+
+        if (Schema::connection($connection)->hasColumn($tableName, 'batch_uuid')) {
+            return;
+        }
+
+        $hasPropertiesColumn = Schema::connection($connection)->hasColumn($tableName, 'properties');
+
+        Schema::connection($connection)->table($tableName, function (Blueprint $table) use ($hasPropertiesColumn) {
+            $column = $table->uuid('batch_uuid')->nullable();
+
+            if ($hasPropertiesColumn) {
+                $column->after('properties');
+            }
         });
     }
 
     public function down()
     {
-        Schema::connection(config('activitylog.database_connection'))->table(config('activitylog.table_name'), function (Blueprint $table) {
+        $connection = config('activitylog.database_connection');
+        $tableName = config('activitylog.table_name');
+
+        if (! Schema::connection($connection)->hasTable($tableName)) {
+            return;
+        }
+
+        if (! Schema::connection($connection)->hasColumn($tableName, 'batch_uuid')) {
+            return;
+        }
+
+        Schema::connection($connection)->table($tableName, function (Blueprint $table) {
             $table->dropColumn('batch_uuid');
         });
     }

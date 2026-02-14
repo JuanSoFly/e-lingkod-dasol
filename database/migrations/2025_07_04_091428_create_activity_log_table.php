@@ -8,7 +8,14 @@ class CreateActivityLogTable extends Migration
 {
     public function up()
     {
-        Schema::connection(config('activitylog.database_connection'))->create(config('activitylog.table_name'), function (Blueprint $table) {
+        $connection = config('activitylog.database_connection');
+        $tableName = config('activitylog.table_name');
+
+        if (Schema::connection($connection)->hasTable($tableName)) {
+            return;
+        }
+
+        Schema::connection($connection)->create($tableName, function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('log_name')->nullable();
             $table->text('description');
@@ -22,6 +29,9 @@ class CreateActivityLogTable extends Migration
 
     public function down()
     {
-        Schema::connection(config('activitylog.database_connection'))->dropIfExists(config('activitylog.table_name'));
+        $connection = config('activitylog.database_connection');
+        $tableName = config('activitylog.table_name');
+
+        Schema::connection($connection)->dropIfExists($tableName);
     }
 }
