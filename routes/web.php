@@ -45,13 +45,7 @@ Route::get('/', function () {
     return redirect('/login');
 });
 
-// Health check endpoint for Railway monitoring
-Route::get('/health', function () {
-    return response()->json([
-        'status' => 'healthy',
-        'timestamp' => now()->toISOString(),
-    ]);
-})->name('health');
+
 
 
 
