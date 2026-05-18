@@ -75,7 +75,8 @@ echo "\n";
 echo "Redis Connection Details:\n";
 echo "  - Client: " . config('database.redis.client') . "\n";
 $redisConfig = config('database.redis.default');
-echo "  - URL: " . mask(env('REDIS_URL') ?: '') . "\n";
+echo "  - System REDIS_URL (getenv): " . mask(getenv('REDIS_URL') ?: '') . "\n";
+echo "  - Config REDIS_URL (config): " . mask(config('database.redis.default.url') ?: '') . "\n";
 echo "  - Host: " . ($redisConfig['host'] ?? 'N/A') . "\n";
 echo "  - Port: " . ($redisConfig['port'] ?? 'N/A') . "\n";
 echo "  - Database: " . ($redisConfig['database'] ?? 'N/A') . "\n";
@@ -118,10 +119,17 @@ try {
     $elapsed = round((microtime(true) - $time) * 1000, 2);
     echo "Laravel Redis Connection: SUCCESS ✅ (Took {$elapsed} ms)\n";
     echo "Ping Result: " . (is_string($ping) ? $ping : json_encode($ping)) . "\n";
+    
+    // Write and read test
+    echo "Testing Write/Read to Redis...\n";
+    $redis->set('diagnose_test_key', 'Hello From Render! ' . date('Y-m-d H:i:s'));
+    $val = $redis->get('diagnose_test_key');
+    echo "Read back value from Redis: '{$val}' " . ($val ? '✅' : '❌') . "\n";
 } catch (\Throwable $e) {
     echo "LARAVEL REDIS CONNECTION FAILED! ❌\n";
     echo "Error: " . $e->getMessage() . "\n";
     echo "Class: " . get_class($e) . "\n";
+    echo "Trace:\n" . $e->getTraceAsString() . "\n";
 }
 echo "\n";
 
