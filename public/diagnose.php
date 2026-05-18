@@ -209,6 +209,37 @@ if (class_exists('Predis\Client')) {
 } else {
     echo "Predis class not found, skipping raw test.\n";
 }
+echo "--- LARAVEL LOG FILES ---\n";
+$logDir = storage_path('logs');
+if (is_dir($logDir)) {
+    $files = scandir($logDir);
+    echo "Files in logs directory:\n";
+    foreach ($files as $file) {
+        if ($file !== '.' && $file !== '..') {
+            $filePath = $logDir . '/' . $file;
+            echo "  - {$file} (" . filesize($filePath) . " bytes)\n";
+        }
+    }
+    echo "\n";
+    
+    $laravelLog = $logDir . '/laravel.log';
+    if (file_exists($laravelLog)) {
+        echo "Last 100 lines of laravel.log:\n";
+        echo "--------------------------------------------------\n";
+        $fileLines = file($laravelLog);
+        $lastLines = array_slice($fileLines, -100);
+        foreach ($lastLines as $line) {
+            echo $line;
+        }
+        echo "--------------------------------------------------\n";
+    } else {
+        echo "laravel.log file not found.\n";
+    }
+} else {
+    echo "Logs directory does not exist.\n";
+}
+echo "\n";
+
 echo "\n==================================================\n";
 echo " DIAGNOSTICS COMPLETED\n";
 echo "==================================================\n";
