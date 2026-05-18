@@ -69,6 +69,4 @@ RUN chmod +x /app/start.sh \
     && chmod -R 775 storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
-EXPOSE 10000
-
 CMD ["bash", "/app/start.sh"]
