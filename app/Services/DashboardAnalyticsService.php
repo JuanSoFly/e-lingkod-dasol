@@ -8,6 +8,7 @@ use App\Models\OPCRWorkflow;
 use App\Models\PerformancePeriod;
 use App\Models\Office;
 use App\Models\MajorFinalOutput;
+use App\Support\DatabaseExpression;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
@@ -67,11 +68,11 @@ class DashboardAnalyticsService
                 'offices.id',
                 'offices.name',
                 DB::raw('COUNT(opcr_workflows.id) as total_workflows'),
-                DB::raw('COUNT(CASE WHEN opcr_workflows.workflow_state = "final_approval" THEN 1 END) as completed_workflows'),
-                DB::raw('COUNT(CASE WHEN opcr_workflows.workflow_state = "draft" THEN 1 END) as draft_workflows'),
-                DB::raw('COUNT(CASE WHEN opcr_workflows.workflow_state = "committed" THEN 1 END) as committed_workflows'),
-                DB::raw('COUNT(CASE WHEN opcr_workflows.workflow_state = "in_progress" THEN 1 END) as in_progress_workflows'),
-                DB::raw('COUNT(CASE WHEN opcr_workflows.workflow_state = "evaluation" THEN 1 END) as evaluation_workflows'),
+                DB::raw("COUNT(CASE WHEN opcr_workflows.workflow_state = 'final_approval' THEN 1 END) as completed_workflows"),
+                DB::raw("COUNT(CASE WHEN opcr_workflows.workflow_state = 'draft' THEN 1 END) as draft_workflows"),
+                DB::raw("COUNT(CASE WHEN opcr_workflows.workflow_state = 'committed' THEN 1 END) as committed_workflows"),
+                DB::raw("COUNT(CASE WHEN opcr_workflows.workflow_state = 'in_progress' THEN 1 END) as in_progress_workflows"),
+                DB::raw("COUNT(CASE WHEN opcr_workflows.workflow_state = 'evaluation' THEN 1 END) as evaluation_workflows"),
                 DB::raw('COUNT(CASE WHEN opcr_workflows.overall_rating IS NOT NULL THEN 1 END) as rated_workflows'),
                 DB::raw('AVG(CASE WHEN opcr_workflows.overall_rating IS NOT NULL THEN opcr_workflows.overall_rating END) as average_rating'),
                 DB::raw('AVG(CASE WHEN opcr_workflows.overall_rating IS NOT NULL THEN opcr_workflows.overall_rating END) as qet_score') // Use overall_rating as QET proxy
@@ -81,7 +82,7 @@ class DashboardAnalyticsService
                          ->where('opcr_workflows.period_id', $periodId);
                 })
                 ->groupBy('offices.id', 'offices.name')
-                ->having('total_workflows', '>', 0)
+                ->havingRaw('COUNT(opcr_workflows.id) > 0')
                 ->get();
 
             return $offices->map(function ($office) {
@@ -283,7 +284,7 @@ class DashboardAnalyticsService
             // Use OPCR workflows instead of performance_ratings table
             $employeeRatings = OPCRWorkflow::select([
                 'employees.id as employee_id',
-                DB::raw('CONCAT(employees.first_name, " ", employees.last_name) as employee_name'),
+                DB::raw("CONCAT(employees.first_name, ' ', employees.last_name) as employee_name"),
                 DB::raw('AVG(opcr_workflows.overall_rating) as average_rating'),
                 DB::raw('COUNT(opcr_workflows.id) as total_ratings'),
                 'employees.department',
@@ -790,7 +791,7 @@ class DashboardAnalyticsService
                 ->where('period_id', $periodId)
                 ->whereNotNull('created_at')
                 ->whereNotNull('updated_at')
-                ->selectRaw('*, DATEDIFF(updated_at, created_at) as processing_days')
+                ->selectRaw('*, ' . DatabaseExpression::dateDiffDays('updated_at', 'created_at') . ' as processing_days')
                 ->orderBy('processing_days', 'asc')
                 ->limit($limit)
                 ->get()
@@ -1487,28 +1488,30 @@ class DashboardAnalyticsService
             $endDate = $currentPeriod->end_date;
 
             // Get all workflows for the period grouped by month
+            $monthExpression = DatabaseExpression::yearMonth('created_at');
+
             $monthlyData = OPCRWorkflow::where('period_id', $periodId)
                 ->select([
-                    DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
+                    DB::raw("{$monthExpression} as month"),
                     DB::raw('COUNT(*) as total_workflows'),
                     DB::raw('COUNT(CASE WHEN overall_rating IS NOT NULL THEN 1 END) as rated_workflows'),
-                    DB::raw('COUNT(CASE WHEN workflow_state = "final_approval" THEN 1 END) as completed_workflows'),
+                    DB::raw("COUNT(CASE WHEN workflow_state = 'final_approval' THEN 1 END) as completed_workflows"),
                     DB::raw('AVG(CASE WHEN overall_rating IS NOT NULL THEN overall_rating END) as average_rating')
                 ])
                 ->whereBetween('created_at', [$startDate, $endDate])
-                ->groupBy(DB::raw('DATE_FORMAT(created_at, "%Y-%m")'))
+                ->groupBy(DB::raw($monthExpression))
                 ->orderBy('month')
                 ->get();
 
             if ($monthlyData->isEmpty()) {
                 // If no monthly data, show current period summary
                 $periodSummary = OPCRWorkflow::where('period_id', $periodId)
-                    ->selectRaw('
+                    ->selectRaw("
                         COUNT(*) as total_workflows,
                         COUNT(CASE WHEN overall_rating IS NOT NULL THEN 1 END) as rated_workflows,
-                        COUNT(CASE WHEN workflow_state = "final_approval" THEN 1 END) as completed_workflows,
+                        COUNT(CASE WHEN workflow_state = 'final_approval' THEN 1 END) as completed_workflows,
                         AVG(CASE WHEN overall_rating IS NOT NULL THEN overall_rating END) as average_rating
-                    ')
+                    ")
                     ->first();
 
                 $completionRate = $periodSummary->total_workflows > 0

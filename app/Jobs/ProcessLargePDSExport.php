@@ -609,9 +609,9 @@ class ProcessLargePDSExport implements ShouldQueue
             ->where(function ($query) {
                 $query->whereNotNull('first_name')
                       ->orWhereNotNull('last_name')
-                      ->orWhereHas('familyBackgrounds')
-                      ->orWhereHas('educations')
-                      ->orWhereHas('eligibilities');
+                      ->orWhereHas('familyBackground')
+                      ->orWhereHas('education')
+                      ->orWhereHas('pdsEligibilities');
             })
             ->count();
 

@@ -570,7 +570,7 @@ class PDSExportController extends Controller
         }
 
         if ($user->hasRole('HR Admin')) {
-            return Employee::where('employment_status', 'Active')
+            return Employee::active()
                 ->orderBy('last_name')
                 ->get();
         }

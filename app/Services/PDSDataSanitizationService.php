@@ -179,7 +179,8 @@ class PDSDataSanitizationService
         }
 
         // HR admins can only access active employees' full data
-        if (isset($data['employment_status']) && $data['employment_status'] !== 'Active') {
+        if (isset($data['employment_status']) &&
+            !in_array(\App\Models\Employee::normalizedEmploymentStatus($data['employment_status']), \App\Models\Employee::ACTIVE_EMPLOYMENT_STATUSES, true)) {
             // Limit data for inactive employees
             $data = $this->limitInactiveEmployeeData($data);
         }
@@ -498,7 +499,7 @@ class PDSDataSanitizationService
             return false;
         }
 
-        return $employee->employment_status === 'Active';
+        return $employee->isActiveEmployment();
     }
 
     /**

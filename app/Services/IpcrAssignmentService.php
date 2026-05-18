@@ -27,7 +27,7 @@ class IpcrAssignmentService
         }
 
         $query = Employee::query()
-            ->where('employment_status', '!=', 'Probationary')
+            ->whereRaw('LOWER(employment_status) != ?', ['probationary'])
             ->whereNull('archived_at')
             ->where(function ($q) use ($office, $options) {
                 if (!empty($options['employee_ids'])) {
@@ -70,7 +70,7 @@ class IpcrAssignmentService
                 return false;
             }
 
-            if ($employee->employment_status === 'Resigned' || $employee->employment_status === 'Separated') {
+            if (in_array(Employee::normalizedEmploymentStatus($employee->employment_status), ['resigned', 'separated'], true)) {
                 return false;
             }
 

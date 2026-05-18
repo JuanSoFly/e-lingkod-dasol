@@ -8,6 +8,7 @@ use App\Models\LeaveApplication;
 use App\Models\LeaveType;
 use App\Models\User;
 use App\Models\OfficeAssignment;
+use App\Support\DatabaseExpression;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -37,7 +38,7 @@ class DashboardService implements DashboardServiceInterface
     public function getActiveEmployees(): int
     {
         return Cache::remember('dashboard.active_employees', self::CACHE_DURATION, function () {
-            return Employee::where('employment_status', 'active')->count();
+            return Employee::active()->count();
         });
     }
 
@@ -73,12 +74,13 @@ class DashboardService implements DashboardServiceInterface
         return Cache::remember("dashboard.upcoming_birthdays_{$limit}", self::CACHE_DURATION, function () use ($limit) {
             $currentMonth = now()->month;
             $currentDay = now()->day;
+            $birthdayDayExpression = $this->birthdayDayExpression();
 
             // Get birthdays for current month from today onwards
             $currentMonthBirthdays = Employee::select('id', 'first_name', 'middle_name', 'last_name', 'birth_date', 'department', 'position')
                 ->whereMonth('birth_date', $currentMonth)
                 ->whereDay('birth_date', '>=', $currentDay)
-                ->orderByRaw('DAY(birth_date) ASC')
+                ->orderByRaw("{$birthdayDayExpression} ASC")
                 ->take($limit)
                 ->get();
 
@@ -89,7 +91,7 @@ class DashboardService implements DashboardServiceInterface
                 
                 $nextMonthBirthdays = Employee::select('id', 'first_name', 'middle_name', 'last_name', 'birth_date', 'department', 'position')
                     ->whereMonth('birth_date', $nextMonth)
-                    ->orderByRaw('DAY(birth_date) ASC')
+                    ->orderByRaw("{$birthdayDayExpression} ASC")
                     ->take($remaining)
                     ->get();
 
@@ -133,11 +135,12 @@ class DashboardService implements DashboardServiceInterface
     {
         return Cache::remember('dashboard.leave_applications_by_month', self::CACHE_DURATION, function () {
             $currentYear = now()->year;
+            $monthExpression = $this->monthExpression('applied_date');
             
-            $monthlyData = LeaveApplication::selectRaw('MONTH(applied_date) as month, COUNT(*) as count')
+            $monthlyData = LeaveApplication::selectRaw("{$monthExpression} as month, COUNT(*) as count")
                 ->whereYear('applied_date', $currentYear)
-                ->groupBy('month')
-                ->orderBy('month')
+                ->groupByRaw($monthExpression)
+                ->orderByRaw($monthExpression)
                 ->pluck('count', 'month')
                 ->toArray();
 
@@ -334,7 +337,7 @@ class DashboardService implements DashboardServiceInterface
                 'average_leave_days' => $this->getAverageLeaveDays(),
                 // Super Admin specific metrics
                 'total_users' => User::count(),
-                'inactive_employees' => Employee::where('employment_status', '!=', 'active')->count(),
+                'inactive_employees' => Employee::whereNotIn(DB::raw('LOWER(employment_status)'), Employee::ACTIVE_EMPLOYMENT_STATUSES)->count(),
                 'system_health_score' => 95, // Placeholder for system health monitoring
             ],
             'upcoming_birthdays' => $this->getUpcomingBirthdays(),
@@ -343,6 +346,7 @@ class DashboardService implements DashboardServiceInterface
             'department_metrics' => $this->getDepartmentMetrics(),
             'employment_status_metrics' => $this->getEmploymentStatusMetrics(),
             'most_requested_leave_types' => $this->getMostRequestedLeaveTypes(),
+            'role_view' => 'super_admin',
         ];
     }
 
@@ -366,6 +370,7 @@ class DashboardService implements DashboardServiceInterface
             'department_metrics' => $this->getDepartmentMetrics(),
             'employment_status_metrics' => $this->getEmploymentStatusMetrics(),
             'most_requested_leave_types' => $this->getMostRequestedLeaveTypes(),
+            'role_view' => 'hr_admin',
         ];
     }
 
@@ -520,7 +525,7 @@ class DashboardService implements DashboardServiceInterface
 
     private function getScopedActiveEmployeeCount(array $officeIds): int
     {
-         return Employee::whereIn('office_id', $officeIds)->where('employment_status', 'active')->count();
+         return Employee::whereIn('office_id', $officeIds)->active()->count();
     }
 
     private function getScopedPendingLeaveApplications(array $officeIds): int
@@ -554,6 +559,7 @@ class DashboardService implements DashboardServiceInterface
     {
         $currentMonth = now()->month;
         $currentDay = now()->day;
+        $birthdayDayExpression = $this->birthdayDayExpression();
         
         $query = Employee::whereIn('office_id', $officeIds);
 
@@ -561,7 +567,7 @@ class DashboardService implements DashboardServiceInterface
         $currentMonthBirthdays = (clone $query)
             ->whereMonth('birth_date', $currentMonth)
             ->whereDay('birth_date', '>=', $currentDay)
-            ->orderByRaw('DAY(birth_date) ASC')
+            ->orderByRaw("{$birthdayDayExpression} ASC")
             ->take($limit)
             ->get();
 
@@ -571,7 +577,7 @@ class DashboardService implements DashboardServiceInterface
             
             $nextMonthBirthdays = (clone $query)
                 ->whereMonth('birth_date', $nextMonth)
-                ->orderByRaw('DAY(birth_date) ASC')
+                ->orderByRaw("{$birthdayDayExpression} ASC")
                 ->take($remaining)
                 ->get();
 
@@ -626,7 +632,7 @@ class DashboardService implements DashboardServiceInterface
         return [
             'metrics' => [
                 'total_employees' => Employee::whereIn('department', $deptNames)->count(),
-                'active_employees' => Employee::whereIn('department', $deptNames)->where('employment_status', 'active')->count(),
+                'active_employees' => Employee::whereIn('department', $deptNames)->active()->count(),
                 'pending_leave_applications' => LeaveApplication::whereHas('employee', fn($q) => $q->whereIn('department', $deptNames))->where('status', 'pending')->count(),
                 'employees_on_leave_today' => 0,
                 'new_hires_this_month' => 0,
@@ -656,7 +662,7 @@ class DashboardService implements DashboardServiceInterface
         return [
             'metrics' => [
                 'total_employees' => 1, // Only show self
-                'active_employees' => $employee->employment_status === 'active' ? 1 : 0,
+                'active_employees' => $employee->isActiveEmployment() ? 1 : 0,
                 'pending_leave_applications' => $this->getPersonalPendingLeaveApplications($employee->id),
                 'employees_on_leave_today' => $this->isEmployeeOnLeaveToday($employee->id) ? 1 : 0,
                 'new_hires_this_month' => 0, // Not relevant for employee view
@@ -898,7 +904,7 @@ class DashboardService implements DashboardServiceInterface
     {
         return Cache::remember("dashboard.dept_{$department}.active_employees", self::CACHE_DURATION, function () use ($department) {
             return Employee::where('department', $department)
-                ->where('employment_status', 'active')
+                ->active()
                 ->count();
         });
     }
@@ -967,12 +973,13 @@ class DashboardService implements DashboardServiceInterface
         return Cache::remember("dashboard.dept_{$department}.upcoming_birthdays_{$limit}", self::CACHE_DURATION, function () use ($department, $limit) {
             $currentMonth = now()->month;
             $currentDay = now()->day;
+            $birthdayDayExpression = $this->birthdayDayExpression();
 
             // Get birthdays for current month from today onwards
             $currentMonthBirthdays = Employee::where('department', $department)
                 ->whereMonth('birth_date', $currentMonth)
                 ->whereDay('birth_date', '>=', $currentDay)
-                ->orderByRaw('DAY(birth_date) ASC')
+                ->orderByRaw("{$birthdayDayExpression} ASC")
                 ->take($limit)
                 ->get();
 
@@ -983,7 +990,7 @@ class DashboardService implements DashboardServiceInterface
                 
                 $nextMonthBirthdays = Employee::where('department', $department)
                     ->whereMonth('birth_date', $nextMonth)
-                    ->orderByRaw('DAY(birth_date) ASC')
+                    ->orderByRaw("{$birthdayDayExpression} ASC")
                     ->take($remaining)
                     ->get();
 
@@ -992,6 +999,16 @@ class DashboardService implements DashboardServiceInterface
 
             return $currentMonthBirthdays;
         });
+    }
+
+    private function birthdayDayExpression(): string
+    {
+        return DatabaseExpression::datePart('day', 'birth_date');
+    }
+
+    private function monthExpression(string $column): string
+    {
+        return DatabaseExpression::datePart('month', $column);
     }
 
     /**
@@ -1023,14 +1040,15 @@ class DashboardService implements DashboardServiceInterface
     {
         return Cache::remember("dashboard.dept_{$department}.leave_applications_by_month", self::CACHE_DURATION, function () use ($department) {
             $currentYear = now()->year;
+            $monthExpression = $this->monthExpression('applied_date');
             
             $monthlyData = LeaveApplication::whereHas('employee', function ($query) use ($department) {
                 $query->where('department', $department);
             })
-            ->selectRaw('MONTH(applied_date) as month, COUNT(*) as count')
+            ->selectRaw("{$monthExpression} as month, COUNT(*) as count")
             ->whereYear('applied_date', $currentYear)
-            ->groupBy('month')
-            ->orderBy('month')
+            ->groupByRaw($monthExpression)
+            ->orderByRaw($monthExpression)
             ->pluck('count', 'month')
             ->toArray();
 
@@ -1157,12 +1175,13 @@ class DashboardService implements DashboardServiceInterface
     {
         return Cache::remember("dashboard.employee_{$employeeId}.leave_applications_by_month", self::CACHE_DURATION, function () use ($employeeId) {
             $currentYear = now()->year;
+            $monthExpression = $this->monthExpression('applied_date');
             
             $monthlyData = LeaveApplication::where('employee_id', $employeeId)
-                ->selectRaw('MONTH(applied_date) as month, COUNT(*) as count')
+                ->selectRaw("{$monthExpression} as month, COUNT(*) as count")
                 ->whereYear('applied_date', $currentYear)
-                ->groupBy('month')
-                ->orderBy('month')
+                ->groupByRaw($monthExpression)
+                ->orderByRaw($monthExpression)
                 ->pluck('count', 'month')
                 ->toArray();
 

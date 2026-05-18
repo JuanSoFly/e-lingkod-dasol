@@ -112,6 +112,8 @@ class LeavePolicy extends Model
 
     public function scopeForEmploymentStatus($query, $employmentStatus)
     {
+        $employmentStatus = Employee::normalizedEmploymentStatus($employmentStatus);
+
         return $query->where(function ($q) use ($employmentStatus) {
             $q->whereNull('employment_statuses')
               ->orWhereJsonContains('employment_statuses', $employmentStatus);
@@ -149,8 +151,8 @@ class LeavePolicy extends Model
         }
 
         // Check employment status
-        if ($this->employment_statuses && 
-            !in_array($employee->employment_status, $this->employment_statuses)) {
+        if ($this->employment_statuses &&
+            !in_array(Employee::normalizedEmploymentStatus($employee->employment_status), $this->employment_statuses, true)) {
             return false;
         }
 

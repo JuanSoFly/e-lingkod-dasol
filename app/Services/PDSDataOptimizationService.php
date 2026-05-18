@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Employee;
 use App\Models\QueuedExport;
 use App\Models\ExportAuditLog;
+use App\Support\DatabaseExpression;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -136,12 +137,12 @@ class PDSDataOptimizationService
                 return [
                     'total' => count($employeeIds),
                     'active' => Employee::whereIn('id', $employeeIds)
-                        ->where('employment_status', 'Active')
+                        ->active()
                         ->count(),
                     'inactive' => Employee::whereIn('id', $employeeIds)
-                        ->where('employment_status', '!=', 'Active')
+                        ->whereNotIn(DB::raw('LOWER(employment_status)'), Employee::ACTIVE_EMPLOYMENT_STATUSES)
                         ->count(),
-                    'with_family_data' => DB::table('employee_family_backgrounds')
+                    'with_family_data' => DB::table('employee_family_background')
                         ->whereIn('employee_id', $employeeIds)
                         ->count(),
                     'avg_education_records' => DB::table('employee_education')
@@ -637,10 +638,12 @@ class PDSDataOptimizationService
 
     protected function getAverageProcessingTime(): float
     {
+        $secondsExpression = DatabaseExpression::timestampDiffSeconds('created_at', 'completed_at');
+
         return QueuedExport::where('status', 'completed')
             ->whereNotNull('completed_at')
             ->whereNotNull('created_at')
-            ->avg(DB::raw('TIMESTAMPDIFF(SECOND, created_at, completed_at)')) ?? 0.0;
+            ->avg(DB::raw($secondsExpression)) ?? 0.0;
     }
 
     protected function getJobDetails(string $jobId): ?array
@@ -769,10 +772,12 @@ class PDSDataOptimizationService
 
     protected function getAverageQueueWaitTime(): float
     {
+        $secondsExpression = DatabaseExpression::timestampDiffSeconds('created_at', 'completed_at');
+
         return QueuedExport::where('status', 'completed')
             ->whereNotNull('completed_at')
             ->whereNotNull('created_at')
-            ->avg(DB::raw('TIMESTAMPDIFF(SECOND, created_at, completed_at)')) ?? 0.0;
+            ->avg(DB::raw($secondsExpression)) ?? 0.0;
     }
 
     protected function getQueueProcessingRate(): float

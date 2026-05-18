@@ -181,7 +181,7 @@ class OPCRPerformanceOptimizationService
                     'o.name',
                     DB::raw('COUNT(ow.id) as workflow_count'),
                     DB::raw('AVG(ow.overall_rating) as avg_rating'),
-                    DB::raw('SUM(CASE WHEN ow.workflow_state = "approved" THEN 1 ELSE 0 END) as completed_count'),
+                    DB::raw("SUM(CASE WHEN ow.workflow_state = 'approved' THEN 1 ELSE 0 END) as completed_count"),
                 ])
                 ->where('ow.period_id', $periodId)
                 ->whereNotNull('ow.overall_rating')

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\DatabaseExpression;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -310,12 +311,14 @@ class Report extends Model
         };
 
         // Use max to get the highest sequence number for this type and year
+        $sequenceExpression = DatabaseExpression::numericCast("SUBSTRING(report_number, CHAR_LENGTH('$prefix-$year-') + 1)");
+
         $maxSequence = DB::table('reports')
             ->where('report_type', $type)
             ->where('report_year', $year)
             ->whereNotNull('report_number')
             ->where('report_number', 'like', $prefix . '-' . $year . '-%')
-            ->max(DB::raw("CAST(SUBSTRING(report_number, CHAR_LENGTH('$prefix-$year-') + 1) AS UNSIGNED)"));
+            ->max(DB::raw($sequenceExpression));
 
         $sequence = ($maxSequence ?? 0) + 1;
 

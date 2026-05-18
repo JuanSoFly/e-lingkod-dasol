@@ -121,8 +121,8 @@ class ProductionDatabaseSeeder extends Seeder
         // Assign Department Head to their office
         if ($mpdoOffice && $departmentHead) {
             OfficeAssignment::create([
-                'user_id' => $departmentHead->id,
-                'employee_id' => $departmentHead->employee?->id,
+                'user_id' => $departmentHead->user->id,
+                'employee_id' => $departmentHead->id,
                 'office_id' => $mpdoOffice->id,
                 'role' => 'Department Head',
                 'is_active' => true,
@@ -147,8 +147,8 @@ class ProductionDatabaseSeeder extends Seeder
         // Assign Supervisor to their office
         if ($mpdoOffice && $supervisor) {
             OfficeAssignment::create([
-                'user_id' => $supervisor->id,
-                'employee_id' => $supervisor->employee?->id,
+                'user_id' => $supervisor->user->id,
+                'employee_id' => $supervisor->id,
                 'office_id' => $mpdoOffice->id,
                 'role' => 'Supervisor',
                 'is_active' => true,

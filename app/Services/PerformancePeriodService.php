@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PerformancePeriod;
 use App\Models\OPCRWorkflow;
 use App\Models\Office;
+use App\Support\DatabaseExpression;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -667,7 +668,9 @@ class PerformancePeriodService
      */
     public function getAvailableYears(): Collection
     {
-        return PerformancePeriod::selectRaw('DISTINCT YEAR(start_date) as year')
+        $yearExpression = DatabaseExpression::datePart('year', 'start_date');
+
+        return PerformancePeriod::selectRaw("DISTINCT {$yearExpression} as year")
             ->orderBy('year', 'desc')
             ->pluck('year');
     }

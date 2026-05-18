@@ -29,7 +29,7 @@ class EmployeeService
             $query->where('id', $user->employee?->id);
         } elseif ($user->hasRole('HR Admin')) {
             // HR Admin sees all active employees
-            $query->where('employment_status', 'active');
+            $query->active();
         } elseif ($user->hasRole('Super Admin')) {
             // Super Admin sees all employees (including inactive)
         } else {

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\DatabaseExpression;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -37,7 +38,7 @@ class EmployeeNumberService
             $lastEmployee = DB::table('employees')
                 ->where('employee_number', 'like', $prefix . '%')
                 ->lockForUpdate() // Prevent race conditions
-                ->orderByRaw('CAST(SUBSTRING(employee_number, 10) AS UNSIGNED) DESC')
+                ->orderByRaw(DatabaseExpression::numericCast('SUBSTRING(employee_number, 10)') . ' DESC')
                 ->first();
 
             $nextSequence = 1;
@@ -102,7 +103,7 @@ class EmployeeNumberService
 
             $lastEmployee = DB::table('employees')
                 ->where('employee_number', 'like', $prefix . '%')
-                ->orderByRaw('CAST(SUBSTRING(employee_number, 10) AS UNSIGNED) DESC')
+                ->orderByRaw(DatabaseExpression::numericCast('SUBSTRING(employee_number, 10)') . ' DESC')
                 ->first();
 
             $nextSequence = 1;

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\OPCRWorkflow;
 use App\Models\OfficeAssignment;
 use App\Models\User;
+use App\Support\DatabaseExpression;
 use App\Models\WorkCalendar;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,6 +22,16 @@ use Illuminate\Support\Facades\DB;
 class Employee extends Model
 {
     use HasFactory, SoftDeletes;
+
+    public const ACTIVE_EMPLOYMENT_STATUSES = [
+        'active',
+        'regular',
+        'permanent',
+        'temporary',
+        'contractual',
+        'casual',
+        'probationary',
+    ];
 
     protected $fillable = [
         'employee_number',
@@ -679,9 +690,10 @@ class Employee extends Model
     private function getRequiredBenefitTypes(): array
     {
         $required = ['PhilHealth']; // Universal coverage
+        $employmentStatus = self::normalizedEmploymentStatus($this->employment_status);
 
-        if (in_array($this->employment_status, ['permanent', 'temporary', 'contractual', 'casual'])) {
-            if ($this->employment_status === 'permanent' || $this->employment_status === 'temporary') {
+        if (in_array($employmentStatus, ['permanent', 'temporary', 'regular', 'contractual', 'casual'], true)) {
+            if (in_array($employmentStatus, ['permanent', 'temporary', 'regular'], true)) {
                 $required[] = 'GSIS';
                 $required[] = 'Pag-IBIG';
             } else {
@@ -1034,7 +1046,7 @@ class Employee extends Model
      */
     public static function getDepartmentHeadcount()
     {
-        return self::where('employment_status', 'active')
+        return self::active()
             ->select('department', DB::raw('COUNT(*) as count'))
             ->groupBy('department')
             ->pluck('count', 'department');
@@ -1055,7 +1067,17 @@ class Employee extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('employment_status', 'active');
+        return $query->whereIn(DB::raw('LOWER(employment_status)'), self::ACTIVE_EMPLOYMENT_STATUSES);
+    }
+
+    public function isActiveEmployment(): bool
+    {
+        return in_array(strtolower((string) $this->employment_status), self::ACTIVE_EMPLOYMENT_STATUSES, true);
+    }
+
+    public static function normalizedEmploymentStatus(?string $status): ?string
+    {
+        return $status === null ? null : strtolower(trim($status));
     }
 
     /**
@@ -1071,7 +1093,7 @@ class Employee extends Model
      */
     public function scopeAgeRange($query, $minAge, $maxAge)
     {
-        return $query->whereRaw('YEAR(CURDATE()) - YEAR(birth_date) BETWEEN ? AND ?', [$minAge, $maxAge]);
+        return $query->whereRaw(DatabaseExpression::ageYears('birth_date') . ' BETWEEN ? AND ?', [$minAge, $maxAge]);
     }
 
     /**
@@ -1109,7 +1131,7 @@ class Employee extends Model
         }
 
         if ($user->hasRole('HR Admin')) {
-            return $query->where('employment_status', 'active');
+            return $query->active();
         }
 
         if ($user->hasRole('Super Admin')) {

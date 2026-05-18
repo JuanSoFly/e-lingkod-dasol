@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\DatabaseExpression;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -532,9 +533,11 @@ class Office extends Model
                 }
             }
 
+            $suffixExpression = 'SUBSTRING(code, LENGTH(?) + 1)';
+
             $latestCode = DB::table('offices')
-                ->whereRaw('code REGEXP \'^' . preg_quote($parentCode) . '[0-9]+$\'')
-                ->orderByRaw('CAST(SUBSTRING(code, LENGTH(?) + 1) AS UNSIGNED) DESC', [$parentCode])
+                ->whereRaw(DatabaseExpression::regexWhere('code', '^' . preg_quote($parentCode, '/') . '[0-9]+$'))
+                ->orderByRaw(DatabaseExpression::numericCast($suffixExpression) . ' DESC', [$parentCode])
                 ->value('code');
 
             $nextNumber = $latestCode ? (int)substr($latestCode, strlen($parentCode)) + 1 : 1;

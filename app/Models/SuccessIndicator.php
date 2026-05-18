@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\DatabaseExpression;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -334,8 +335,8 @@ class SuccessIndicator extends Model
     {
         $latestCode = DB::table('success_indicators')
             ->where('mfo_id', $mfoId)
-            ->whereRaw('code REGEXP \'^SI-[0-9]+$\'')
-            ->orderByRaw('CAST(SUBSTRING(code, 4) AS UNSIGNED) DESC')
+            ->whereRaw(DatabaseExpression::regexWhere('code', '^SI-[0-9]+$'))
+            ->orderByRaw(DatabaseExpression::numericCast('SUBSTRING(code, 4)') . ' DESC')
             ->value('code');
 
         $nextNumber = $latestCode ? (int)substr($latestCode, 3) + 1 : 1;

@@ -805,7 +805,7 @@ class OfficeController extends Controller
 
         // Get employees separately since employees() is not a proper relationship
         $employees = $office->employees()
-            ->where('employment_status', 'active')
+            ->active()
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->limit(10)

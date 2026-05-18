@@ -45,7 +45,7 @@ class PDSPolicy
 
         // HR Admin can export active employees only
         if ($user->hasRole('HR Admin')) {
-            if ($employee && $employee->employment_status !== 'Active') {
+            if ($employee && !$employee->isActiveEmployment()) {
                 return Response::deny('You can only export PDS for active employees.');
             }
 
@@ -86,7 +86,7 @@ class PDSPolicy
         if ($user->hasRole('HR Admin')) {
             // Check if all employees are active
             $inactiveCount = Employee::whereIn('id', $employeeIds)
-                ->where('employment_status', '!=', 'Active')
+                ->whereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(employment_status)'), Employee::ACTIVE_EMPLOYMENT_STATUSES)
                 ->count();
 
             if ($inactiveCount > 0) {

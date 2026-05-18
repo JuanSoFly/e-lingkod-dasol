@@ -29,7 +29,7 @@ class LeaveAccrualService
         $excludedStatuses = ['job_order', 'jo', 'cos', 'contract_of_service'];
 
         Employee::whereNotNull('date_hired')
-            ->whereNotIn('employment_status', $excludedStatuses)
+            ->whereNotIn(DB::raw('LOWER(employment_status)'), $excludedStatuses)
             ->chunk(100, function ($employees) use ($year, $month, &$created) {
                 foreach ($employees as $employee) {
                     $policies = app(LeavePolicyService::class)

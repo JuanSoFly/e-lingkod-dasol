@@ -2088,7 +2088,7 @@ class OPCRController extends Controller
                 'o.name',
                 DB::raw('COUNT(*) as workflow_count'),
                 DB::raw('AVG(ow.overall_rating) as avg_rating'),
-                DB::raw('SUM(CASE WHEN ow.workflow_state = "final_approval" THEN 1 ELSE 0 END) as completed_count')
+                DB::raw("SUM(CASE WHEN ow.workflow_state = 'final_approval' THEN 1 ELSE 0 END) as completed_count")
             ])
             ->whereNotNull('ow.overall_rating')
             ->groupBy('ow.office_id', 'o.name')
