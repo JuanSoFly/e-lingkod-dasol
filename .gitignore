@@ -74,3 +74,5 @@ mysql_redis_server.md
 nixpacks.toml.backupss
 ROLE_ANALYSIS.md
 backup
+.agents/skills
+skills-lock.json

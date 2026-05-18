@@ -15,12 +15,13 @@ class OfficeAssignmentSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-
-        // Clear existing office assignments
-        OfficeAssignment::truncate();
-
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('TRUNCATE TABLE office_assignments RESTART IDENTITY CASCADE');
+        } else {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            OfficeAssignment::truncate();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        }
 
         // Get offices that need assignments
         $hrmoOffice = Office::where('code', 'HRMO')->first();

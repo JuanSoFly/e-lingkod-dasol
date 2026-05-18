@@ -29,26 +29,43 @@ class PerformancePeriodService
     public function createPerformancePeriod(array $data): PerformancePeriod
     {
         return DB::transaction(function () use ($data) {
+            $year = $data['year'] ?? date('Y');
+            $semester = $data['semester'] ?? '1st';
+            $status = $data['status'] ?? 'inactive';
+            $isActive = $data['is_active'] ?? ($status === 'active');
+
+            $name = $data['name'] ?? null;
+            if (!$name) {
+                $semesterLabel = match (strtolower($semester)) {
+                    '1st', 'first' => '1st Semester',
+                    '2nd', 'second' => '2nd Semester',
+                    'annual' => 'Annual',
+                    default => $semester,
+                };
+                $name = $year . ' - ' . $semesterLabel;
+            }
+
             $period = PerformancePeriod::create([
-                'name' => $data['name'],
-                'description' => $data['description'] ?? null,
+                'year' => $year,
+                'semester' => $semester,
+                'name' => $name,
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
-                'type' => $data['type'] ?? 'annual',
-                'is_active' => $data['is_active'] ?? true,
-                'metadata' => $data['metadata'] ?? null,
+                'status' => $status,
+                'is_active' => $isActive,
             ]);
 
             // Log period creation
-            $this->auditTrailService->logOPCRActivity(
+            $this->auditTrailService->log(
                 'performance_period_created',
-                null, // No specific workflow model
+                $period->id,
+                "Created performance period: {$period->name}",
                 [
                     'period_id' => $period->id,
                     'period_name' => $period->name,
                     'start_date' => $period->start_date,
                     'end_date' => $period->end_date,
-                    'type' => $period->type,
+                    'type' => $data['type'] ?? 'annual',
                 ]
             );
 
@@ -67,20 +84,39 @@ class PerformancePeriodService
         return DB::transaction(function () use ($period, $data) {
             $oldData = $period->toArray();
 
-            $period->update([
-                'name' => $data['name'] ?? $period->name,
-                'description' => $data['description'] ?? $period->description,
-                'start_date' => $data['start_date'] ?? $period->start_date,
-                'end_date' => $data['end_date'] ?? $period->end_date,
-                'type' => $data['type'] ?? $period->type,
-                'is_active' => $data['is_active'] ?? $period->is_active,
-                'metadata' => array_merge($period->metadata ?? [], $data['metadata'] ?? []),
-            ]);
+            $updateData = [];
+            if (isset($data['year'])) $updateData['year'] = $data['year'];
+            if (isset($data['semester'])) $updateData['semester'] = $data['semester'];
+            if (isset($data['start_date'])) $updateData['start_date'] = $data['start_date'];
+            if (isset($data['end_date'])) $updateData['end_date'] = $data['end_date'];
+            if (isset($data['status'])) {
+                $updateData['status'] = $data['status'];
+                $updateData['is_active'] = $data['status'] === 'active';
+            }
+            if (isset($data['is_active'])) $updateData['is_active'] = $data['is_active'];
+
+            // Construct name if year or semester changed and name wasn't explicitly provided
+            if (isset($data['name'])) {
+                $updateData['name'] = $data['name'];
+            } elseif (isset($data['year']) || isset($data['semester'])) {
+                $year = $data['year'] ?? $period->year;
+                $semester = $data['semester'] ?? $period->semester;
+                $semesterLabel = match (strtolower($semester)) {
+                    '1st', 'first' => '1st Semester',
+                    '2nd', 'second' => '2nd Semester',
+                    'annual' => 'Annual',
+                    default => $semester,
+                };
+                $updateData['name'] = $year . ' - ' . $semesterLabel;
+            }
+
+            $period->update($updateData);
 
             // Log period update
-            $this->auditTrailService->logOPCRActivity(
+            $this->auditTrailService->log(
                 'performance_period_updated',
-                null,
+                $period->id,
+                "Updated performance period: {$period->name}",
                 [
                     'period_id' => $period->id,
                     'period_name' => $period->name,
@@ -238,9 +274,10 @@ class PerformancePeriodService
             $period->update(['is_active' => false]);
 
             // Log period deactivation
-            $this->auditTrailService->logOPCRActivity(
+            $this->auditTrailService->log(
                 'performance_period_deactivated',
-                null,
+                $period->id,
+                "Deactivated performance period: {$period->name}",
                 [
                     'period_id' => $period->id,
                     'period_name' => $period->name,
@@ -302,9 +339,10 @@ class PerformancePeriodService
         }
 
         // Log bulk workflow creation
-        $this->auditTrailService->logOPCRActivity(
+        $this->auditTrailService->log(
             'period_workflows_created',
-            null,
+            $period->id,
+            "Created workflows for performance period: {$period->name}",
             [
                 'period_id' => $period->id,
                 'period_name' => $period->name,
@@ -374,9 +412,10 @@ class PerformancePeriodService
         }
 
         // Log archiving activity
-        $this->auditTrailService->logOPCRActivity(
+        $this->auditTrailService->log(
             'period_workflows_archived',
-            null,
+            $period->id,
+            "Archived workflows for performance period: {$period->name}",
             [
                 'period_id' => $period->id,
                 'period_name' => $period->name,
@@ -718,9 +757,10 @@ class PerformancePeriodService
         $period->delete();
 
         // Log deletion
-        $this->auditTrailService->logOPCRActivity(
+        $this->auditTrailService->log(
             'performance_period_deleted',
-            null,
+            $period->id,
+            "Deleted performance period: {$periodName}",
             [
                 'period_id' => $period->id,
                 'period_name' => $periodName,
@@ -868,9 +908,10 @@ class PerformancePeriodService
             }
 
             // Log duplication
-            $this->auditTrailService->logOPCRActivity(
+            $this->auditTrailService->log(
                 'performance_period_duplicated',
-                null,
+                $newPeriod->id,
+                "Duplicated performance period: {$period->name} to {$newPeriod->name}",
                 [
                     'original_period_id' => $period->id,
                     'original_period_name' => $period->name,

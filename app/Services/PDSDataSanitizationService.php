@@ -15,8 +15,12 @@ class PDSDataSanitizationService
      * @param User $user
      * @return Employee
      */
-    public function sanitizeForRole(Employee $employee, User $user): Employee
+    public function sanitizeForRole(Employee $employee, ?User $user = null): Employee
     {
+        if (!$user) {
+            return $employee;
+        }
+
         $userRole = $this->getUserRole($user);
 
         // For now, return the original employee object

@@ -14,6 +14,7 @@ class StorePerformancePeriodRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'name' => ['nullable', 'string', 'max:255'],
             'year' => ['required', 'integer', 'digits:4', 'min:2020'],
             'semester' => ['required', 'string', 'max:255'],
             'start_date' => ['required', 'date'],

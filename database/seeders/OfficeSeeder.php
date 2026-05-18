@@ -16,12 +16,13 @@ class OfficeSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-
-        // Clear existing offices
-        Office::truncate();
-
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('TRUNCATE TABLE offices RESTART IDENTITY CASCADE');
+        } else {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            Office::truncate();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        }
 
         // Create municipal office structure for Dasol, Pangasinan
         $offices = [

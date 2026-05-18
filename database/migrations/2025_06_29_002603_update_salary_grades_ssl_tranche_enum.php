@@ -12,6 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE salary_grades ALTER COLUMN ssl_tranche SET DEFAULT 'Tranche 4'");
+            DB::statement("COMMENT ON COLUMN salary_grades.ssl_tranche IS 'SSL (Salary Standardization Law) implementation'");
+
+            return;
+        }
+
         // Update the ssl_tranche enum to include Tranche 5
         DB::statement("ALTER TABLE salary_grades MODIFY COLUMN ssl_tranche ENUM('Tranche 1', 'Tranche 2', 'Tranche 3', 'Tranche 4', 'Tranche 5') DEFAULT 'Tranche 4' COMMENT 'SSL (Salary Standardization Law) implementation'");
     }
@@ -21,6 +28,13 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE salary_grades ALTER COLUMN ssl_tranche SET DEFAULT 'Tranche 4'");
+            DB::statement("COMMENT ON COLUMN salary_grades.ssl_tranche IS 'SSL (Salary Standardization Law) implementation'");
+
+            return;
+        }
+
         // Revert back to original enum (only if no Tranche 5 records exist)
         DB::statement("ALTER TABLE salary_grades MODIFY COLUMN ssl_tranche ENUM('Tranche 1', 'Tranche 2', 'Tranche 3', 'Tranche 4') DEFAULT 'Tranche 4' COMMENT 'SSL (Salary Standardization Law) implementation'");
     }

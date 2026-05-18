@@ -23,7 +23,7 @@ return new class extends Migration
         // Add database indexes for improved search performance
         $this->addSearchIndexes();
 
-        // Add full-text indexes for MySQL search optimization
+        // Add full-text indexes for database search optimization
         $this->addFullTextIndexes();
     }
 
@@ -70,10 +70,17 @@ return new class extends Migration
     }
 
     /**
-     * Add full-text search indexes for MySQL
+     * Add full-text search indexes
      */
     private function addFullTextIndexes(): void
     {
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement("CREATE INDEX idx_employee_documents_filename_fulltext ON employee_documents USING GIN (to_tsvector('simple', coalesce(file_name, '')))");
+            DB::statement("CREATE INDEX idx_employee_documents_content_fulltext ON employee_documents USING GIN (to_tsvector('simple', coalesce(extracted_content, '')))");
+
+            return;
+        }
+
         // Full-text index on file names for advanced search
         DB::statement('CREATE FULLTEXT INDEX idx_employee_documents_filename_fulltext ON employee_documents (file_name)');
         
@@ -86,6 +93,16 @@ return new class extends Migration
      */
     private function dropSearchIndexes(): void
     {
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('DROP INDEX IF EXISTS idx_employee_documents_search');
+            DB::statement('DROP INDEX IF EXISTS idx_employee_documents_employee_uploaded');
+            DB::statement('DROP INDEX IF EXISTS idx_employee_documents_metadata');
+            DB::statement('DROP INDEX IF EXISTS idx_employee_documents_uploader');
+            DB::statement('DROP INDEX IF EXISTS idx_employee_documents_content_indexed');
+
+            return;
+        }
+
         DB::statement('DROP INDEX IF EXISTS idx_employee_documents_search ON employee_documents');
         DB::statement('DROP INDEX IF EXISTS idx_employee_documents_employee_uploaded ON employee_documents');
         DB::statement('DROP INDEX IF EXISTS idx_employee_documents_metadata ON employee_documents');
@@ -98,6 +115,13 @@ return new class extends Migration
      */
     private function dropFullTextIndexes(): void
     {
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('DROP INDEX IF EXISTS idx_employee_documents_filename_fulltext');
+            DB::statement('DROP INDEX IF EXISTS idx_employee_documents_content_fulltext');
+
+            return;
+        }
+
         DB::statement('DROP INDEX IF EXISTS idx_employee_documents_filename_fulltext ON employee_documents');
         DB::statement('DROP INDEX IF EXISTS idx_employee_documents_content_fulltext ON employee_documents');
     }

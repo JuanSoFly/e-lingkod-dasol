@@ -36,6 +36,13 @@
                                     <x-input-error :messages="$errors->get('semester')" class="mt-2" />
                                 </div>
                             </div>
+
+                            <div class="mt-4">
+                                <x-input-label for="name" :value="__('Period Name (Optional)')" />
+                                <input type="text" id="name" name="name" value="{{ old('name', $period->name) }}" placeholder="Leave blank for default format (e.g. 2026 - 1st Semester)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                <p class="mt-1 text-xs text-gray-500">Custom name for the performance period. If left empty, it will be automatically generated.</p>
+                                <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                            </div>
                         </div>
 
                         <!-- Date Configuration -->
@@ -75,6 +82,16 @@
                         <div>
                             <h3 class="text-lg font-medium text-gray-900 mb-4">Additional Settings</h3>
                             <div class="space-y-4">
+                                <div>
+                                    <x-input-label for="status" :value="__('Status')" />
+                                    <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" required>
+                                        <option value="active" {{ old('status', $period->status) == 'active' ? 'selected' : '' }}>Active</option>
+                                        <option value="inactive" {{ old('status', $period->status) == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                                        <option value="closed" {{ old('status', $period->status) == 'closed' ? 'selected' : '' }}>Closed</option>
+                                    </select>
+                                    <x-input-error :messages="$errors->get('status')" class="mt-2" />
+                                </div>
+
                                 <div>
                                     <x-input-label for="description" :value="__('Description')" />
                                     <textarea id="description" name="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Optional description for this performance period">{{ old('description', $period->description) }}</textarea>

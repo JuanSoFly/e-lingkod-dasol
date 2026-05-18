@@ -12,6 +12,8 @@ use App\Http\Requests\UpdatePerformancePeriodRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class PerformancePeriodController extends Controller
 {
@@ -85,21 +87,30 @@ class PerformancePeriodController extends Controller
     /**
      * Store a newly created performance period
      */
-    public function store(StorePerformancePeriodRequest $request): JsonResponse
+    public function store(StorePerformancePeriodRequest $request): JsonResponse|\Illuminate\Http\RedirectResponse
     {
         try {
             $period = $this->performancePeriodService->createPeriod($request->validated());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Performance period created successfully',
-                'period' => $period->load(['office', 'createdBy'])
-            ]);
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Performance period created successfully',
+                    'period' => $period->loadMissing(['office'])
+                ]);
+            }
+
+            $routePrefix = request()->routeIs('admin.*') ? 'admin.performance-periods.index' : 'performance-periods.index';
+            return redirect()->route($routePrefix)->with('success', 'Performance period created successfully.');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create performance period: ' . $e->getMessage()
-            ], 500);
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create performance period: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return redirect()->back()->withInput()->with('error', 'Failed to create performance period: ' . $e->getMessage());
         }
     }
 
@@ -151,55 +162,80 @@ class PerformancePeriodController extends Controller
     /**
      * Update the specified performance period
      */
-    public function update(UpdatePerformancePeriodRequest $request, PerformancePeriod $performancePeriod): JsonResponse
+    public function update(UpdatePerformancePeriodRequest $request, PerformancePeriod $performancePeriod): JsonResponse|\Illuminate\Http\RedirectResponse
     {
         if ($performancePeriod->is_locked) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot update a locked performance period'
-            ], 422);
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot update a locked performance period'
+                ], 422);
+            }
+            return redirect()->back()->with('error', 'Cannot update a locked performance period.');
         }
 
         try {
             $updatedPeriod = $this->performancePeriodService->updatePeriod($performancePeriod, $request->validated());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Performance period updated successfully',
-                'period' => $updatedPeriod->load(['office'])
-            ]);
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Performance period updated successfully',
+                    'period' => $updatedPeriod->loadMissing(['office'])
+                ]);
+            }
+
+            $routePrefix = request()->routeIs('admin.*') ? 'admin.performance-periods.index' : 'performance-periods.index';
+            return redirect()->route($routePrefix)->with('success', 'Performance period updated successfully.');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update performance period: ' . $e->getMessage()
-            ], 500);
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update performance period: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return redirect()->back()->withInput()->with('error', 'Failed to update performance period: ' . $e->getMessage());
         }
     }
 
     /**
      * Remove the specified performance period
      */
-    public function destroy(PerformancePeriod $performancePeriod): JsonResponse
+    public function destroy(PerformancePeriod $performancePeriod): JsonResponse|\Illuminate\Http\RedirectResponse
     {
         try {
             $result = $this->performancePeriodService->deletePeriod($performancePeriod);
 
             if ($result['deleted']) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Performance period deleted successfully'
-                ]);
+                if (request()->wantsJson() || request()->ajax()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Performance period deleted successfully'
+                    ]);
+                }
+
+                $routePrefix = request()->routeIs('admin.*') ? 'admin.performance-periods.index' : 'performance-periods.index';
+                return redirect()->route($routePrefix)->with('success', 'Performance period deleted successfully.');
             } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => $result['message'] ?? 'Cannot delete performance period'
-                ], 422);
+                if (request()->wantsJson() || request()->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $result['message'] ?? 'Cannot delete performance period'
+                    ], 422);
+                }
+
+                return redirect()->back()->with('error', $result['message'] ?? 'Cannot delete performance period.');
             }
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete performance period: ' . $e->getMessage()
-            ], 500);
+            if (request()->wantsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to delete performance period: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return redirect()->back()->with('error', 'Failed to delete performance period: ' . $e->getMessage());
         }
     }
 

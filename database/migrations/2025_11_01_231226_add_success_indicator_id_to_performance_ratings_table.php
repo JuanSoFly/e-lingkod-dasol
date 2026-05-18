@@ -27,12 +27,22 @@ return new class extends Migration
         });
 
         // Populate success_indicator_id values based on existing target relationships
-        DB::statement('
-            UPDATE performance_ratings pr
-            JOIN performance_targets pt ON pr.target_id = pt.id
-            SET pr.success_indicator_id = pt.success_indicator_id
-            WHERE pr.success_indicator_id IS NULL
-        ');
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('
+                UPDATE performance_ratings pr
+                SET success_indicator_id = pt.success_indicator_id
+                FROM performance_targets pt
+                WHERE pr.target_id = pt.id
+                  AND pr.success_indicator_id IS NULL
+            ');
+        } else {
+            DB::statement('
+                UPDATE performance_ratings pr
+                JOIN performance_targets pt ON pr.target_id = pt.id
+                SET pr.success_indicator_id = pt.success_indicator_id
+                WHERE pr.success_indicator_id IS NULL
+            ');
+        }
     }
 
     /**

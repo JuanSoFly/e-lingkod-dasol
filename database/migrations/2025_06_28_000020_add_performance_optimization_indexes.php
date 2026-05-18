@@ -179,13 +179,22 @@ return new class extends Migration
         }
     }
 
-    /**
-     * Check if an index exists on a table - MySQL compatible
-     */
     private function indexExists(string $table, string $indexName): bool
     {
         try {
-            $result = Schema::getConnection()->select("SHOW INDEX FROM `{$table}` WHERE Key_name = ?", [$indexName]);
+            $connection = Schema::getConnection();
+
+            if ($connection->getDriverName() === 'pgsql') {
+                $result = $connection->select(
+                    'select 1 from pg_indexes where schemaname = current_schema() and tablename = ? and indexname = ? limit 1',
+                    [$table, $indexName]
+                );
+
+                return count($result) > 0;
+            }
+
+            $result = $connection->select("SHOW INDEX FROM `{$table}` WHERE Key_name = ?", [$indexName]);
+
             return count($result) > 0;
         } catch (\Exception $e) {
             return false;

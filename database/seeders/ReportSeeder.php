@@ -18,10 +18,6 @@ class ReportSeeder extends Seeder
         $this->command->info('Clearing existing reports...');
         Report::truncate();
         
-        // Ensure we have users to assign to reports
-        if (User::count() === 0) {
-            $this->call(UserSeeder::class);
-        }
 
         // Get some users for assignment
         $users = User::limit(5)->get();
@@ -186,6 +182,8 @@ class ReportSeeder extends Seeder
     private function addWorkflowUsers(Report $report, $users, string $status): void
     {
         $updates = [];
+        $availableUsers = $users->where('id', '!=', $report->generated_by)->shuffle()->values();
+        $stepIndex = 0;
         
         // Add reviewer for reviewed+ statuses
         if (in_array($status, [
@@ -194,7 +192,9 @@ class ReportSeeder extends Seeder
             Report::STATUS_SUBMITTED,
             Report::STATUS_ACKNOWLEDGED,
         ])) {
-            $updates['reviewed_by'] = $users->where('id', '!=', $report->generated_by)->random()->id;
+            if (isset($availableUsers[$stepIndex])) {
+                $updates['reviewed_by'] = $availableUsers[$stepIndex++]->id;
+            }
         }
         
         // Add approver for approved+ statuses
@@ -203,7 +203,9 @@ class ReportSeeder extends Seeder
             Report::STATUS_SUBMITTED,
             Report::STATUS_ACKNOWLEDGED,
         ])) {
-            $updates['approved_by'] = $users->where('id', '!=', $report->generated_by)->random()->id;
+            if (isset($availableUsers[$stepIndex])) {
+                $updates['approved_by'] = $availableUsers[$stepIndex++]->id;
+            }
         }
         
         // Add submitter for submitted+ statuses
@@ -211,7 +213,9 @@ class ReportSeeder extends Seeder
             Report::STATUS_SUBMITTED,
             Report::STATUS_ACKNOWLEDGED,
         ])) {
-            $updates['submitted_by'] = $users->where('id', '!=', $report->generated_by)->random()->id;
+            if (isset($availableUsers[$stepIndex])) {
+                $updates['submitted_by'] = $availableUsers[$stepIndex++]->id;
+            }
             $updates['submitted_at'] = Carbon::now()->subDays(rand(1, 30));
             $updates['submission_method'] = collect([
                 Report::SUBMISSION_ONLINE,

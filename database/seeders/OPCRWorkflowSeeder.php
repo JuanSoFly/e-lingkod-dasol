@@ -15,9 +15,13 @@ class OPCRWorkflowSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        OPCRWorkflow::truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('TRUNCATE TABLE opcr_workflows RESTART IDENTITY CASCADE');
+        } else {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            OPCRWorkflow::truncate();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        }
 
         // Get current performance period or create a default one
         $period = PerformancePeriod::where('is_active', true)->first();

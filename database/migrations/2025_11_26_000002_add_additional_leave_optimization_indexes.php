@@ -103,7 +103,20 @@ return new class extends Migration
      */
     protected function indexExists(string $table, string $index): bool
     {
-        return Schema::hasTable($table) && \DB::select(
+        if (!Schema::hasTable($table)) {
+            return false;
+        }
+
+        $connection = Schema::getConnection();
+
+        if ($connection->getDriverName() === 'pgsql') {
+            return count($connection->select(
+                'select 1 from pg_indexes where schemaname = current_schema() and tablename = ? and indexname = ? limit 1',
+                [$table, $index]
+            )) > 0;
+        }
+
+        return $connection->select(
             "SELECT COUNT(*) as count FROM information_schema.statistics 
             WHERE table_schema = DATABASE() 
             AND table_name = ? 

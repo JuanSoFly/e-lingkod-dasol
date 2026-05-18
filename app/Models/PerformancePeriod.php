@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PerformancePeriod extends Model
@@ -13,9 +14,13 @@ class PerformancePeriod extends Model
     protected $fillable = [
         'year',
         'semester',
+        'name',
         'start_date',
         'end_date',
         'status',
+        'is_active',
+        'office_id',
+        'is_opcr_period',
         'planning_deadline',
         'pmt_deadline',
         'lce_deadline',
@@ -27,6 +32,7 @@ class PerformancePeriod extends Model
         'planning_deadline' => 'date',
         'pmt_deadline' => 'date',
         'lce_deadline' => 'date',
+        'is_active' => 'boolean',
     ];
 
     public function targets(): HasMany
@@ -53,5 +59,13 @@ class PerformancePeriod extends Model
     public function ipcrs(): HasMany
     {
         return $this->hasMany(Ipcr::class, 'period_id');
+    }
+
+    /**
+     * Get the office associated with this performance period
+     */
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(Office::class, 'office_id');
     }
 }

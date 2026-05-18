@@ -35,6 +35,13 @@
                                     <x-input-error :messages="$errors->get('semester')" class="mt-2" />
                                 </div>
                             </div>
+
+                            <div class="mt-4">
+                                <x-input-label for="name" :value="__('Period Name (Optional)')" />
+                                <input type="text" id="name" name="name" value="{{ old('name') }}" placeholder="Leave blank for default format (e.g. 2026 - 1st Semester)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                <p class="mt-1 text-xs text-gray-500">Custom name for the performance period. If left empty, it will be automatically generated.</p>
+                                <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                            </div>
                         </div>
 
                         <!-- Date Configuration -->

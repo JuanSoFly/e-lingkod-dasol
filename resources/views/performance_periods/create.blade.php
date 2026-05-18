@@ -13,6 +13,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div><x-input-label for="year" value="Year" /><x-text-input id="year" name="year" type="number" class="mt-1 block w-full" :value="old('year', date('Y'))" required /></div>
                         <div><x-input-label for="semester" value="Semester / Cycle" /><x-text-input id="semester" name="semester" type="text" class="mt-1 block w-full" :value="old('semester')" placeholder="e.g., 1st Semester" required /></div>
+                        <div class="md:col-span-2"><x-input-label for="name" value="Period Name (Optional)" /><x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name')" placeholder="Leave blank for default format (e.g. 2026 - 1st Semester)" /></div>
                         <div><x-input-label for="start_date" value="Start Date" /><x-text-input id="start_date" name="start_date" type="date" class="mt-1 block w-full" :value="old('start_date')" required /></div>
                         <div><x-input-label for="end_date" value="End Date" /><x-text-input id="end_date" name="end_date" type="date" class="mt-1 block w-full" :value="old('end_date')" required /></div>
                         <div>

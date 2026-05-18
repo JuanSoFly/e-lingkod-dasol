@@ -20,8 +20,8 @@ fi
 echo "🗄️ Running database migrations..."
 php artisan migrate --force 2>/dev/null || echo "⚠️ Migrations skipped (database may not be ready yet)"
 
-# Substitute Railway's dynamic PORT into nginx config
-export PORT="${PORT:-8080}"
+# Substitute Render's dynamic PORT into nginx config
+export PORT="${PORT:-10000}"
 envsubst '${PORT}' < /app/nginx.conf > /tmp/nginx.conf
 
 # Generate Nginx mime.types and fastcgi_params dynamically to ensure they exist

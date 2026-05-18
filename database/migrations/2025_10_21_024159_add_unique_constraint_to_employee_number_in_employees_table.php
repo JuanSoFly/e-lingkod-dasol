@@ -17,7 +17,7 @@ return new class extends Migration
             SELECT employee_number, COUNT(*) as count
             FROM employees
             GROUP BY employee_number
-            HAVING count > 1
+            HAVING COUNT(*) > 1
         ');
 
         foreach ($duplicates as $duplicate) {

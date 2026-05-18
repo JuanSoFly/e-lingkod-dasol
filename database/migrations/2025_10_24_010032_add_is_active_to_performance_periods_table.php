@@ -16,7 +16,7 @@ return new class extends Migration
         });
 
         // Set existing records as active by default
-        DB::statement('UPDATE performance_periods SET is_active = 1 WHERE is_active IS NULL');
+        DB::statement('UPDATE performance_periods SET is_active = true WHERE is_active IS NULL');
     }
 
     /**

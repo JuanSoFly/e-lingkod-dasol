@@ -15,9 +15,13 @@ class SuccessIndicatorsSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        SuccessIndicator::truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('TRUNCATE TABLE success_indicators RESTART IDENTITY CASCADE');
+        } else {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            SuccessIndicator::truncate();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        }
 
         // Get first admin user for created_by field
         $adminUser = User::whereHas('roles', function($query) {

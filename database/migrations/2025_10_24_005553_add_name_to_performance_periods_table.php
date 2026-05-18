@@ -16,16 +16,16 @@ return new class extends Migration
         });
 
         // Migrate existing year + semester combinations to name format
-        \DB::statement('
+        \DB::statement(<<<'SQL'
             UPDATE performance_periods
-            SET name = CONCAT(year, " - ",
+            SET name = CONCAT(year, ' - ',
                          CASE
-                             WHEN semester = "1st" THEN "1st Semester"
-                             WHEN semester = "2nd" THEN "2nd Semester"
+                             WHEN semester = '1st' THEN '1st Semester'
+                             WHEN semester = '2nd' THEN '2nd Semester'
                              ELSE semester
                          END)
             WHERE name IS NULL
-        ');
+        SQL);
     }
 
     /**
