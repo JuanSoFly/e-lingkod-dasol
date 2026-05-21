@@ -69,6 +69,30 @@ class DatabaseExpression
             : "{$column} REGEXP '{$quotedPattern}'";
     }
 
+    public static function orderedValues(string $column, array $values): string
+    {
+        $cases = [];
+
+        foreach (array_values($values) as $index => $value) {
+            $cases[] = 'WHEN ' . $column . ' = ' . self::stringLiteral((string) $value) . ' THEN ' . $index;
+        }
+
+        return 'CASE ' . implode(' ', $cases) . ' ELSE ' . count($values) . ' END';
+    }
+
+    public static function coalesceAsInteger(array $columns): string
+    {
+        $expressions = array_map(function (string $column) {
+            $textExpression = self::isPostgres()
+                ? "CAST({$column} AS TEXT)"
+                : "CAST({$column} AS CHAR)";
+
+            return self::numericCast("NULLIF({$textExpression}, '')");
+        }, $columns);
+
+        return 'COALESCE(' . implode(', ', $expressions) . ')';
+    }
+
     public static function stringLiteral(string $value): string
     {
         return "'" . str_replace("'", "''", $value) . "'";

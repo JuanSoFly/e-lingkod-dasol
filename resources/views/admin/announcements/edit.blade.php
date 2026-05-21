@@ -1,73 +1,89 @@
-@extends('layouts.app')
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Edit Announcement') }}
+        </h2>
+    </x-slot>
 
-@section('content')
-<div class="py-12">
-    <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-            <div class="p-6 bg-white border-b border-gray-200">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">Edit Announcement</h2>
-                    <a href="{{ route('admin.announcements.index') }}" class="text-gray-600 hover:text-gray-900">
-                        &larr; Back to List
-                    </a>
+    <div class="space-y-6">
+        <div class="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <div>
+                     <h3 class="text-lg font-medium text-gray-900">Edit Announcement</h3>
+                     <p class="text-sm text-gray-500 mt-1">Update the details of the announcement.</p>
                 </div>
-
-                <form action="{{ route('admin.announcements.update', $announcement) }}" method="POST">
+                <a href="{{ route('admin.announcements.index') }}" class="text-sm text-gray-600 hover:text-gray-900">
+                    &larr; Back to List
+                </a>
+            </div>
+            <div class="p-6">
+                <form action="{{ route('admin.announcements.update', $announcement) }}" method="POST" class="space-y-6">
                     @csrf
                     @method('PUT')
-                    
-                    <div class="mb-4">
-                        <label for="title" class="block text-gray-700 text-sm font-bold mb-2">Title</label>
-                        <input type="text" name="title" id="title" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" value="{{ old('title', $announcement->title) }}" required>
-                        @error('title') <p class="text-red-500 text-xs italic">{{ $message }}</p> @enderror
+
+                    <!-- Title -->
+                    <div>
+                        <x-input-label for="title" :value="__('Title')" />
+                        <x-text-input id="title" class="block mt-1 w-full" type="text" name="title" :value="old('title', $announcement->title)" required autofocus />
+                        <x-input-error :messages="$errors->get('title')" class="mt-2" />
                     </div>
 
-                    <div class="mb-4">
-                        <label for="message" class="block text-gray-700 text-sm font-bold mb-2">Message</label>
-                        <textarea name="message" id="message" rows="4" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>{{ old('message', $announcement->message) }}</textarea>
-                        @error('message') <p class="text-red-500 text-xs italic">{{ $message }}</p> @enderror
+                    <!-- Message -->
+                    <div>
+                        <x-input-label for="message" :value="__('Message')" />
+                        <textarea id="message" name="message" rows="4" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>{{ old('message', $announcement->message) }}</textarea>
+                        <x-input-error :messages="$errors->get('message')" class="mt-2" />
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Type -->
                         <div>
-                            <label for="type" class="block text-gray-700 text-sm font-bold mb-2">Type</label>
-                            <select name="type" id="type" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            <x-input-label for="type" :value="__('Type')" />
+                            <select id="type" name="type" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
                                 <option value="info" {{ old('type', $announcement->type) == 'info' ? 'selected' : '' }}>Info</option>
                                 <option value="warning" {{ old('type', $announcement->type) == 'warning' ? 'selected' : '' }}>Warning</option>
                                 <option value="danger" {{ old('type', $announcement->type) == 'danger' ? 'selected' : '' }}>Danger (Red)</option>
                                 <option value="success" {{ old('type', $announcement->type) == 'success' ? 'selected' : '' }}>Success (Green)</option>
                             </select>
-                            @error('type') <p class="text-red-500 text-xs italic">{{ $message }}</p> @enderror
+                            <x-input-error :messages="$errors->get('type')" class="mt-2" />
                         </div>
-                        
-                        <div class="flex items-center mt-6">
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" name="is_important" class="form-checkbox h-5 w-5 text-indigo-600" style="border-radius: 4px;" value="1" {{ old('is_important', $announcement->is_important) ? 'checked' : '' }}>
-                                <span class="ml-2 text-gray-700 font-bold">Mark as Important?</span>
+
+                         <!-- Importance -->
+                        <div class="flex items-center md:pt-8">
+                             <label for="is_important" class="inline-flex items-center">
+                                <input id="is_important" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="is_important" value="1" {{ old('is_important', $announcement->is_important) ? 'checked' : '' }}>
+                                <span class="ml-2 text-sm text-gray-600">{{ __('Mark as Important?') }}</span>
                             </label>
-                            @error('is_important') <p class="text-red-500 text-xs italic">{{ $message }}</p> @enderror
+                            <x-input-error :messages="$errors->get('is_important')" class="mt-2" />
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Start Date -->
                         <div>
-                            <label for="starts_at" class="block text-gray-700 text-sm font-bold mb-2">Start Date (Optional)</label>
-                            <input type="date" name="starts_at" id="starts_at" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" value="{{ old('starts_at', $announcement->starts_at?->format('Y-m-d')) }}">
+                            <x-input-label for="starts_at" :value="__('Start Date (Optional)')" />
+                            <x-text-input id="starts_at" class="block mt-1 w-full" type="date" name="starts_at" :value="old('starts_at', $announcement->starts_at?->format('Y-m-d'))" />
+                            <x-input-error :messages="$errors->get('starts_at')" class="mt-2" />
                         </div>
+
+                        <!-- End Date -->
                         <div>
-                            <label for="ends_at" class="block text-gray-700 text-sm font-bold mb-2">End Date (Optional)</label>
-                            <input type="date" name="ends_at" id="ends_at" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" value="{{ old('ends_at', $announcement->ends_at?->format('Y-m-d')) }}">
+                            <x-input-label for="ends_at" :value="__('End Date (Optional)')" />
+                            <x-text-input id="ends_at" class="block mt-1 w-full" type="date" name="ends_at" :value="old('ends_at', $announcement->ends_at?->format('Y-m-d'))" />
+                            <x-input-error :messages="$errors->get('ends_at')" class="mt-2" />
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-end">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                            Update Announcement
-                        </button>
+                    <div class="flex items-center justify-end pt-6 border-t border-gray-200">
+                        <a href="{{ route('admin.announcements.index') }}" class="mr-4 text-sm text-gray-600 hover:text-gray-900">
+                             {{ __('Cancel') }}
+                        </a>
+                        <x-primary-button>
+                            {{ __('Update Announcement') }}
+                        </x-primary-button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-</div>
-@endsection
+</x-app-layout>

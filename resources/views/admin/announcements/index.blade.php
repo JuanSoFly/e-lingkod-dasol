@@ -1,12 +1,4 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Manage Announcements') }}
-            </h2>
-        </div>
-    </x-slot>
-
     <div class="space-y-6">
         @if(session('success'))
             <div class="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
@@ -20,17 +12,18 @@
         @endif
 
         <!-- Page Header -->
-        <div class="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 shadow-sm">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+        <div class="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 shadow-sm text-center">
+            <div class="flex flex-col items-center justify-center space-y-4">
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900">All Announcements</h3>
+                    <h3 class="text-xl font-bold text-gray-900">All Announcements</h3>
                     <p class="text-sm text-gray-500 mt-1">
                         {{ $announcements->total() }} total announcements
                     </p>
                 </div>
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-3">
-                    <a href="{{ route('admin.announcements.create') }}">
-                        <x-primary-button class="w-full sm:w-auto justify-center">
+                @if($announcements->total() > 0)
+                <div>
+                    <a href="{{ route('admin.announcements.create') }}" class="pds-edit-link" data-title="Create Announcement">
+                        <x-primary-button>
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                             </svg>
@@ -38,6 +31,7 @@
                         </x-primary-button>
                     </a>
                 </div>
+                @endif
             </div>
         </div>
 
@@ -130,7 +124,7 @@
                         </span>
 
                         <div class="flex space-x-2">
-                            <a href="{{ route('admin.announcements.edit', $announcement) }}" class="p-1 text-indigo-600 hover:text-indigo-900 bg-indigo-50 rounded">
+                            <a href="{{ route('admin.announcements.edit', $announcement) }}" class="pds-edit-link p-1 text-indigo-600 hover:text-indigo-900 bg-indigo-50 rounded" data-title="Edit Announcement">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                 </svg>
@@ -160,7 +154,7 @@
                             Get started by creating your first announcement.
                         @endif
                     </p>
-                    <a href="{{ route('admin.announcements.create') }}">
+                    <a href="{{ route('admin.announcements.create') }}" class="pds-edit-link" data-title="Create Announcement">
                         <x-primary-button>
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -227,7 +221,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex justify-end space-x-2">
-                                        <a href="{{ route('admin.announcements.edit', $announcement) }}" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded transition-colors">
+                                        <a href="{{ route('admin.announcements.edit', $announcement) }}" class="pds-edit-link text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded transition-colors" data-title="Edit Announcement">
                                             Edit
                                         </a>
                                         <form action="{{ route('admin.announcements.destroy', $announcement) }}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this announcement?');">
@@ -248,7 +242,7 @@
                                     </svg>
                                     <h3 class="text-lg font-medium text-gray-500 mb-2">No announcements found</h3>
                                     <p class="text-sm text-gray-400 mb-4">Get started by creating your first announcement.</p>
-                                    <a href="{{ route('admin.announcements.create') }}">
+                                    <a href="{{ route('admin.announcements.create') }}" class="pds-edit-link" data-title="Create Announcement">
                                         <x-primary-button>
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>

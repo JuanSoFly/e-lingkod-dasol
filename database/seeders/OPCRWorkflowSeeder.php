@@ -2,9 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Models\OPCRWorkflow;
 use App\Models\Office;
+use App\Models\OPCRWorkflow;
 use App\Models\PerformancePeriod;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -25,7 +26,7 @@ class OPCRWorkflowSeeder extends Seeder
 
         // Get current performance period or create a default one
         $period = PerformancePeriod::where('is_active', true)->first();
-        if (!$period) {
+        if (! $period) {
             $period = PerformancePeriod::create([
                 'name' => 'CY 2025',
                 'year' => 2025,
@@ -41,6 +42,15 @@ class OPCRWorkflowSeeder extends Seeder
         // Get major offices for workflow assignment
         $offices = Office::where('is_active', true)->get();
 
+        $workflowUserId = User::where('email', 'admin@example.com')->value('id')
+            ?? User::query()->value('id');
+
+        if (! $workflowUserId) {
+            $this->command->warn('No users found. Skipping OPCR workflow seed data.');
+
+            return;
+        }
+
         // Workflow states
         $workflowStates = ['draft', 'committed', 'in_progress', 'evaluation', 'final_approval'];
 
@@ -50,7 +60,7 @@ class OPCRWorkflowSeeder extends Seeder
             'Office Performance Assessment',
             'Strategic Implementation Review',
             'Service Delivery Evaluation',
-            'Operational Efficiency Assessment'
+            'Operational Efficiency Assessment',
         ];
 
         $adjectivalRatings = ['Outstanding', 'Very Satisfactory', 'Satisfactory', 'Unsatisfactory', 'Poor'];
@@ -89,32 +99,32 @@ class OPCRWorkflowSeeder extends Seeder
                 // Add timestamps based on workflow state
                 switch ($state) {
                     case 'committed':
-                        $workflowData['committed_by'] = 1;
+                        $workflowData['committed_by'] = $workflowUserId;
                         $workflowData['committed_at'] = now()->subDays(rand(1, 10));
                         break;
                     case 'in_progress':
-                        $workflowData['committed_by'] = 1;
+                        $workflowData['committed_by'] = $workflowUserId;
                         $workflowData['committed_at'] = now()->subDays(rand(20, 30));
-                        $workflowData['submitted_by'] = 1;
+                        $workflowData['submitted_by'] = $workflowUserId;
                         $workflowData['submitted_at'] = now()->subDays(rand(10, 20));
                         break;
                     case 'evaluation':
-                        $workflowData['committed_by'] = 1;
+                        $workflowData['committed_by'] = $workflowUserId;
                         $workflowData['committed_at'] = now()->subDays(rand(30, 40));
-                        $workflowData['submitted_by'] = 1;
+                        $workflowData['submitted_by'] = $workflowUserId;
                         $workflowData['submitted_at'] = now()->subDays(rand(20, 30));
-                        $workflowData['assessed_by'] = 1;
+                        $workflowData['assessed_by'] = $workflowUserId;
                         $workflowData['assessed_at'] = now()->subDays(rand(10, 20));
                         $workflowData['assessor_remarks'] = $this->generateAssessorRemarks();
                         break;
                     case 'final_approval':
-                        $workflowData['committed_by'] = 1;
+                        $workflowData['committed_by'] = $workflowUserId;
                         $workflowData['committed_at'] = now()->subDays(rand(40, 50));
-                        $workflowData['submitted_by'] = 1;
+                        $workflowData['submitted_by'] = $workflowUserId;
                         $workflowData['submitted_at'] = now()->subDays(rand(30, 40));
-                        $workflowData['assessed_by'] = 1;
+                        $workflowData['assessed_by'] = $workflowUserId;
                         $workflowData['assessed_at'] = now()->subDays(rand(20, 30));
-                        $workflowData['approved_by'] = 1;
+                        $workflowData['approved_by'] = $workflowUserId;
                         $workflowData['approved_at'] = now()->subDays(rand(5, 15));
                         $workflowData['assessor_remarks'] = $this->generateAssessorRemarks();
                         $workflowData['approver_remarks'] = $this->generateApproverRemarks();
@@ -150,7 +160,7 @@ class OPCRWorkflowSeeder extends Seeder
             'committed' => 'Performance targets have been identified and committed by the department head.',
             'in_progress' => 'Performance review is currently in progress with ongoing data collection and analysis.',
             'evaluation' => 'Performance assessment is being conducted by designated evaluators.',
-            'final_approval' => 'Performance review has been completed and is awaiting final approval.'
+            'final_approval' => 'Performance review has been completed and is awaiting final approval.',
         ];
 
         return $summaries[$state] ?? $summaries['draft'];
@@ -170,7 +180,7 @@ class OPCRWorkflowSeeder extends Seeder
             'Focus on capacity building and professional development for staff.',
             'Implement enhanced monitoring and evaluation systems.',
             'Improve inter-office coordination and communication protocols.',
-            'Adopt innovative approaches to increase operational efficiency.'
+            'Adopt innovative approaches to increase operational efficiency.',
         ];
 
         return implode(' ', array_slice($recommendations, 0, rand(2, 3)));
@@ -186,7 +196,7 @@ class OPCRWorkflowSeeder extends Seeder
             'Performance targets were achieved with notable excellence in key areas.',
             'Recommend continuation of current effective practices.',
             'Areas for improvement have been identified and should be addressed.',
-            'Overall performance meets expected standards.'
+            'Overall performance meets expected standards.',
         ];
 
         return $remarks[array_rand($remarks)];
@@ -202,7 +212,7 @@ class OPCRWorkflowSeeder extends Seeder
             'Approved with recommendation for implementation of best practices.',
             'Performance targets successfully met. Continue excellent work.',
             'Approved. Office shows consistent improvement and dedication.',
-            'Final approval granted. Outstanding performance achievement.'
+            'Final approval granted. Outstanding performance achievement.',
         ];
 
         return $remarks[array_rand($remarks)];

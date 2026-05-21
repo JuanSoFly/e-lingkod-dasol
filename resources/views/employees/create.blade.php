@@ -282,6 +282,9 @@
     <script>
         // Form submission handling
         document.getElementById('employeeForm').addEventListener('submit', async function(e) {
+            if (this.closest('#pds-modal-form-container')) {
+                return;
+            }
             e.preventDefault();
 
             const submitBtn = document.getElementById('submitBtn');

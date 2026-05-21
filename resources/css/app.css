@@ -481,3 +481,36 @@ canvas {
         padding-right: 1rem;
     }
 }
+
+/* PDS Modal Normalizations */
+.pds-modal-content-wrapper .py-12 {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.pds-modal-content-wrapper .max-w-7xl {
+    max-width: 100%;
+}
+
+.pds-modal-content-wrapper .sm\:px-6,
+.pds-modal-content-wrapper .lg\:px-8 {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.pds-modal-content-wrapper header,
+.pds-modal-content-wrapper nav,
+.pds-modal-content-wrapper .bg-gray-100.border-b {
+    display: none !important;
+}
+
+/* Modal body height: full viewport on mobile, 75vh on desktop */
+#pds-modal-body {
+    max-height: calc(100dvh - 57px);
+}
+
+@media (min-width: 1024px) {
+    #pds-modal-body {
+        max-height: 75vh;
+    }
+}

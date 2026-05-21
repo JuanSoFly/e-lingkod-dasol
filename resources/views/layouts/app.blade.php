@@ -57,6 +57,48 @@
         <!-- Global Confirmation Modal -->
         <x-confirm-dialog />
 
+        <!-- PDS/Employee Edit Modal -->
+        <div id="pds-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <!-- Backdrop -->
+            <div id="pds-modal-backdrop" class="fixed inset-0 bg-gray-900/60 transition-opacity duration-300 ease-out opacity-0" aria-hidden="true"></div>
+
+            <!-- Modal Positioning Wrapper -->
+            <div class="fixed inset-0 overflow-y-auto">
+                <div class="flex min-h-full items-stretch lg:items-center lg:justify-center lg:p-4">
+                    <!-- Modal Panel -->
+                    <div id="pds-modal-panel" class="relative w-full bg-white transform transition-all duration-300 ease-out translate-y-4 opacity-0 lg:translate-y-0 lg:scale-95 lg:my-8 lg:max-w-5xl lg:w-full lg:rounded-xl lg:shadow-2xl lg:border lg:border-gray-100">
+                        <!-- Modal Header -->
+                        <div class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between">
+                            <h3 class="text-base sm:text-lg font-semibold text-gray-900 truncate pr-4" id="pds-modal-title">
+                                Edit Details
+                            </h3>
+                            <button type="button" id="pds-modal-close" class="flex-shrink-0 text-gray-400 hover:text-gray-600 focus:outline-none p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                                <span class="sr-only">Close</span>
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Modal Content Body -->
+                        <div class="px-4 py-4 sm:px-6 sm:py-6 overflow-y-auto" id="pds-modal-body">
+                            <!-- Loader -->
+                            <div id="pds-modal-loader" class="flex flex-col items-center justify-center py-12">
+                                <svg class="animate-spin h-10 w-10 text-blue-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span class="text-sm text-gray-500 font-medium">Loading form content...</span>
+                            </div>
+
+                            <!-- Container for AJAX HTML -->
+                            <div id="pds-modal-form-container" class="hidden"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Scripts Stack -->
         @stack('scripts')
     </body>

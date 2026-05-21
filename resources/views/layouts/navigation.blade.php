@@ -257,7 +257,7 @@
                                     <button class="inline-flex items-center md:px-2 lg:px-3 py-2 md:text-xs lg:text-sm font-medium leading-5 rounded-md transition duration-150 ease-in-out group {{ request()->routeIs('ipcr.*') ? 'text-indigo-700 bg-indigo-50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                                         <div class="flex items-center space-x-1">
                                             <svg class="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 014-4h6m2 2l-2-2m0 0l-2 2m2-2v6" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                                             </svg>
                                             <span>IPCR</span>
                                             <svg class="fill-current h-4 w-4 transition-transform duration-200 group-hover:rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
@@ -306,7 +306,7 @@
 
 
                     <!-- Employee Self-Service Portal -->
-                    @if(auth()->user()->employee)
+                    @if(auth()->user()->employee && !auth()->user()->hasRole('Employee'))
                     <div class="hidden md:flex md:items-center">
                         <x-dropdown align="left" width="60">
                             <x-slot name="trigger">
@@ -598,12 +598,53 @@
 
             <!-- Employee Self-Service Portal (Mobile) -->
             @if(auth()->user()->employee)
-                <x-responsive-nav-link :href="route('employee-portal.dashboard')" :active="request()->routeIs('employee-portal.dashboard')">
-                    {{ __('My Portal') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('employee-portal.service-record')" :active="request()->routeIs('employee-portal.service-record')">
-                    {{ __('Service Record') }}
-                </x-responsive-nav-link>
+                @if(!auth()->user()->hasRole('Employee'))
+                    <x-responsive-nav-link :href="route('employee-portal.dashboard')" :active="request()->routeIs('employee-portal.dashboard')">
+                        {{ __('My Portal') }}
+                    </x-responsive-nav-link>
+                @endif
+                @canany(['ipcr.view-own','ipcr.review','ipcr.approve','ipcr.validate','ipcr.finalize','ipcr.analytics'])
+                    <div class="px-3 py-2">
+                        <x-dropdown align="left" width="56">
+                            <x-slot name="trigger">
+                                <button class="inline-flex items-center md:px-2 lg:px-3 py-2 md:text-xs lg:text-sm font-medium leading-5 rounded-md transition duration-150 ease-in-out group text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+                                    <div class="flex items-center space-x-1">
+                                        <svg class="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                                        </svg>
+                                        <span>IPCR</span>
+                                        <svg class="fill-current h-4 w-4 transition-transform duration-200 group-hover:rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                                    </div>
+                                </button>
+                            </x-slot>
+                            <x-slot name="content">
+                                <div class="max-h-64 overflow-y-auto">
+                                    @can('ipcr.view-own')
+                                        <x-dropdown-link :href="route('ipcr.employee.index')">My IPCR</x-dropdown-link>
+                                    @endcan
+                                    @can('ipcr.review')
+                                        <x-dropdown-link :href="route('ipcr.supervisor.index')">Team IPCR Reviews</x-dropdown-link>
+                                    @endcan
+                                    @can('ipcr.approve')
+                                        <x-dropdown-link :href="route('ipcr.head.index')">Head of Office Queue</x-dropdown-link>
+                                    @endcan
+                                    @can('ipcr.validate')
+                                        <x-dropdown-link :href="route('ipcr.pmt.index')">PMT Validation</x-dropdown-link>
+                                    @endcan
+                                    @can('ipcr.finalize')
+                                        <x-dropdown-link :href="route('ipcr.final.index')">Final Approval</x-dropdown-link>
+                                    @endcan
+                                    @can('ipcr.analytics')
+                                        <div class="border-t border-gray-100 my-1"></div>
+                                        <x-dropdown-link :href="route('ipcr.analytics.individual')">Analytics: Individual</x-dropdown-link>
+                                        <x-dropdown-link :href="route('ipcr.analytics.office')">Analytics: Office</x-dropdown-link>
+                                        <x-dropdown-link :href="route('ipcr.analytics.compliance')">Analytics: Compliance</x-dropdown-link>
+                                    @endcan
+                                </div>
+                            </x-slot>
+                        </x-dropdown>
+                    </div>
+                @endcanany
                 @if (config('employee_portal.features.document_services'))
                     <x-responsive-nav-link :href="route('employee-portal.document-requests')" :active="request()->routeIs('employee-portal.document-requests')">
                         {{ __('HR Document Services') }}

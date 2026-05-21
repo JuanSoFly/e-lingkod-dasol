@@ -312,5 +312,6 @@
                 form.classList.add('hidden');
             }
         }
+        window.toggleForm = toggleForm;
     </script>
 </x-app-layout>

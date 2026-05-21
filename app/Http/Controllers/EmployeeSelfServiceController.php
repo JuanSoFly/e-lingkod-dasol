@@ -13,6 +13,7 @@ use App\Models\LeaveApplication;
 use App\Models\LeaveCredit;
 use App\Models\PerformancePeriod;
 use App\Models\PerformanceTarget;
+use App\Support\DatabaseExpression;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -507,11 +508,19 @@ class EmployeeSelfServiceController extends Controller
             'Elementary',
         ];
 
-        $orderSql = "FIELD(education_level, '" . implode("','", $levelOrder) . "')";
+        $orderSql = DatabaseExpression::orderedValues('education_level', $levelOrder);
+
+        $recencySql = DatabaseExpression::coalesceAsInteger([
+            'period_to',
+            'year_graduated_pds',
+            'year_graduated',
+            'period_from',
+        ]);
 
         return $employee->education()
             ->orderByRaw($orderSql)
-            ->orderByDesc(DB::raw('COALESCE(period_to, year_graduated_pds, year_graduated, period_from, created_at)'))
+            ->orderByRaw("{$recencySql} DESC NULLS LAST")
+            ->orderByDesc('created_at')
             ->get();
     }
 

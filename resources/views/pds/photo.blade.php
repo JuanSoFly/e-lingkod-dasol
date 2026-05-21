@@ -4,7 +4,7 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Employee Photo') }} - {{ $employee->full_name }}
             </h2>
-            <a href="{{ route('employee-portal.my-201-file') }}">
+            <a href="{{ route('pds.dashboard', $employee) }}">
                 <x-secondary-button>
                     {{ __('Back to PDS Dashboard') }}
                 </x-secondary-button>

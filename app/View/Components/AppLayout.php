@@ -12,6 +12,9 @@ class AppLayout extends Component
      */
     public function render(): View
     {
+        if (request()->ajax() || request()->query('modal')) {
+            return view('layouts.modal');
+        }
         return view('layouts.app');
     }
 }

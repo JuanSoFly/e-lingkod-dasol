@@ -27,7 +27,7 @@ class NewEmployeeAccountCreated extends Notification
         $resetUrl = URL::temporarySignedRoute(
             'password.reset',
             now()->addMinutes(60),
-            ['token' => $this->token, 'email' => $notifiable->email]
+            ['token' => $this->token, 'email' => $notifiable->email, 'setup' => 1]
         );
 
         return (new MailMessage)

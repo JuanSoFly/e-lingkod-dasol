@@ -6,7 +6,7 @@
             </h2>
             <div class="flex flex-wrap gap-3">
                 <a
-                    href="{{ route('employee-portal.my-201-file') }}"
+                    href="{{ auth()->user()->hasRole('Employee') ? route('employee-portal.my-201-file') : route('employees.show', $employee) }}"
                     class="inline-flex items-center justify-center px-4 py-2.5 bg-white border border-gray-300 rounded-lg font-medium text-sm text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out"
                 >
                     {{ __('Back to 201 File') }}
@@ -57,7 +57,7 @@
                             <div class="bg-blue-600 h-2 rounded-full" style="width: {{ $completionStatus['panels']['personal_information'] }}%"></div>
                         </div>
                         <p class="text-sm text-gray-600 mb-4">Basic personal details, addresses, and contact information</p>
-                        <a href="{{ route('pds.personal-information', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                        <a href="{{ route('pds.personal-information', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 pds-edit-link" data-title="Personal Information">
                             Edit Details
                         </a>
                     </div>
@@ -82,7 +82,7 @@
                             <div class="bg-blue-600 h-2 rounded-full" style="width: {{ $completionStatus['panels']['family_background'] }}%"></div>
                         </div>
                         <p class="text-sm text-gray-600 mb-4">Spouse, parents, and children information</p>
-                        <a href="{{ route('pds.family-background', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                        <a href="{{ route('pds.family-background', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 pds-edit-link" data-title="Family Background">
                             Edit Details
                         </a>
                     </div>
@@ -108,7 +108,7 @@
                         </div>
                         <p class="text-sm text-gray-600 mb-4">Schools attended and educational achievements</p>
                         <div class="text-sm text-gray-500 mb-4">{{ $employee->education->count() }} record(s)</div>
-                        <a href="{{ route('employees.education.index', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                        <a href="{{ route('employees.education.index', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 pds-edit-link" data-title="Educational Background">
                             Manage Education
                         </a>
                     </div>
@@ -134,7 +134,7 @@
                         </div>
                         <p class="text-sm text-gray-600 mb-4">Government eligibility examinations and ratings</p>
                         <div class="text-sm text-gray-500 mb-4">{{ $employee->pdsEligibilities->count() }} record(s)</div>
-                        <a href="{{ route('pds.eligibility', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                        <a href="{{ route('pds.eligibility', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 pds-edit-link" data-title="Civil Service Eligibility">
                             Edit Details
                         </a>
                     </div>
@@ -160,7 +160,7 @@
                         </div>
                         <p class="text-sm text-gray-600 mb-4">Previous employment history and positions</p>
                         <div class="text-sm text-gray-500 mb-4">{{ $employee->workExperiences->count() }} record(s)</div>
-                        <a href="{{ route('pds.work-experience', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                        <a href="{{ route('pds.work-experience', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 pds-edit-link" data-title="Work Experience">
                             Manage Experience
                         </a>
                     </div>
@@ -180,7 +180,7 @@
                         </div>
                         <p class="text-sm text-gray-600 mb-4">Volunteer work and community service</p>
                         <div class="text-sm text-gray-500 mb-4">{{ $employee->voluntaryWork->count() }} record(s)</div>
-                        <a href="{{ route('pds.voluntary-work', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                        <a href="{{ route('pds.voluntary-work', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 pds-edit-link" data-title="Voluntary Work">
                             Edit Details
                         </a>
                     </div>
@@ -191,22 +191,16 @@
                     <div class="p-6">
                         <div class="flex items-center justify-between mb-4">
                             <h4 class="text-lg font-medium text-gray-900">Learning & Development</h4>
-                            @if($completionStatus['panels']['learning_development'] >= 100)
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    Complete
-                                </span>
-                            @else
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                    {{ round($completionStatus['panels']['learning_development']) }}%
-                                </span>
-                            @endif
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                Optional
+                            </span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
-                            <div class="bg-blue-600 h-2 rounded-full" style="width: {{ $completionStatus['panels']['learning_development'] }}%"></div>
+                            <div class="bg-blue-600 h-2 rounded-full w-full"></div>
                         </div>
                         <p class="text-sm text-gray-600 mb-4">Trainings, seminars, and professional development</p>
                         <div class="text-sm text-gray-500 mb-4">{{ $employee->employeeTrainings->count() }} record(s)</div>
-                        <a href="{{ route('pds.learning-development', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                        <a href="{{ route('pds.learning-development', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 pds-edit-link" data-title="Learning & Development">
                             Manage Trainings
                         </a>
                     </div>
@@ -226,7 +220,7 @@
                         </div>
                         <p class="text-sm text-gray-600 mb-4">Skills, hobbies, recognitions, and memberships</p>
                         <div class="text-sm text-gray-500 mb-4">{{ $employee->otherInformation->count() }} record(s)</div>
-                        <a href="{{ route('pds.other-information', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                        <a href="{{ route('pds.other-information', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 pds-edit-link" data-title="Other Information">
                             Edit Details
                         </a>
                     </div>
@@ -252,7 +246,7 @@
                         </div>
                         <p class="text-sm text-gray-600 mb-4">Character references (minimum 3)</p>
                         <div class="text-sm text-gray-500 mb-4">{{ $employee->references->count() }} of 3 references</div>
-                        <a href="{{ route('pds.references', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                        <a href="{{ route('pds.references', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 pds-edit-link" data-title="References">
                             Edit Details
                         </a>
                     </div>
@@ -277,7 +271,7 @@
                             <div class="bg-blue-600 h-2 rounded-full" style="width: {{ $completionStatus['panels']['questionnaire'] }}%"></div>
                         </div>
                         <p class="text-sm text-gray-600 mb-4">Legal and ethical declarations</p>
-                        <a href="{{ route('pds.questionnaire', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                        <a href="{{ route('pds.questionnaire', $employee) }}" class="w-full inline-flex justify-center items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 pds-edit-link" data-title="Questionnaire">
                             Edit Details
                         </a>
                     </div>

@@ -30,6 +30,10 @@ class DashboardController extends Controller
 
             // Check if user has any dashboard access permission
             if (!$this->canAccessDashboard($user)) {
+                if ($user->employee_id) {
+                    return redirect()->route('employee-portal.dashboard');
+                }
+
                 Log::warning('Unauthorized dashboard access attempt', [
                     'user_id' => $user->id,
                     'email' => $user->email,
@@ -75,14 +79,11 @@ class DashboardController extends Controller
             }
             // Continue to main dashboard (Department Head view)
         } else {
-            // Redirect pure Employee role users (no OPCR assignments) to their portal
+            // Redirect non-admin users to employee portal dashboard if they have an employee record
             $canAccessOPCRDashboard = $user->hasAnyRole(['Assessor', 'Final Approver']);
+            $isAdminOrManager = $user->hasAnyRole(['HR Admin', 'Super Admin']) || $canAccessOPCRDashboard;
 
-            if (
-                $user->hasRole('Employee') &&
-                !$user->hasAnyRole(['HR Admin', 'Super Admin']) &&
-                !$canAccessOPCRDashboard
-            ) {
+            if (!$isAdminOrManager && $user->employee_id) {
                 return redirect()->route('employee-portal.dashboard');
             }
         }

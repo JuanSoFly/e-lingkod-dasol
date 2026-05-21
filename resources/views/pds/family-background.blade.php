@@ -235,81 +235,90 @@
 
     <!-- JavaScript for Dynamic Children Management -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            let childIndex = {{ $children ? $children->count() : 0 }};
-            const container = document.getElementById('children-container');
-            const addButton = document.getElementById('add-child');
+        (function() {
+            function initChildrenManager() {
+                let childIndex = {{ $children ? $children->count() : 0 }};
+                const container = document.getElementById('children-container');
+                const addButton = document.getElementById('add-child');
+                if (!addButton) return;
 
-            function createChildEntry(index) {
-                return `
-                    <div class="child-entry border border-gray-200 rounded-lg p-4 mb-4">
-                        <div class="flex justify-between items-center mb-4">
-                            <h4 class="text-md font-medium text-gray-800">Child ${index + 1}</h4>
-                            <button type="button" class="remove-child text-red-600 hover:text-red-800 text-sm font-medium">Remove</button>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Full Name *</label>
-                                <input type="text" name="children[${index}][full_name]" required
-                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                function createChildEntry(index) {
+                    return `
+                        <div class="child-entry border border-gray-200 rounded-lg p-4 mb-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="text-md font-medium text-gray-800">Child ${index + 1}</h4>
+                                <button type="button" class="remove-child text-red-600 hover:text-red-800 text-sm font-medium">Remove</button>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Date of Birth *</label>
-                                <input type="date" name="children[${index}][date_of_birth]" required
-                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Full Name *</label>
+                                    <input type="text" name="children[${index}][full_name]" required
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Date of Birth *</label>
+                                    <input type="date" name="children[${index}][date_of_birth]" required
+                                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
-            }
+                    `;
+                }
 
-            function updateChildNumbers() {
-                const entries = container.querySelectorAll('.child-entry');
-                entries.forEach((entry, index) => {
-                    entry.querySelector('h4').textContent = `Child ${index + 1}`;
+                function updateChildNumbers() {
+                    const entries = container.querySelectorAll('.child-entry');
+                    entries.forEach((entry, index) => {
+                        entry.querySelector('h4').textContent = `Child ${index + 1}`;
+                        
+                        // Update input names
+                        const nameInput = entry.querySelector('input[name*="[full_name]"]');
+                        const dateInput = entry.querySelector('input[name*="[date_of_birth]"]');
+                        
+                        if (nameInput) nameInput.name = `children[${index}][full_name]`;
+                        if (dateInput) dateInput.name = `children[${index}][date_of_birth]`;
+                    });
+                }
+
+                function removeEmptyMessage() {
+                    const emptyMessage = container.querySelector('.text-center.text-gray-500');
+                    if (emptyMessage) {
+                        emptyMessage.remove();
+                    }
+                }
+
+                addButton.addEventListener('click', function() {
+                    removeEmptyMessage();
                     
-                    // Update input names
-                    const nameInput = entry.querySelector('input[name*="[full_name]"]');
-                    const dateInput = entry.querySelector('input[name*="[date_of_birth]"]');
+                    const newEntry = document.createElement('div');
+                    newEntry.innerHTML = createChildEntry(childIndex);
+                    container.appendChild(newEntry.firstElementChild);
                     
-                    if (nameInput) nameInput.name = `children[${index}][full_name]`;
-                    if (dateInput) dateInput.name = `children[${index}][date_of_birth]`;
+                    childIndex++;
+                    updateChildNumbers();
+                });
+
+                container.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('remove-child')) {
+                        e.target.closest('.child-entry').remove();
+                        updateChildNumbers();
+                        
+                        // If no children left, show empty message
+                        if (container.children.length === 0) {
+                            container.innerHTML = `
+                                <div class="text-center text-gray-500 py-8">
+                                    <p>No children added yet. Click "Add Child" to add a child.</p>
+                                </div>
+                            `;
+                        }
+                    }
                 });
             }
 
-            function removeEmptyMessage() {
-                const emptyMessage = container.querySelector('.text-center.text-gray-500');
-                if (emptyMessage) {
-                    emptyMessage.remove();
-                }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initChildrenManager);
+            } else {
+                initChildrenManager();
             }
-
-            addButton.addEventListener('click', function() {
-                removeEmptyMessage();
-                
-                const newEntry = document.createElement('div');
-                newEntry.innerHTML = createChildEntry(childIndex);
-                container.appendChild(newEntry.firstElementChild);
-                
-                childIndex++;
-                updateChildNumbers();
-            });
-
-            container.addEventListener('click', function(e) {
-                if (e.target.classList.contains('remove-child')) {
-                    e.target.closest('.child-entry').remove();
-                    updateChildNumbers();
-                    
-                    // If no children left, show empty message
-                    if (container.children.length === 0) {
-                        container.innerHTML = `
-                            <div class="text-center text-gray-500 py-8">
-                                <p>No children added yet. Click "Add Child" to add a child.</p>
-                            </div>
-                        `;
-                    }
-                }
-            });
-        });
+        })();
     </script>
 </x-app-layout>

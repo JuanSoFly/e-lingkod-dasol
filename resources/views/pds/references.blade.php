@@ -517,7 +517,11 @@
 
                 // Submit the form
                 document.body.appendChild(form);
-                form.submit();
+                if (window.submitModalForm) {
+                    window.submitModalForm(form);
+                } else {
+                    form.submit();
+                }
             }
         }
     </script>

@@ -23,9 +23,14 @@ class DatabaseSeeder extends Seeder
         // Ensure default work calendars are available
         $this->call(WorkCalendarSeeder::class);
 
+        // Seed municipal offices structure before creating employees/users.
+        // OfficeSeeder truncates office-related tables on Postgres, so running it
+        // later can cascade-delete freshly seeded employees and users.
+        $this->call(OfficeSeeder::class);
+
         // Create a Super Admin who is not an employee
         $superAdminUser = User::firstOrCreate([
-            'email' => 'admin@example.com'
+            'email' => 'admin@example.com',
         ], [
             'name' => 'Super Admin',
             'password' => bcrypt('password'),
@@ -38,7 +43,7 @@ class DatabaseSeeder extends Seeder
         $employee = Employee::factory()
             ->has(User::factory()->state(function (array $attributes, Employee $employee) {
                 return [
-                    'name' => $employee->first_name . ' ' . $employee->last_name,
+                    'name' => $employee->first_name.' '.$employee->last_name,
                     'email' => $employee->email,
                 ];
             }))
@@ -47,7 +52,7 @@ class DatabaseSeeder extends Seeder
                 'last_name' => 'Dela Cruz',
                 'email' => 'employee@example.com',
                 'department' => 'Human Resource Management Office',
-                'position' => 'HR Staff'
+                'position' => 'HR Staff',
             ]);
 
         optional($employee->fresh()->user)->assignRole('Employee');
@@ -56,17 +61,17 @@ class DatabaseSeeder extends Seeder
         $hrAdmin = Employee::factory()
             ->has(User::factory()->state(function (array $attributes, Employee $employee) {
                 return [
-                    'name' => $employee->first_name . ' ' . $employee->last_name,
+                    'name' => $employee->first_name.' '.$employee->last_name,
                     'email' => $employee->email,
                 ];
             }))
             ->create([
-                 'first_name' => 'Maria',
-                 'last_name' => 'Clara',
-                 'email' => 'hr@example.com',
-                 'department' => 'Human Resource Management Office',
-                 'position' => 'HR Manager'
-             ]);
+                'first_name' => 'Maria',
+                'last_name' => 'Clara',
+                'email' => 'hr@example.com',
+                'department' => 'Human Resource Management Office',
+                'position' => 'HR Manager',
+            ]);
 
         optional($hrAdmin->fresh()->user)->assignRole('HR Admin');
 
@@ -74,7 +79,7 @@ class DatabaseSeeder extends Seeder
         $supervisor = Employee::factory()
             ->has(User::factory()->state(function (array $attributes, Employee $employee) {
                 return [
-                    'name' => $employee->first_name . ' ' . $employee->last_name,
+                    'name' => $employee->first_name.' '.$employee->last_name,
                     'email' => $employee->email,
                 ];
             }))
@@ -83,7 +88,7 @@ class DatabaseSeeder extends Seeder
                 'last_name' => 'Lopez',
                 'email' => 'supervisor@example.com',
                 'department' => 'Human Resource Management Office',
-                'position' => 'HR Supervisor'
+                'position' => 'HR Supervisor',
             ]);
 
         optional($supervisor->fresh()->user)->assignRole('Supervisor');
@@ -114,7 +119,7 @@ class DatabaseSeeder extends Seeder
                 'last_name' => 'Reyes',
                 'email' => 'assessor.pmt@dasol.gov.ph',
                 'department' => 'Performance Management Team',
-                'position' => 'Assessor'
+                'position' => 'Assessor',
             ]);
 
         optional($assessor->fresh()->user)->assignRole('Assessor');
@@ -131,14 +136,11 @@ class DatabaseSeeder extends Seeder
         // Seed leave types and policies before credits
         $this->call(LeaveTypesSeeder::class);
         $this->call(LeavePolicySeeder::class);
-                // Seed Leave Workflows
+        // Seed Leave Workflows
         $this->call(LeaveWorkflowSeeder::class);
 
         // Seed leave credits for employees (initial VL/SL balances)
         $this->call(SampleLeaveCreditsSeeder::class);
-
-        // Seed municipal offices structure
-        $this->call(OfficeSeeder::class);
 
         // Seed office assignments for users
         $this->call(OfficeAssignmentSeeder::class);

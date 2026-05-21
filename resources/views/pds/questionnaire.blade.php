@@ -251,255 +251,263 @@
         });
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize all textarea toggles
-        const questionPrefixes = [
-            'field_34', 'field_34b', 'field_35a', 'field_35b', 'field_36', 'field_37',
-            'field_38a', 'field_38b', 'field_39', 'field_40a', 'field_40b', 'field_40c'
-        ];
-
-        questionPrefixes.forEach(prefix => {
-            // Set initial state (hidden by default since radio buttons start unselected)
-            toggleTextarea(prefix);
-
-            // Add event listeners to radio buttons
-            const radioButtons = document.querySelectorAll(`input[name="${prefix}_yes_no"]`);
-            radioButtons.forEach(radio => {
-                radio.addEventListener('change', () => {
-                    toggleTextarea(prefix);
-                    updateProgress();
-                    clearHighlights(); // Clear error highlights when user makes a selection
-                });
-            });
-
-            // Add character counting event listeners to detail fields
-            const detailsElement = document.getElementById(`${prefix}_details`);
-            if (detailsElement) {
-                const textarea = detailsElement.querySelector('textarea');
-                const textInput = detailsElement.querySelector('input[type="text"]');
-                const inputField = textarea || textInput;
-
-                if (inputField) {
-                    // Add input event listener for real-time character counting
-                    inputField.addEventListener('input', () => {
-                        updateCharacterCounter(prefix);
-                        updateProgress();
-                    });
-
-                    // Add paste event listener to handle pasted content
-                    inputField.addEventListener('paste', () => {
-                        // Small delay to ensure pasted content is available
-                        setTimeout(() => {
-                            updateCharacterCounter(prefix);
-                            updateProgress();
-                        }, 10);
-                    });
-
-                    // Add focus event to show counter when field gets focus
-                    inputField.addEventListener('focus', () => {
-                        const yesRadio = document.querySelector(`input[name="${prefix}_yes_no"][value="1"]`);
-                        if (yesRadio && yesRadio.checked) {
-                            updateCharacterCounter(prefix);
-                        }
-                    });
-                }
-            }
-        });
-
-        // Initialize progress on page load
-        updateProgress();
-
-        // Add form submission validation
-        const form = document.querySelector('form');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                // Check for Laravel validation errors first
-                const errorElements = document.querySelectorAll('.text-red-600');
-                if (errorElements.length > 0) {
-                    e.preventDefault();
-                    showNotification('Please fix the validation errors before submitting.', 'error');
-
-                    // Scroll to first error
-                    const firstError = errorElements[0];
-                    if (firstError) {
-                        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        const relatedInput = firstError.closest('.question-group')?.querySelector('input[type="radio"]');
-                        if (relatedInput) relatedInput.focus();
-                    }
-                    return false;
-                }
-
-                const unansweredQuestions = [];
-                const missingDetails = [];
-
-                questionPrefixes.forEach(prefix => {
-                    const radioButtons = document.querySelectorAll(`input[name="${prefix}_yes_no"]`);
-                    let isAnswered = false;
-                    let selectedValue = null;
-
-                    radioButtons.forEach(radio => {
-                        if (radio.checked) {
-                            isAnswered = true;
-                            selectedValue = radio.value;
-                        }
-                    });
-
-                    if (!isAnswered) {
-                        unansweredQuestions.push(prefix);
-                    } else if (selectedValue === '1') {
-                        // Check if details meet minimum character requirement when YES is selected
-                        const detailsElement = document.getElementById(`${prefix}_details`);
-                        if (detailsElement) {
-                            const textarea = detailsElement.querySelector('textarea');
-                            const textInput = detailsElement.querySelector('input[type="text"]');
-                            const inputField = textarea || textInput;
-                            const hasEnoughDetails = inputField && inputField.value.trim().length >= 10;
-
-                            if (!hasEnoughDetails) {
-                                missingDetails.push(prefix);
-                            }
-                        }
-                    }
-                });
-
-                if (unansweredQuestions.length > 0 || missingDetails.length > 0) {
-                    e.preventDefault();
-
-                    // Highlight missing questions and details
-                    const allMissing = [...unansweredQuestions, ...missingDetails];
-                    highlightUnansweredQuestions(allMissing);
-
-                    // Create comprehensive error message
-                    let message = '';
-                    if (unansweredQuestions.length > 0 && missingDetails.length > 0) {
-                        message = `Please answer ${unansweredQuestions.length} unanswered question(s) and provide details for ${missingDetails.length} "YES" answer(s).`;
-                    } else if (unansweredQuestions.length > 0) {
-                        const unansweredCount = unansweredQuestions.length;
-                        message = unansweredCount === 1
-                            ? 'Please answer the remaining required question before submitting the form.'
-                            : `Please answer the ${unansweredCount} remaining required questions before submitting the form.`;
-                    } else if (missingDetails.length > 0) {
-                        message = `Please provide details (minimum 10 characters) for ${missingDetails.length} question(s) where you answered "YES".`;
-                    }
-
-                    // Show notification instead of alert
-                    showNotification(message, 'error');
-
-                    // Scroll to first missing item
-                    const firstMissing = document.querySelector(`input[name="${allMissing[0]}_yes_no"]`);
-                    if (firstMissing) {
-                        firstMissing.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        firstMissing.focus();
-                    }
-
-                    return false;
-                }
-            });
-        }
-
-        // Initialize progress based on saved data with character validation
-        function initializeProgressFromSaved() {
-            let completedCount = 0;
-
-            questionPrefixes.forEach(prefix => {
-                if (validateQuestionCompletion(prefix)) {
-                    completedCount++;
-                }
-
-                // Initialize character counters for fields that have YES selected
-                const yesRadio = document.querySelector(`input[name="${prefix}_yes_no"][value="1"]`);
-                if (yesRadio && yesRadio.checked) {
-                    const detailsElement = document.getElementById(`${prefix}_details`);
-                    if (detailsElement) {
-                        detailsElement.style.display = 'block';
-                        updateCharacterCounter(prefix);
-                    }
-                }
-            });
-
-            const progress = Math.round((completedCount / questionPrefixes.length) * 100);
-            const progressBar = document.getElementById('progress-bar');
-            const progressText = document.getElementById('progress-text');
-
-            if (progressBar) {
-                progressBar.style.width = progress + '%';
-                // Set initial color based on completion
-                progressBar.className = 'h-2 rounded-full transition-all duration-300';
-                if (progress === 100) {
-                    progressBar.classList.add('bg-green-600');
-                } else if (progress >= 75) {
-                    progressBar.classList.add('bg-blue-600');
-                } else if (progress >= 50) {
-                    progressBar.classList.add('bg-yellow-600');
-                } else {
-                    progressBar.classList.add('bg-red-600');
-                }
-            }
-            if (progressText) {
-                progressText.textContent = progress + '% Complete';
-            }
-
-            // Update progress description
-            updateProgressDescription(progress, questionPrefixes);
-        }
-
-        // Initialize detail fields visibility based on saved data
-        function initializeDetailFieldsVisibility() {
+    (function() {
+        function initQuestionnaire() {
+            // Initialize all textarea toggles
             const questionPrefixes = [
                 'field_34', 'field_34b', 'field_35a', 'field_35b', 'field_36', 'field_37',
                 'field_38a', 'field_38b', 'field_39', 'field_40a', 'field_40b', 'field_40c'
             ];
 
             questionPrefixes.forEach(prefix => {
-                const yesRadio = document.querySelector(`input[name="${prefix}_yes_no"][value="1"]`);
-                const detailsElement = document.getElementById(`${prefix}_details`);
+                // Set initial state (hidden by default since radio buttons start unselected)
+                toggleTextarea(prefix);
 
-                if (yesRadio && detailsElement) {
-                    // Show details if YES radio is checked
-                    if (yesRadio.checked) {
-                        detailsElement.style.display = 'block';
-                        // Set required attribute for detail inputs
-                        const textarea = detailsElement.querySelector('textarea');
-                        const textInput = detailsElement.querySelector('input[type="text"]');
-                        if (textarea) textarea.required = true;
-                        if (textInput) textInput.required = true;
-                    } else {
-                        detailsElement.style.display = 'none';
-                        // Remove required attribute for detail inputs
-                        const textarea = detailsElement.querySelector('textarea');
-                        const textInput = detailsElement.querySelector('input[type="text"]');
-                        if (textarea) textarea.required = false;
-                        if (textInput) textInput.required = false;
+                // Add event listeners to radio buttons
+                const radioButtons = document.querySelectorAll(`input[name="${prefix}_yes_no"]`);
+                radioButtons.forEach(radio => {
+                    radio.addEventListener('change', () => {
+                        toggleTextarea(prefix);
+                        updateProgress();
+                        clearHighlights(); // Clear error highlights when user makes a selection
+                    });
+                });
+
+                // Add character counting event listeners to detail fields
+                const detailsElement = document.getElementById(`${prefix}_details`);
+                if (detailsElement) {
+                    const textarea = detailsElement.querySelector('textarea');
+                    const textInput = detailsElement.querySelector('input[type="text"]');
+                    const inputField = textarea || textInput;
+
+                    if (inputField) {
+                        // Add input event listener for real-time character counting
+                        inputField.addEventListener('input', () => {
+                            updateCharacterCounter(prefix);
+                            updateProgress();
+                        });
+
+                        // Add paste event listener to handle pasted content
+                        inputField.addEventListener('paste', () => {
+                            // Small delay to ensure pasted content is available
+                            setTimeout(() => {
+                                updateCharacterCounter(prefix);
+                                updateProgress();
+                            }, 10);
+                        });
+
+                        // Add focus event to show counter when field gets focus
+                        inputField.addEventListener('focus', () => {
+                            const yesRadio = document.querySelector(`input[name="${prefix}_yes_no"][value="1"]`);
+                            if (yesRadio && yesRadio.checked) {
+                                updateCharacterCounter(prefix);
+                            }
+                        });
                     }
                 }
+            });
+
+            // Initialize progress on page load
+            updateProgress();
+
+            // Add form submission validation
+            const form = document.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    // Check for Laravel validation errors first
+                    const errorElements = document.querySelectorAll('.text-red-600');
+                    if (errorElements.length > 0) {
+                        e.preventDefault();
+                        showNotification('Please fix the validation errors before submitting.', 'error');
+
+                        // Scroll to first error
+                        const firstError = errorElements[0];
+                        if (firstError) {
+                            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            const relatedInput = firstError.closest('.question-group')?.querySelector('input[type="radio"]');
+                            if (relatedInput) relatedInput.focus();
+                        }
+                        return false;
+                    }
+
+                    const unansweredQuestions = [];
+                    const missingDetails = [];
+
+                    questionPrefixes.forEach(prefix => {
+                        const radioButtons = document.querySelectorAll(`input[name="${prefix}_yes_no"]`);
+                        let isAnswered = false;
+                        let selectedValue = null;
+
+                        radioButtons.forEach(radio => {
+                            if (radio.checked) {
+                                isAnswered = true;
+                                selectedValue = radio.value;
+                            }
+                        });
+
+                        if (!isAnswered) {
+                            unansweredQuestions.push(prefix);
+                        } else if (selectedValue === '1') {
+                            // Check if details meet minimum character requirement when YES is selected
+                            const detailsElement = document.getElementById(`${prefix}_details`);
+                            if (detailsElement) {
+                                const textarea = detailsElement.querySelector('textarea');
+                                const textInput = detailsElement.querySelector('input[type="text"]');
+                                const inputField = textarea || textInput;
+                                const hasEnoughDetails = inputField && inputField.value.trim().length >= 10;
+
+                                if (!hasEnoughDetails) {
+                                    missingDetails.push(prefix);
+                                }
+                            }
+                        }
+                    });
+
+                    if (unansweredQuestions.length > 0 || missingDetails.length > 0) {
+                        e.preventDefault();
+
+                        // Highlight missing questions and details
+                        const allMissing = [...unansweredQuestions, ...missingDetails];
+                        highlightUnansweredQuestions(allMissing);
+
+                        // Create comprehensive error message
+                        let message = '';
+                        if (unansweredQuestions.length > 0 && missingDetails.length > 0) {
+                            message = `Please answer ${unansweredQuestions.length} unanswered question(s) and provide details for ${missingDetails.length} "YES" answer(s).`;
+                        } else if (unansweredQuestions.length > 0) {
+                            const unansweredCount = unansweredQuestions.length;
+                            message = unansweredCount === 1
+                                ? 'Please answer the remaining required question before submitting the form.'
+                                : `Please answer the ${unansweredCount} remaining required questions before submitting the form.`;
+                        } else if (missingDetails.length > 0) {
+                            message = `Please provide details (minimum 10 characters) for ${missingDetails.length} question(s) where you answered "YES".`;
+                        }
+
+                        // Show notification instead of alert
+                        showNotification(message, 'error');
+
+                        // Scroll to first missing item
+                        const firstMissing = document.querySelector(`input[name="${allMissing[0]}_yes_no"]`);
+                        if (firstMissing) {
+                            firstMissing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            firstMissing.focus();
+                        }
+
+                        return false;
+                    }
+                });
+            }
+
+            // Initialize progress based on saved data with character validation
+            function initializeProgressFromSaved() {
+                let completedCount = 0;
+
+                questionPrefixes.forEach(prefix => {
+                    if (validateQuestionCompletion(prefix)) {
+                        completedCount++;
+                    }
+
+                    // Initialize character counters for fields that have YES selected
+                    const yesRadio = document.querySelector(`input[name="${prefix}_yes_no"][value="1"]`);
+                    if (yesRadio && yesRadio.checked) {
+                        const detailsElement = document.getElementById(`${prefix}_details`);
+                        if (detailsElement) {
+                            detailsElement.style.display = 'block';
+                            updateCharacterCounter(prefix);
+                        }
+                    }
+                });
+
+                const progress = Math.round((completedCount / questionPrefixes.length) * 100);
+                const progressBar = document.getElementById('progress-bar');
+                const progressText = document.getElementById('progress-text');
+
+                if (progressBar) {
+                    progressBar.style.width = progress + '%';
+                    // Set initial color based on completion
+                    progressBar.className = 'h-2 rounded-full transition-all duration-300';
+                    if (progress === 100) {
+                        progressBar.classList.add('bg-green-600');
+                    } else if (progress >= 75) {
+                        progressBar.classList.add('bg-blue-600');
+                    } else if (progress >= 50) {
+                        progressBar.classList.add('bg-yellow-600');
+                    } else {
+                        progressBar.classList.add('bg-red-600');
+                    }
+                }
+                if (progressText) {
+                    progressText.textContent = progress + '% Complete';
+                }
+
+                // Update progress description
+                updateProgressDescription(progress, questionPrefixes);
+            }
+
+            // Initialize detail fields visibility based on saved data
+            function initializeDetailFieldsVisibility() {
+                const questionPrefixes = [
+                    'field_34', 'field_34b', 'field_35a', 'field_35b', 'field_36', 'field_37',
+                    'field_38a', 'field_38b', 'field_39', 'field_40a', 'field_40b', 'field_40c'
+                ];
+
+                questionPrefixes.forEach(prefix => {
+                    const yesRadio = document.querySelector(`input[name="${prefix}_yes_no"][value="1"]`);
+                    const detailsElement = document.getElementById(`${prefix}_details`);
+
+                    if (yesRadio && detailsElement) {
+                        // Show details if YES radio is checked
+                        if (yesRadio.checked) {
+                            detailsElement.style.display = 'block';
+                            // Set required attribute for detail inputs
+                            const textarea = detailsElement.querySelector('textarea');
+                            const textInput = detailsElement.querySelector('input[type="text"]');
+                            if (textarea) textarea.required = true;
+                            if (textInput) textInput.required = true;
+                        } else {
+                            detailsElement.style.display = 'none';
+                            // Remove required attribute for detail inputs
+                            const textarea = detailsElement.querySelector('textarea');
+                            const textInput = detailsElement.querySelector('input[type="text"]');
+                            if (textarea) textarea.required = false;
+                            if (textInput) textInput.required = false;
+                        }
+                    }
+                });
+            }
+
+            // Call this after setting up event listeners
+            initializeProgressFromSaved();
+            initializeDetailFieldsVisibility();
+
+            // Add keyboard navigation support
+            document.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.addEventListener('keydown', function(e) {
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                        // Move to next radio in group
+                        const group = document.querySelectorAll(`input[name="${radio.name}"]`);
+                        const currentIndex = Array.from(group).indexOf(radio);
+                        if (currentIndex < group.length - 1) {
+                            group[currentIndex + 1].focus();
+                        }
+                    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                        // Move to previous radio in group
+                        const group = document.querySelectorAll(`input[name="${radio.name}"]`);
+                        const currentIndex = Array.from(group).indexOf(radio);
+                        if (currentIndex > 0) {
+                            group[currentIndex - 1].focus();
+                        }
+                    }
+                });
             });
         }
 
-        // Call this after setting up event listeners
-        initializeProgressFromSaved();
-        initializeDetailFieldsVisibility();
-
-        // Add keyboard navigation support
-        document.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.addEventListener('keydown', function(e) {
-                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                    // Move to next radio in group
-                    const group = document.querySelectorAll(`input[name="${radio.name}"]`);
-                    const currentIndex = Array.from(group).indexOf(radio);
-                    if (currentIndex < group.length - 1) {
-                        group[currentIndex + 1].focus();
-                    }
-                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                    // Move to previous radio in group
-                    const group = document.querySelectorAll(`input[name="${radio.name}"]`);
-                    const currentIndex = Array.from(group).indexOf(radio);
-                    if (currentIndex > 0) {
-                        group[currentIndex - 1].focus();
-                    }
-                }
-            });
-        });
-    });
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initQuestionnaire);
+        } else {
+            initQuestionnaire();
+        }
+    })();
 
     function showNotification(message, type = 'info') {
         // Remove any existing notifications

@@ -54,7 +54,7 @@
                     </a>
                     @endcan
                     @can('employee.create')
-                    <a href="{{ route('employees.create') }}">
+                    <a href="{{ route('employees.create') }}" class="pds-edit-link" data-title="Add New Employee">
                         <x-primary-button class="w-full sm:w-auto justify-center">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -166,29 +166,14 @@
                                     <p class="text-sm text-gray-500 truncate employee-email">{{ $employee->email }}</p>
                                 </div>
 
-                                <!-- Quick Actions -->
-                                <div class="flex space-x-1 flex-shrink-0 ml-2">
-                                    <a href="{{ route('employees.show', $employee) }}" class="inline-flex items-center p-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors duration-150">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                        </svg>
-                                    </a>
-                                    @can('employee.edit')
-                                    <a href="{{ route('employees.edit', $employee) }}" class="inline-flex items-center p-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors duration-150">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                        </svg>
-                                    </a>
-                                    @endcan
-                                </div>
+                                <!-- Quick Actions Removed (Redundant with bottom actions row) -->
                             </div>
 
                             <!-- Employee Details -->
                             <div class="mt-3 space-y-2">
                                 <div class="flex items-center text-xs text-gray-500">
                                     <svg class="w-3 h-3 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2V6"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                                     </svg>
                                     <span class="truncate employee-position">{{ $employee->position }}</span>
                                 </div>
@@ -210,7 +195,7 @@
 
                             <!-- Actions Row for Mobile -->
                             <div class="mt-3 flex space-x-2">
-                                <a href="{{ route('employees.show', $employee) }}" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors duration-150">
+                                <a href="{{ route('employees.show', $employee) }}" class="pds-edit-link flex-1 inline-flex items-center justify-center px-3 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors duration-150" data-title="Employee 201 File">
                                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
@@ -218,7 +203,7 @@
                                     View
                                 </a>
                                 @can('employee.edit')
-                                <a href="{{ route('employees.edit', $employee) }}" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-100 text-blue-700 text-xs font-medium rounded hover:bg-blue-200 transition-colors duration-150">
+                                <a href="{{ route('employees.edit', $employee) }}" class="pds-edit-link flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-100 text-blue-700 text-xs font-medium rounded hover:bg-blue-200 transition-colors duration-150" data-title="Edit Employee Information">
                                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                     </svg>
@@ -255,7 +240,7 @@
                         @endif
                     </p>
                     @can('employee.create')
-                    <a href="{{ route('employees.create') }}">
+                    <a href="{{ route('employees.create') }}" class="pds-edit-link" data-title="Add New Employee">
                         <x-primary-button>
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -300,7 +285,7 @@
                                 <td class="px-3 lg:px-6 py-4 whitespace-nowrap text-xs lg:text-sm text-gray-500 hidden md:table-cell">{{ $employee->date_hired?->format('M d, Y') ?? 'Not provided' }}</td>
                                 <td class="px-3 lg:px-6 py-4 whitespace-nowrap text-right text-xs lg:text-sm font-medium">
                                     <div class="flex justify-end space-x-1 lg:space-x-2">
-                                        <a href="{{ route('employees.show', $employee) }}" class="inline-flex items-center px-2 lg:px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors duration-150">
+                                        <a href="{{ route('employees.show', $employee) }}" class="pds-edit-link inline-flex items-center px-2 lg:px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors duration-150" data-title="Employee 201 File">
                                             <svg class="w-3 h-3 lg:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
@@ -308,7 +293,7 @@
                                             <span class="hidden lg:inline">View</span>
                                         </a>
                                         @can('employee.edit')
-                                        <a href="{{ route('employees.edit', $employee) }}" class="inline-flex items-center px-2 lg:px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors duration-150">
+                                        <a href="{{ route('employees.edit', $employee) }}" class="pds-edit-link inline-flex items-center px-2 lg:px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors duration-150" data-title="Edit Employee Information">
                                             <svg class="w-3 h-3 lg:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                             </svg>
@@ -339,7 +324,7 @@
                                     <h3 class="text-lg font-medium text-gray-500 mb-2">No employees found</h3>
                                     <p class="text-sm text-gray-400 mb-4">Get started by adding your first employee.</p>
                                     @can('employee.create')
-                                    <a href="{{ route('employees.create') }}">
+                                    <a href="{{ route('employees.create') }}" class="pds-edit-link" data-title="Add New Employee">
                                         <x-primary-button>
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>

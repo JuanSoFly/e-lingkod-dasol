@@ -200,19 +200,26 @@
             
             const levelsRequiringDegree = ['College', 'Graduate Studies', 'Vocational/Trade'];
             
-            if (levelsRequiringDegree.includes(levelSelect.value)) {
-                degreeField.classList.remove('hidden');
-                degreeInput.setAttribute('required', 'required');
-            } else {
-                degreeField.classList.add('hidden');
-                degreeInput.removeAttribute('required');
+            if (levelSelect && degreeField && degreeInput) {
+                if (levelsRequiringDegree.includes(levelSelect.value)) {
+                    degreeField.classList.remove('hidden');
+                    degreeInput.setAttribute('required', 'required');
+                } else {
+                    degreeField.classList.add('hidden');
+                    degreeInput.removeAttribute('required');
+                }
             }
         }
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        // Expose function globally for inline onchange attribute
+        window.toggleDegreeField = toggleDegreeField;
+
+        // Initialize immediately or on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', toggleDegreeField);
+        } else {
             toggleDegreeField();
-        });
+        }
 
         // Validate year ranges
         document.getElementById('period_to').addEventListener('change', function() {

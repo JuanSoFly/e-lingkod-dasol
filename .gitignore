@@ -76,3 +76,6 @@ ROLE_ANALYSIS.md
 backup
 .agents/skills
 skills-lock.json
+docs
+docker-compose.yml
+config/mail.php
