@@ -72,7 +72,7 @@ class LeavePolicySeeder extends Seeder
             'name' => 'Regular Employee Vacation Leave',
             'description' => 'Standard vacation leave policy for regular government employees',
             'is_active' => true,
-            'employment_statuses' => ['regular'],
+            'employment_statuses' => ['regular', 'permanent', 'temporary', 'casual', 'probationary'],
             'positions' => null, // applies to all positions
             'employee_type' => 'government',
             'leave_type_id' => $vacationLeave->id,
@@ -153,7 +153,7 @@ class LeavePolicySeeder extends Seeder
             'name' => 'Regular Employee Sick Leave',
             'description' => 'Standard sick leave policy for regular government employees',
             'is_active' => true,
-            'employment_statuses' => ['regular'],
+            'employment_statuses' => ['regular', 'permanent', 'temporary', 'casual', 'probationary'],
             'positions' => null,
             'employee_type' => 'government',
             'leave_type_id' => $sickLeave->id,

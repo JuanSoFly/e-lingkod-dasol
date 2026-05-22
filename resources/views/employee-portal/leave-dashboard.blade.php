@@ -80,7 +80,7 @@
                             <select x-model="application.leave_type_id" @change="handleLeaveTypeChange" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
                                 <option value="">Select Leave Type</option>
                                 <template x-for="type in leaveTypes" :key="type.id">
-                                    <option :value="type.id" x-text="type.name + ' (' + (type.current_balance || 'N/A') + ')'"></option>
+                                    <option :value="type.id" x-text="type.name + ' (' + (type.current_balance !== null && type.current_balance !== undefined ? type.current_balance + ' days' : 'N/A') + ')'"></option>
                                 </template>
                             </select>
                         </div>

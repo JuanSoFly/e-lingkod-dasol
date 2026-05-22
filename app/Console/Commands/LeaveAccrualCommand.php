@@ -12,7 +12,7 @@ class LeaveAccrualCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'leave:accrue-monthly {--year=} {--month=}';
+    protected $signature = 'leave:accrue-monthly {--year=} {--month=} {--backfill}';
 
     /**
      * The console command description.
@@ -28,8 +28,14 @@ class LeaveAccrualCommand extends Command
     {
         $year = $this->option('year') ? (int) $this->option('year') : null;
         $month = $this->option('month') ? (int) $this->option('month') : null;
+        $backfill = (bool) $this->option('backfill');
 
-        $created = $service->accrueForMonth($year, $month);
+        if ($backfill) {
+            $this->info("Starting backfill of monthly leave credits...");
+            $created = $service->backfill($year);
+        } else {
+            $created = $service->accrueForMonth($year, $month);
+        }
 
         $this->info("Leave accrual completed. Entries created: {$created}");
 

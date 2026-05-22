@@ -166,6 +166,34 @@ class LeaveAccrualService
         return $updated;
     }
 
+    /**
+     * Backfill monthly accrual for a given year up to the current completed month.
+     *
+     * @param int|null $year
+     * @return int total entries created
+     */
+    public function backfill(?int $year = null): int
+    {
+        $today = now();
+        $targetYear = $year ?? (int)$today->year;
+        $totalCreated = 0;
+
+        // Determine the last completed month we can accrue for
+        if ($targetYear < $today->year) {
+            $endMonth = 12;
+        } elseif ($targetYear === $today->year) {
+            $endMonth = $today->month - 1; // months completed so far
+        } else {
+            $endMonth = 0; // future year, no completed months yet
+        }
+
+        for ($m = 1; $m <= $endMonth; $m++) {
+            $totalCreated += $this->accrueForMonth($targetYear, $m);
+        }
+
+        return $totalCreated;
+    }
+
     private function resolveTargetMonth(?int $year, ?int $month): Carbon
     {
         if ($year && $month) {

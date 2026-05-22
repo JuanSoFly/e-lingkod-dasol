@@ -164,6 +164,28 @@ class LeaveCardService
             return;
         }
 
+        $policyService = app(LeavePolicyService::class);
+        $policies = $policyService->getApplicablePolicies($employee);
+        
+        $vlPolicy = $policies->where('leave_type_id', $vlType->id)->first();
+        $slPolicy = $policies->where('leave_type_id', $slType->id)->first();
+
+        $today = now();
+        $targetYear = $year;
+        
+        if ($targetYear < $today->year) {
+            $endMonth = 12;
+        } elseif ($targetYear === $today->year) {
+            $endMonth = $today->month - 1; // months completed so far
+        } else {
+            $endMonth = 0;
+        }
+
+        $startMonth = 1;
+        if ($employee->date_hired && $employee->date_hired->year === $targetYear) {
+            $startMonth = $employee->date_hired->month;
+        }
+
         // Create VL credit if doesn't exist
         $vlCredit = LeaveCredit::where('employee_id', $employee->id)
             ->where('leave_type_id', $vlType->id)
@@ -171,22 +193,40 @@ class LeaveCardService
             ->first();
 
         if (!$vlCredit) {
-            LeaveCredit::create([
-                'employee_id' => $employee->id,
-                'leave_type_id' => $vlType->id,
-                'year' => $year,
-                'earned_credits' => 0, // Start at zero; accrual will add monthly
-                'used_credits' => 0,
-                'remaining_credits' => 0,
-                'effective_date' => now()->startOfYear(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            $vlRate = ($vlPolicy && $vlPolicy->accrual_method === 'monthly') ? ($vlPolicy->monthly_accrual_rate ?? 1.25) : 1.25;
+            $vlEarned = 0;
+            
+            DB::transaction(function () use ($employee, $vlType, $year, $startMonth, $endMonth, $vlRate, &$vlEarned) {
+                // Loop through elapsed months to log them and calculate credits
+                for ($m = $startMonth; $m <= $endMonth; $m++) {
+                    $vlEarned += $vlRate;
+                    
+                    // Create log
+                    \App\Models\LeaveAccrualLog::firstOrCreate([
+                        'employee_id' => $employee->id,
+                        'leave_type_id' => $vlType->id,
+                        'year' => $year,
+                        'month' => $m,
+                    ], [
+                        'days_accrued' => $vlRate,
+                    ]);
+                }
+                
+                LeaveCredit::create([
+                    'employee_id' => $employee->id,
+                    'leave_type_id' => $vlType->id,
+                    'year' => $year,
+                    'earned_credits' => $vlEarned,
+                    'used_credits' => 0,
+                    'remaining_credits' => $vlEarned,
+                    'effective_date' => \Carbon\Carbon::create($year, 1, 1),
+                ]);
+            });
 
-            Log::info('Created initial VL credit for employee', [
+            Log::info('Created initial VL credit for employee with auto-backfill', [
                 'employee_id' => $employee->id,
                 'year' => $year,
-                'credits' => 0
+                'credits' => $vlEarned
             ]);
         }
 
@@ -197,22 +237,40 @@ class LeaveCardService
             ->first();
 
         if (!$slCredit) {
-            LeaveCredit::create([
-                'employee_id' => $employee->id,
-                'leave_type_id' => $slType->id,
-                'year' => $year,
-                'earned_credits' => 0, // Start at zero; accrual will add monthly
-                'used_credits' => 0,
-                'remaining_credits' => 0,
-                'effective_date' => now()->startOfYear(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            $slRate = ($slPolicy && $slPolicy->accrual_method === 'monthly') ? ($slPolicy->monthly_accrual_rate ?? 1.25) : 1.25;
+            $slEarned = 0;
+            
+            DB::transaction(function () use ($employee, $slType, $year, $startMonth, $endMonth, $slRate, &$slEarned) {
+                // Loop through elapsed months to log them and calculate credits
+                for ($m = $startMonth; $m <= $endMonth; $m++) {
+                    $slEarned += $slRate;
+                    
+                    // Create log
+                    \App\Models\LeaveAccrualLog::firstOrCreate([
+                        'employee_id' => $employee->id,
+                        'leave_type_id' => $slType->id,
+                        'year' => $year,
+                        'month' => $m,
+                    ], [
+                        'days_accrued' => $slRate,
+                    ]);
+                }
+                
+                LeaveCredit::create([
+                    'employee_id' => $employee->id,
+                    'leave_type_id' => $slType->id,
+                    'year' => $year,
+                    'earned_credits' => $slEarned,
+                    'used_credits' => 0,
+                    'remaining_credits' => $slEarned,
+                    'effective_date' => \Carbon\Carbon::create($year, 1, 1),
+                ]);
+            });
 
-            Log::info('Created initial SL credit for employee', [
+            Log::info('Created initial SL credit for employee with auto-backfill', [
                 'employee_id' => $employee->id,
                 'year' => $year,
-                'credits' => 0
+                'credits' => $slEarned
             ]);
         }
     }
