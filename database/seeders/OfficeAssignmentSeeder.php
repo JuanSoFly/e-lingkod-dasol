@@ -58,6 +58,7 @@ class OfficeAssignmentSeeder extends Seeder
             foreach ($allOffices as $office) {
                 $assignments[] = [
                     'user_id' => $superAdmin->id,
+                    'employee_id' => $superAdmin->employee_id,
                     'office_id' => $office->id,
                     'role' => 'Super Admin',
                     'is_active' => true,
@@ -71,6 +72,7 @@ class OfficeAssignmentSeeder extends Seeder
         if ($hrAdmin) {
             $assignments[] = [
                 'user_id' => $hrAdmin->id,
+                'employee_id' => $hrAdmin->employee_id,
                 'office_id' => $hrmoOffice->id,
                 'role' => 'Department Head',
                 'is_active' => true,
@@ -85,6 +87,7 @@ class OfficeAssignmentSeeder extends Seeder
             foreach ($adminOffices as $office) {
                 $assignments[] = [
                     'user_id' => $hrAdmin->id,
+                    'employee_id' => $hrAdmin->employee_id,
                     'office_id' => $office->id,
                     'role' => 'Assessor',
                     'is_active' => true,
@@ -101,6 +104,7 @@ class OfficeAssignmentSeeder extends Seeder
             foreach ($allOffices as $office) {
                 $assignments[] = [
                     'user_id' => $planningReviewer->id,
+                    'employee_id' => $planningReviewer->employee_id,
                     'office_id' => $office->id,
                     'role' => 'Assessor', // reuse evaluator role for access; permission handles planning review
                     'is_active' => true,
@@ -117,6 +121,7 @@ class OfficeAssignmentSeeder extends Seeder
             foreach ($allOffices as $office) {
                 $assignments[] = [
                     'user_id' => $pmtReviewer->id,
+                    'employee_id' => $pmtReviewer->employee_id,
                     'office_id' => $office->id,
                     'role' => 'Assessor',
                     'is_active' => true,
@@ -131,6 +136,7 @@ class OfficeAssignmentSeeder extends Seeder
         if ($employee) {
             $assignments[] = [
                 'user_id' => $employee->id,
+                'employee_id' => $employee->employee_id,
                 'office_id' => $hrmoOffice->id,
                 'role' => 'Employee',
                 'is_active' => true,
@@ -144,6 +150,7 @@ class OfficeAssignmentSeeder extends Seeder
         if ($supervisorUser) {
             $assignments[] = [
                 'user_id' => $supervisorUser->id,
+                'employee_id' => $supervisorUser->employee_id,
                 'office_id' => $hrmoOffice->id,
                 'role' => 'Supervisor',
                 'is_active' => true,
@@ -183,6 +190,7 @@ class OfficeAssignmentSeeder extends Seeder
         if ($mayorDepartmentHead && $mayorOffice) {
             $assignments[] = [
                 'user_id' => $mayorDepartmentHead->id,
+                'employee_id' => $mayorDepartmentHead->employee_id,
                 'office_id' => $mayorOffice->id,
                 'role' => 'Department Head',
                 'is_active' => true,
@@ -207,6 +215,7 @@ class OfficeAssignmentSeeder extends Seeder
                 if (!$hasExistingAssignment) {
                     $assignments[] = [
                         'user_id' => $assessor->id,
+                        'employee_id' => $assessor->employee_id,
                         'office_id' => $office->id,
                         'role' => 'Assessor',
                         'is_active' => true,
@@ -233,6 +242,7 @@ class OfficeAssignmentSeeder extends Seeder
                 if (!$hasExistingAssignment) {
                     $assignments[] = [
                         'user_id' => $finalApprover->id,
+                        'employee_id' => $finalApprover->employee_id,
                         'office_id' => $office->id,
                         'role' => 'Final Approver',
                         'is_active' => true,
@@ -263,6 +273,7 @@ class OfficeAssignmentSeeder extends Seeder
                 if (!$existingAssignment) {
                     $assignments[] = array_merge($assignment, [
                         'user_id' => $superAdmin->id,
+                        'employee_id' => $superAdmin->employee_id,
                         'is_active' => true,
                         'assigned_date' => now()->toDateString(),
                         'assigned_by' => 1, // Self-assigned for system setup

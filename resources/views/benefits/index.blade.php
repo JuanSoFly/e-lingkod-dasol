@@ -5,12 +5,14 @@
                 {{ __('Government Benefits Management') }}
             </h2>
             <div class="flex flex-wrap gap-3">
-                <x-primary-button onclick="window.location.href='{{ route('benefits.create') }}'">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    Add New Enrollment
-                </x-primary-button>
+                <a href="{{ route('benefits.create') }}" class="pds-edit-link" data-title="Add New Enrollment">
+                    <x-primary-button>
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Add New Enrollment
+                    </x-primary-button>
+                </a>
             </div>
         </div>
     </x-slot>
@@ -186,7 +188,7 @@
                                 @empty
                                     <tr>
                                         <td colspan="6" class="px-6 py-4 text-center text-gray-500">
-                                            No government benefit enrollments found. <a href="{{ route('benefits.create') }}" class="text-blue-600 hover:text-blue-900">Create the first enrollment</a>
+                                            No government benefit enrollments found. <a href="{{ route('benefits.create') }}" class="pds-edit-link text-blue-600 hover:text-blue-900" data-title="Add New Enrollment">Create the first enrollment</a>
                                         </td>
                                     </tr>
                                 @endforelse

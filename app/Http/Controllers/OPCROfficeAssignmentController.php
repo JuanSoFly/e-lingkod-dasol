@@ -38,8 +38,7 @@ class OPCROfficeAssignmentController extends Controller
         // Base query for all assignments with search and role filters
         $query = OfficeAssignment::with(['user.employee', 'assignedBy'])
             ->where('office_id', $office->id)
-            ->withoutArchivedPersonnel()
-            ->distinct('office_assignments.id');
+            ->withoutArchivedPersonnel();
 
         // Filter by search term
         if ($request->filled('search')) {
@@ -232,17 +231,12 @@ class OPCROfficeAssignmentController extends Controller
                 $this->syncUserRoles($user, $validated['role'], true);
 
                 // Log the assignment creation
-                $this->auditTrailService->logOPCRActivity(
+                $this->auditTrailService->logOfficeAssignment(
                     'office_assignment_created',
-                    null,
+                    $assignment,
+                    $office,
+                    $employee,
                     [
-                        'assignment_id' => $assignment->id,
-                        'employee_id' => $assignment->employee_id,
-                        'employee_name' => $employee->full_name,
-                        'user_id' => $assignment->user_id,
-                        'office_id' => $office->id,
-                        'office_name' => $office->name,
-                        'role' => $assignment->role,
                         'assigned_by' => Auth::id(),
                     ]
                 );
@@ -483,6 +477,35 @@ class OPCROfficeAssignmentController extends Controller
                     $this->persistOfficeDepartmentHead($office, null);
                 }
 
+                // Log the assignment deletion
+                if ($assignment->employee) {
+                    $this->auditTrailService->logOfficeAssignment(
+                        'office_assignment_deleted',
+                        $assignment,
+                        $office,
+                        $assignment->employee,
+                        [
+                            'deleted_by' => Auth::id(),
+                        ]
+                    );
+                } else {
+                    $this->auditTrailService->log(
+                        'office_assignment_deleted',
+                        $assignment->id,
+                        "Office Assignment: office_assignment_deleted",
+                        [
+                            'assignment_id' => $assignment->id,
+                            'employee_id' => $assignment->employee_id,
+                            'employee_name' => 'Unknown',
+                            'user_id' => $assignment->user_id,
+                            'office_id' => $office->id,
+                            'office_name' => $office->name,
+                            'role' => $assignment->role,
+                            'deleted_by' => Auth::id(),
+                        ]
+                    );
+                }
+
                 // Soft delete the assignment
                 $assignment->delete();
 
@@ -491,22 +514,6 @@ class OPCROfficeAssignmentController extends Controller
 
                 // Sync department information after deletion
                 $this->departmentSyncService->syncOnAssignmentDelete($assignment);
-
-                // Log the assignment deletion
-                $this->auditTrailService->logOPCRActivity(
-                    'office_assignment_deleted',
-                    null,
-                    [
-                        'assignment_id' => $assignment->id,
-                        'employee_id' => $assignment->employee_id,
-                        'employee_name' => $assignment->employee->full_name ?? 'Unknown',
-                        'user_id' => $assignment->user_id,
-                        'office_id' => $office->id,
-                        'office_name' => $office->name,
-                        'role' => $assignment->role,
-                        'deleted_by' => Auth::id(),
-                    ]
-                );
             });
 
             return redirect()
@@ -741,6 +748,7 @@ class OPCROfficeAssignmentController extends Controller
         ]);
 
         foreach ($allAssignments as $oldAssignment) {
+            /** @var \App\Models\OfficeAssignment $oldAssignment */
             // Deactivate the old assignment
             $oldAssignment->update([
                 'is_active' => false,

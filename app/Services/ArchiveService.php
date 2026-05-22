@@ -286,9 +286,21 @@ class ArchiveService
                 $restorationResult['total_models']++;
 
                 // Restore soft-deleted records for this relation
-                $restoredCount = $modelClass::where('employee_id', $employee->id)
-                    ->onlyTrashed()
-                    ->restore();
+                if ($modelClass === LeaveCardEntry::class) {
+                    $leaveCardIds = LeaveCard::where('employee_id', $employee->id)->withTrashed()->pluck('id');
+                    $restoredCount = LeaveCardEntry::whereIn('leave_card_id', $leaveCardIds)
+                        ->onlyTrashed()
+                        ->restore();
+                } elseif ($modelClass === LeaveApplicationWorkflowStep::class) {
+                    $leaveApplicationIds = LeaveApplication::where('employee_id', $employee->id)->withTrashed()->pluck('id');
+                    $restoredCount = LeaveApplicationWorkflowStep::whereIn('leave_application_id', $leaveApplicationIds)
+                        ->onlyTrashed()
+                        ->restore();
+                } else {
+                    $restoredCount = $modelClass::where('employee_id', $employee->id)
+                        ->onlyTrashed()
+                        ->restore();
+                }
 
                 if ($restoredCount > 0) {
                     $restorationResult['restored_models'][] = [

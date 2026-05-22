@@ -324,6 +324,16 @@ class Employee extends Model
         return $this->hasMany(LeaveApplication::class);
     }
 
+    public function leaveCards(): HasMany
+    {
+        return $this->hasMany(LeaveCard::class);
+    }
+
+    public function leaveCardEntries(): HasManyThrough
+    {
+        return $this->hasManyThrough(LeaveCardEntry::class, LeaveCard::class);
+    }
+
     public function performanceTargets(): HasMany
     {
         return $this->hasMany(PerformanceTarget::class);
