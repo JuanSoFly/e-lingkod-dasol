@@ -11,14 +11,14 @@
     <!-- Leave Balance Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <!-- Vacation Leave Balance -->
-        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow transition-shadow duration-200">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Vacation Leave Balance</p>
-                    <p class="text-2xl font-bold text-gray-900" x-text="balances.vl_balance + ' days'"></p>
+                    <p class="text-sm font-medium text-gray-500">Vacation Leave Balance</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" x-text="balances.vl_balance + ' days'"></p>
                 </div>
-                <div class="bg-blue-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-blue-50 p-3 rounded-lg text-blue-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
@@ -26,14 +26,14 @@
         </div>
 
         <!-- Sick Leave Balance -->
-        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow transition-shadow duration-200">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Sick Leave Balance</p>
-                    <p class="text-2xl font-bold text-gray-900" x-text="balances.sl_balance + ' days'"></p>
+                    <p class="text-sm font-medium text-gray-500">Sick Leave Balance</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" x-text="balances.sl_balance + ' days'"></p>
                 </div>
-                <div class="bg-green-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-emerald-50 p-3 rounded-lg text-emerald-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
@@ -41,14 +41,14 @@
         </div>
 
         <!-- Pending Applications -->
-        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow transition-shadow duration-200">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Pending Applications</p>
-                    <p class="text-2xl font-bold text-gray-900" x-text="statistics.pending_applications"></p>
+                    <p class="text-sm font-medium text-gray-500">Pending Applications</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" x-text="statistics.pending_applications"></p>
                 </div>
-                <div class="bg-yellow-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-amber-50 p-3 rounded-lg text-amber-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>

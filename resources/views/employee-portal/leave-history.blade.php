@@ -20,56 +20,60 @@
 
     <!-- Analytics Overview -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+        <!-- Total Leave Used -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow transition-shadow duration-200">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Total Leave Used</p>
-                    <p class="text-2xl font-bold text-gray-900" x-text="analytics.total_used"></p>
+                    <p class="text-sm font-medium text-gray-500">Total Leave Used</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" x-text="analytics.total_used"></p>
                 </div>
-                <div class="bg-blue-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-blue-50 p-3 rounded-lg text-blue-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                     </svg>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+        <!-- VL Used -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow transition-shadow duration-200">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">VL Used</p>
-                    <p class="text-2xl font-bold text-gray-900" x-text="analytics.vl_used"></p>
+                    <p class="text-sm font-medium text-gray-500">VL Used</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" x-text="analytics.vl_used"></p>
                 </div>
-                <div class="bg-green-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-emerald-50 p-3 rounded-lg text-emerald-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
                     </svg>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
+        <!-- SL Used -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow transition-shadow duration-200">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">SL Used</p>
-                    <p class="text-2xl font-bold text-gray-900" x-text="analytics.sl_used"></p>
+                    <p class="text-sm font-medium text-gray-500">SL Used</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" x-text="analytics.sl_used"></p>
                 </div>
-                <div class="bg-yellow-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-amber-50 p-3 rounded-lg text-amber-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
                     </svg>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
+        <!-- Average/Year -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow transition-shadow duration-200">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Average/Year</p>
-                    <p class="text-2xl font-bold text-gray-900" x-text="analytics.average_yearly"></p>
+                    <p class="text-sm font-medium text-gray-500">Average/Year</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" x-text="analytics.average_yearly"></p>
                 </div>
-                <div class="bg-purple-100 p-3 rounded-full">
-                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-purple-50 p-3 rounded-lg text-purple-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                     </svg>
                 </div>
