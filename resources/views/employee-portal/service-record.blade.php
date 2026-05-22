@@ -82,25 +82,29 @@
                 </div>
                 <div class="p-6">
                     @if(count($serviceHistory) > 0)
-                        <div class="timeline">
+                        <div class="relative border-l border-gray-200 ml-3.5 space-y-6">
                             @foreach($serviceHistory as $index => $event)
-                                <div class="timeline-item {{ $index === 0 ? 'active' : '' }}">
-                                    <div class="timeline-marker">
+                                <div class="relative pl-8 group">
+                                    <!-- Marker / Icon -->
+                                    <div class="absolute -left-4 top-0.5 flex items-center justify-center w-8 h-8 rounded-full border bg-white shadow-sm transition-all duration-200 {{ $index === 0 ? 'border-blue-500 ring-4 ring-blue-50 text-blue-600' : 'border-gray-200 text-gray-400 group-hover:border-gray-300 group-hover:text-gray-500' }}">
                                         @switch($event['type'])
                                             @case('employment')
-                                                <i class="fas fa-briefcase"></i>
+                                                <i class="fas fa-briefcase text-xs"></i>
                                                 @break
                                             @case('promotion')
-                                                <i class="fas fa-arrow-up"></i>
+                                                <i class="fas fa-arrow-up text-xs"></i>
                                                 @break
                                             @default
-                                                <i class="fas fa-circle"></i>
+                                                <i class="fas fa-circle text-[6px]"></i>
                                         @endswitch
                                     </div>
-                                    <div class="timeline-content">
-                                        <h3 class="text-sm font-medium text-gray-900 mb-1">{{ $event['event'] }}</h3>
-                                        <p class="text-sm text-gray-600 mb-2">{{ $event['description'] }}</p>
-                                        <p class="text-xs text-gray-500">{{ $event['date']?->format('F d, Y') ?? 'N/A' }}</p>
+                                    <!-- Content -->
+                                    <div class="p-4 bg-white rounded-lg border shadow-sm hover:shadow transition-shadow duration-200 {{ $index === 0 ? 'border-blue-100 bg-blue-50/20' : 'border-gray-100' }}">
+                                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                            <h3 class="text-sm font-semibold text-gray-900">{{ $event['event'] }}</h3>
+                                            <span class="text-xs font-medium text-gray-500 whitespace-nowrap">{{ $event['date']?->format('M d, Y') ?? 'N/A' }}</span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mt-1">{{ $event['description'] }}</p>
                                     </div>
                                 </div>
                             @endforeach

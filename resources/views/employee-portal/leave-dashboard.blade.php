@@ -241,7 +241,7 @@
                 </div>
 
                 <div class="mt-4">
-                    <a href="/employee-portal/leave-applications" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    <a href="/employee-portal/leave-applications" class="pds-edit-link text-sm text-blue-600 hover:text-blue-800 font-medium" data-title="My Leave Applications">
                         View All Applications →
                     </a>
                 </div>
@@ -317,32 +317,47 @@
         </div>
 
         <!-- Announcements -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">HR Announcements</h2>
-            <div class="space-y-3" x-data="announcementsComponent()">
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
+                    </svg>
+                    HR Announcements
+                </h2>
+            </div>
+            <div class="space-y-4" x-data="announcementsComponent()">
                 <template x-for="announcement in announcements" :key="announcement.id">
-                    <div class="border-l-4 border-yellow-400 pl-4 py-2">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <p class="font-medium text-gray-900" x-text="announcement.title"></p>
-                                <p class="text-sm text-gray-600 mt-1" x-text="announcement.excerpt"></p>
+                    <div class="p-4 rounded-xl border border-gray-150 hover:border-gray-200 hover:bg-gray-50/50 transition-all duration-200">
+                        <div class="flex justify-between items-start gap-4">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                                    <p class="font-semibold text-gray-900 text-sm" x-text="announcement.title"></p>
+                                </div>
+                                <p class="text-sm text-gray-600 mt-2 leading-relaxed" x-text="announcement.excerpt"></p>
                             </div>
-                            <span class="text-xs text-gray-500 whitespace-nowrap ml-2" x-text="announcement.date"></span>
+                            <span class="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded whitespace-nowrap" x-text="announcement.date"></span>
                         </div>
-                        <a
-                            x-show="announcement.link"
-                            :href="announcement.link"
-                            class="text-blue-600 hover:text-blue-800 text-sm mt-1 inline-block"
-                            x-text="'Read more →'"
-                        ></a>
+                        <div class="mt-3 flex items-center justify-end" x-show="announcement.link">
+                            <a :href="announcement.link" class="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">
+                                Read More
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </a>
+                        </div>
                     </div>
                 </template>
 
-                <div x-show="announcements.length === 0" class="text-center py-8 text-gray-500">
-                    <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
-                    </svg>
-                    <p class="text-sm">No new announcements</p>
+                <div x-show="announcements.length === 0" class="text-center py-10 text-gray-500">
+                    <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                        </svg>
+                    </div>
+                    <p class="text-sm font-medium">All caught up!</p>
+                    <p class="text-xs text-gray-400 mt-1">No new announcements from HR.</p>
                 </div>
             </div>
         </div>
@@ -350,23 +365,31 @@
 
     <!-- Upcoming Leave -->
     <div class="mt-8">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Upcoming Approved Leave</h2>
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <svg class="w-5 h-5 text-emerald-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                Upcoming Approved Leave
+            </h2>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <template x-for="leave in upcomingLeave" :key="leave.id">
-                    <div class="border rounded-lg p-4 bg-blue-50 border-blue-200">
-                        <p class="font-medium text-blue-900" x-text="leave.leave_type"></p>
-                        <p class="text-sm text-blue-700" x-text="leave.start_date + ' - ' + leave.end_date"></p>
-                        <p class="text-xs text-blue-600" x-text="leave.days + ' days (' + leave.remaining_days + ' remaining)'"></p>
+                    <div class="border border-blue-100 rounded-xl p-4 bg-blue-50/30 hover:shadow-sm transition-all duration-200">
+                        <p class="font-semibold text-blue-900 text-sm" x-text="leave.leave_type"></p>
+                        <p class="text-sm text-blue-700 mt-1" x-text="leave.start_date + ' - ' + leave.end_date"></p>
+                        <p class="text-xs text-blue-600 mt-2 font-medium" x-text="leave.days + ' days (' + leave.remaining_days + ' remaining)'"></p>
                     </div>
                 </template>
 
-                <div x-show="upcomingLeave.length === 0" class="col-span-3 text-center py-8 text-gray-500">
-                    <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <p class="text-sm">No upcoming approved leave</p>
+                <div x-show="upcomingLeave.length === 0" class="col-span-3 text-center py-10 text-gray-500">
+                    <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <p class="text-sm font-medium">No upcoming leave</p>
+                    <p class="text-xs text-gray-400 mt-1">When your leave applications are approved, they will appear here.</p>
                 </div>
             </div>
         </div>

@@ -20,4 +20,6 @@
     @else
         @yield('content')
     @endisset
+
+    @stack('scripts')
 </div>

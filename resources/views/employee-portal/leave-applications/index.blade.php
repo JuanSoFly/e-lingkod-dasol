@@ -1,7 +1,6 @@
-@extends('layouts.app')
-
-@section('content')
+<x-app-layout>
 <div class="container-fluid" x-data="leaveApplications()">
+    @if(!request()->query('modal'))
     <!-- Page Header -->
     <div class="mb-6 flex justify-between items-center">
         <div>
@@ -12,6 +11,7 @@
             ← Back to Dashboard
         </a>
     </div>
+    @endif
 
     <!-- Filters -->
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -377,4 +377,4 @@ function leaveApplications() {
 }
 </script>
 @endpush
-@endsection
+</x-app-layout>
