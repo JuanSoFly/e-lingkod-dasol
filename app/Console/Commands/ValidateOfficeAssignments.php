@@ -137,7 +137,7 @@ class ValidateOfficeAssignments extends Command
                       ->orWhere('ended_date', '>=', now());
             })
             ->groupBy('employee_id', 'office_id')
-            ->having('duplicate_count', '>', 1)
+            ->havingRaw('COUNT(*) > 1')
             ->with(['employee', 'office'])
             ->get();
     }

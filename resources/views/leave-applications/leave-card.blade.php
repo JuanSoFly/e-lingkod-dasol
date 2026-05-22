@@ -1,6 +1,4 @@
-@extends('layouts.app')
-
-@section('content')
+<x-app-layout>
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     @if (session('status'))
         <div class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800 border border-green-200">
@@ -11,10 +9,13 @@
     <!-- Header -->
     <div class="mb-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+            @if(!request()->query('modal'))
             <h1 class="text-2xl font-bold text-gray-900">Leave Card</h1>
-            <div class="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
+            @endif
+            <div x-data="{ selectedYear: {{ $year }} }" class="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
                 <!-- Year Selector -->
-                <select x-model="selectedYear" @change="window.location.href=`{{ route('leave-card.show') }}?year=${selectedYear}`"
+                <select x-model="selectedYear" 
+                        @change="const url = '{{ route('leave-card.view', $employee->id) }}?year=' + selectedYear; if (window.loadModalContent) { window.loadModalContent(url); } else { window.location.href = url; }"
                         class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 w-full sm:w-auto">
                     @for($y = date('Y'); $y >= date('Y') - 5; $y--)
                         <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>
@@ -202,7 +203,8 @@
                             </td>
                             <td class="px-2 sm:px-3 lg:px-4 py-3 whitespace-nowrap text-xs sm:text-sm font-medium min-w-[50px] sm:min-w-[60px] text-center">
                                 <a href="{{ route('leave-applications.show', $application) }}"
-                                   class="inline-flex items-center justify-center px-2 sm:px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 whitespace-nowrap touch-target">
+                                   class="pds-edit-link inline-flex items-center justify-center px-2 sm:px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 whitespace-nowrap touch-target"
+                                   data-title="Leave Application Details">
                                     <span class="hidden sm:inline">View</span>
                                     <span class="sm:hidden">V</span>
                                 </a>
@@ -221,15 +223,4 @@
     </div>
 </div>
 
-<script>
-// Initialize Alpine.js reactive data
-document.addEventListener('alpine:init', () => {
-    Alpine.data('leaveCard', () => ({
-        selectedYear: {{ $year }},
-        refreshData() {
-            window.location.href = `{{ route('leave-card.show') }}?year=${this.selectedYear}`;
-        }
-    }));
-});
-</script>
-@endsection
+</x-app-layout>

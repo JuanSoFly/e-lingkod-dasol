@@ -118,7 +118,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 // If it is a "Back" button pointing to the dashboard (e.g. /employees/8 or /pds/8)
                 const url = new URL(this.href, window.location.origin);
                 const path = url.pathname;
-                const isDashboard = /^\/(employees|pds)\/\d+\/?$/.test(path) || /^\/employees\/?$/.test(path);
+                const isDashboard = /^\/(employees|pds)\/\d+\/?$/.test(path) || 
+                                    /^\/employees\/?$/.test(path) || 
+                                    /^\/admin\/announcements\/?$/.test(path) || 
+                                    /^\/leave-types\/?$/.test(path) || 
+                                    /^\/leave-card-view\/?$/.test(path) || 
+                                    /^\/employee-portal\/leave-applications\/?$/.test(path);
 
                 if (isDashboard) {
                     const normPath = path.replace(/\/$/, '');
@@ -233,6 +238,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     window.submitModalForm = submitModalForm;
+    window.loadModalContent = loadModalContent;
 
     function clearErrors(form) {
         form.querySelectorAll('.pds-validation-error').forEach(el => el.remove());

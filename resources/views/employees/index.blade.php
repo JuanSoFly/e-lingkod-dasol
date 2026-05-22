@@ -152,7 +152,7 @@
                 <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
                     <div class="flex items-start space-x-4">
                         <!-- Avatar -->
-                        <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+                        <div class="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-semibold flex-shrink-0 select-none">
                             {{ $employee->avatar_initials }}
                         </div>
 
@@ -271,7 +271,7 @@
                             <tr class="hover:bg-gray-50">
                                 <td class="px-3 lg:px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center min-w-0">
-                                        <div class="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-xs lg:text-sm flex-shrink-0">
+                                        <div class="w-8 h-8 lg:w-10 lg:h-10 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-semibold text-xs lg:text-sm flex-shrink-0 select-none">
                                             {{ $employee->avatar_initials }}
                                         </div>
                                         <div class="ml-2 lg:ml-4 min-w-0 flex-1">

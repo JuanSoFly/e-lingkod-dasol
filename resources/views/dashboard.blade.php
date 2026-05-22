@@ -64,7 +64,7 @@
                     </div>
                     <div class="p-3 bg-orange-50 text-orange-600 rounded-xl">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4M8 7H3a1 1 0 00-1 1v2a1 1 0 001 1h5M8 7h8m8 0v12a1 1 0 01-1 1H5a1 1 0 01-1-1V8a1 1 0 011-1h3"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"></path>
                         </svg>
                     </div>
                 </div>
@@ -240,12 +240,15 @@
                 <!-- Birthdays -->
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <h3 class="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2">
-                        <span>🎂</span> Upcoming Birthdays
+                        <svg class="w-5 h-5 text-rose-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9V3m0 0a.75.75 0 110-1.5.75.75 0 010 1.5zM20 21H4a1 1 0 01-1-1v-4a4 4 0 014-4h10a4 4 0 014 4v4a1 1 0 01-1 1zm-3-9H7M12 12V9" />
+                        </svg>
+                        Upcoming Birthdays
                     </h3>
                     <div class="space-y-4">
                         @forelse($upcomingBirthdays as $employee)
                             <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
-                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                                <div class="w-10 h-10 bg-rose-50 border border-rose-100 text-rose-700 rounded-full flex items-center justify-center font-bold text-sm select-none">
                                     {{ $employee->avatar_initials }}
                                 </div>
                                 <div class="flex-1 min-w-0">

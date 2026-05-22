@@ -575,9 +575,21 @@ class DashboardAnalyticsService
      */
     private function getCurrentPeriodId(): ?int
     {
-        return PerformancePeriod::where('start_date', '<=', now())
+        $id = PerformancePeriod::where('start_date', '<=', now())
             ->where('end_date', '>=', now())
             ->value('id');
+
+        if ($id !== null) {
+            return $id;
+        }
+
+        $id = PerformancePeriod::where('is_active', true)->value('id');
+
+        if ($id !== null) {
+            return $id;
+        }
+
+        return PerformancePeriod::orderBy('start_date', 'desc')->value('id');
     }
 
     /**
@@ -601,7 +613,7 @@ class DashboardAnalyticsService
             // Direct query to OPCR workflows for average rating
             $query = OPCRWorkflow::whereNotNull('overall_rating');
 
-            if ($periodId) {
+            if ($periodId !== null) {
                 $query->where('period_id', $periodId);
             }
 
@@ -1797,9 +1809,9 @@ class DashboardAnalyticsService
             ->where('opcr_workflows.period_id', $periodId)
             ->whereNotNull('opcr_workflows.overall_rating')
             ->groupBy('offices.id', 'offices.name')
-            ->having('avg_rating', '>=', 4.0) // Consistently high performers
-            ->having('min_rating', '>=', 3.5) // Minimum acceptable rating
-            ->having('workflow_count', '>=', 1) // At least one rated workflow
+            ->havingRaw('AVG(opcr_workflows.overall_rating) >= 4.0') // Consistently high performers
+            ->havingRaw('MIN(opcr_workflows.overall_rating) >= 3.5') // Minimum acceptable rating
+            ->havingRaw('COUNT(opcr_workflows.id) >= 1') // At least one rated workflow
             ->orderByDesc('avg_rating')
             ->limit($limit)
             ->get();

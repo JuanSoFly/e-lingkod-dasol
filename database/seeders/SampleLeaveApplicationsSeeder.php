@@ -16,66 +16,66 @@ class SampleLeaveApplicationsSeeder extends Seeder
         // Clear existing leave applications
         DB::table('leave_applications')->delete();
 
-        $currentYear = date('Y');
-
         // Get leave types
         $leaveTypes = DB::table('leave_types')->pluck('id', 'name');
 
-        // Get employees
-        $employees = DB::table('employees')->pluck('id', 'employee_number');
+        // Get actual employees
+        $employees = DB::table('employees')->limit(3)->get();
 
-        // Sample leave applications
+        if ($employees->isEmpty()) {
+            $this->command->warn('No employees found to attach leave applications to.');
+            return;
+        }
+
+        $emp1 = $employees->first();
+        $emp2 = $employees->skip(1)->first() ?? $emp1;
+        $emp3 = $employees->skip(2)->first() ?? $emp2;
+
+        $today = Carbon::today();
+
+        // Sample leave applications mapped to real employees
         $applications = [
             [
-                'employee_number' => 'EMP-36115',
+                'employee_id' => $emp1->id,
                 'leave_type' => 'Vacation Leave',
-                'start_date' => Carbon::create($currentYear, 3, 15),
-                'end_date' => Carbon::create($currentYear, 3, 17),
-                'reason' => 'Family vacation',
+                'start_date' => $today->copy()->subDays(2),
+                'end_date' => $today->copy()->addDays(2),
+                'reason' => 'Family vacation and personal downtime',
                 'status' => 'approved',
                 'with_pay' => true,
             ],
             [
-                'employee_number' => 'EMP-36115',
+                'employee_id' => $emp2->id,
                 'leave_type' => 'Sick Leave',
-                'start_date' => Carbon::create($currentYear, 6, 10),
-                'end_date' => Carbon::create($currentYear, 6, 10),
+                'start_date' => $today->copy()->subMonths(1)->setDay(10),
+                'end_date' => $today->copy()->subMonths(1)->setDay(10),
                 'reason' => 'Fever and flu',
                 'status' => 'approved',
                 'with_pay' => true,
             ],
             [
-                'employee_number' => 'EMP-05041',
+                'employee_id' => $emp3->id,
                 'leave_type' => 'Maternity Leave',
-                'start_date' => Carbon::create($currentYear, 5, 1),
-                'end_date' => Carbon::create($currentYear, 8, 15),
-                'reason' => 'Maternity leave',
+                'start_date' => $today->copy()->subMonths(2)->setDay(1),
+                'end_date' => $today->copy()->subMonths(2)->addDays(105), // Maternity leave is usually 105 days in PH
+                'reason' => 'Maternity leave and recovery',
                 'status' => 'approved',
                 'with_pay' => true,
             ],
             [
-                'employee_number' => 'EMP-05041',
-                'leave_type' => 'Vacation Leave',
-                'start_date' => Carbon::create($currentYear, 2, 20),
-                'end_date' => Carbon::create($currentYear, 2, 22),
-                'reason' => 'Personal matters',
-                'status' => 'approved',
-                'with_pay' => true,
-            ],
-            [
-                'employee_number' => 'EMP-50793',
+                'employee_id' => $emp1->id,
                 'leave_type' => 'Sick Leave',
-                'start_date' => Carbon::create($currentYear, 7, 5),
-                'end_date' => Carbon::create($currentYear, 7, 6),
-                'reason' => 'Medical check-up',
+                'start_date' => $today->copy()->addWeeks(2),
+                'end_date' => $today->copy()->addWeeks(2)->addDays(1),
+                'reason' => 'Scheduled medical check-up',
                 'status' => 'pending',
                 'with_pay' => true,
             ],
             [
-                'employee_number' => 'EMP-50793',
+                'employee_id' => $emp2->id,
                 'leave_type' => 'Special Emergency (Calamity) Leave',
-                'start_date' => Carbon::create($currentYear, 1, 15),
-                'end_date' => Carbon::create($currentYear, 1, 15),
+                'start_date' => $today->copy()->subMonths(4),
+                'end_date' => $today->copy()->subMonths(4),
                 'reason' => 'Community flood emergency response',
                 'status' => 'approved',
                 'with_pay' => false,
@@ -84,20 +84,21 @@ class SampleLeaveApplicationsSeeder extends Seeder
 
         foreach ($applications as $app) {
             $daysRequested = $app['start_date']->diffInDays($app['end_date']) + 1;
+            $leaveTypeId = $leaveTypes[$app['leave_type']] ?? $leaveTypes->first();
 
             DB::table('leave_applications')->insert([
-                'employee_id' => $employees[$app['employee_number']],
-                'leave_type_id' => $leaveTypes[$app['leave_type']],
-                'start_date' => $app['start_date'],
-                'end_date' => $app['end_date'],
+                'employee_id' => $app['employee_id'],
+                'leave_type_id' => $leaveTypeId,
+                'start_date' => $app['start_date']->toDateString(),
+                'end_date' => $app['end_date']->toDateString(),
                 'days_requested' => $daysRequested,
                 'reason' => $app['reason'],
                 'status' => $app['status'],
-                'applied_date' => $app['start_date']->copy()->subDays(7),
+                'applied_date' => $app['start_date']->copy()->subDays(7)->toDateString(),
                 'approved_by' => $app['status'] === 'approved' ? 1 : null, // Assuming user ID 1 is an approver
-                'approved_date' => $app['status'] === 'approved' ? $app['start_date']->copy()->addDays(2) : null,
+                'approved_date' => $app['status'] === 'approved' ? $app['start_date']->copy()->subDays(5)->toDateString() : null,
                 'created_at' => $app['start_date']->copy()->subDays(7),
-                'updated_at' => $app['status'] === 'approved' ? $app['start_date']->copy()->addDays(2) : now(),
+                'updated_at' => $app['status'] === 'approved' ? $app['start_date']->copy()->subDays(5) : now(),
             ]);
         }
     }

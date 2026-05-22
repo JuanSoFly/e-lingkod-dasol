@@ -9,24 +9,24 @@
     </div>
 
     <!-- Search -->
-    <div class="bg-white shadow rounded-lg p-6 mb-6">
+    <div class="bg-white border border-gray-250/80 rounded-2xl p-6 mb-6 shadow-sm">
         <form method="GET" action="{{ route('leave-card.view') }}" class="flex flex-col sm:flex-row gap-4">
             <div class="flex-1">
                 <input type="text"
                        name="search"
                        value="{{ request('search') }}"
                        placeholder="Search employees by name or employee number..."
-                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
             </div>
             <div class="flex gap-2">
                 @if(request()->filled('search'))
                     <a href="{{ route('leave-card.view') }}"
-                       class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors duration-150">
+                       class="inline-flex items-center justify-center px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 shadow-sm transition-colors duration-150">
                         Clear
                     </a>
                 @endif
                 <button type="submit"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-150">
+                        class="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150">
                     Search
                 </button>
             </div>
@@ -77,9 +77,11 @@
                                 </td>
                                 <td class="px-2 sm:px-3 lg:px-4 py-3 text-right text-sm font-medium min-w-[80px] sm:min-w-[100px]">
                                     <a href="{{ route('leave-card.view', $employee->id) }}"
-                                       class="inline-flex items-center px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 whitespace-nowrap touch-target">
-                                        <svg class="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                       class="pds-edit-link inline-flex items-center px-3 py-1.5 border border-indigo-100 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg hover:bg-indigo-100 hover:text-indigo-800 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 whitespace-nowrap touch-target"
+                                       data-title="Leave Card - {{ $employee->first_name }} {{ $employee->last_name }}">
+                                        <svg class="w-3.5 h-3.5 mr-1.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                         </svg>
                                         <span class="hidden sm:inline">View</span>
                                         <span class="sm:hidden">V</span>
@@ -113,9 +115,11 @@
                                 </div>
                                 <div class="flex-shrink-0">
                                     <a href="{{ route('leave-card.view', $employee->id) }}"
-                                       class="inline-flex items-center px-2 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 whitespace-nowrap touch-target">
-                                        <svg class="w-3 h-3 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                       class="pds-edit-link inline-flex items-center px-3 py-1.5 border border-indigo-100 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg hover:bg-indigo-100 hover:text-indigo-800 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 whitespace-nowrap touch-target"
+                                       data-title="Leave Card - {{ $employee->first_name }} {{ $employee->last_name }}">
+                                        <svg class="w-3.5 h-3.5 mr-1.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                         </svg>
                                         View
                                     </a>

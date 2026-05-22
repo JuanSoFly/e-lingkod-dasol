@@ -255,7 +255,7 @@ class OPCRDataIntegrityService
             ->select('user_id', 'office_id', 'role', DB::raw('COUNT(*) as count'))
             ->where('is_active', true)
             ->groupBy('user_id', 'office_id', 'role')
-            ->having('count', '>', 1)
+            ->havingRaw('COUNT(*) > 1')
             ->get();
 
         foreach ($duplicateAssignments as $duplicate) {
@@ -490,7 +490,7 @@ class OPCRDataIntegrityService
         $duplicateOPCR = DB::table('opcr_workflows')
             ->select('office_id', 'period_id', DB::raw('COUNT(*) as count'))
             ->groupBy('office_id', 'period_id')
-            ->having('count', '>', 1)
+            ->havingRaw('COUNT(*) > 1')
             ->get();
 
         foreach ($duplicateOPCR as $duplicate) {

@@ -5,7 +5,7 @@
                 {{ __('Manage Leave Types') }}
             </h2>
             <div class="flex flex-wrap gap-3">
-                <a href="{{ route('leave-types.create') }}">
+                <a href="{{ route('leave-types.create') }}" class="pds-edit-link" data-title="Add Leave Type">
                     <x-primary-button>
                         {{ __('Add Leave Type') }}
                     </x-primary-button>
@@ -39,7 +39,7 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <a href="{{ route('leave-types.edit', $leaveType) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                                            <a href="{{ route('leave-types.edit', $leaveType) }}" class="pds-edit-link text-indigo-600 hover:text-indigo-900" data-title="Edit Leave Type">Edit</a>
                                             <form action="{{ route('leave-types.destroy', $leaveType) }}" method="POST" class="inline-block" data-confirm="Are you sure you want to delete this leave type?">
                                                 @csrf
                                                 @method('DELETE')
