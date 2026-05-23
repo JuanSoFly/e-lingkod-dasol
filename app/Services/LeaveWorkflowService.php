@@ -34,7 +34,9 @@ class LeaveWorkflowService
 
             // Check if applicant is a Department Head and handle auto-approval
             if ($this->isApplicantDepartmentHead($application)) {
-                return $this->handleDepartmentHeadSelfApproval($application, $workflow);
+                $steps = $this->handleDepartmentHeadSelfApproval($application, $workflow);
+                DB::commit();
+                return $steps;
             }
 
             // Create workflow steps for application

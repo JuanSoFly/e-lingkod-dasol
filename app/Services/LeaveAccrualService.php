@@ -83,13 +83,18 @@ class LeaveAccrualService
                             $leaveTypeCode = $policy->leaveType->code ?? null;
                             if (in_array($leaveTypeCode, ['VL', 'SL'])) {
                                 $leaveCard = LeaveCard::getOrCreateCard($employee, $year);
-                                if ($leaveTypeCode === 'VL') {
-                                    $leaveCard->vl_balance += $increment;
-                                } elseif ($leaveTypeCode === 'SL') {
-                                    $leaveCard->sl_balance += $increment;
+                                if ($leaveCard->wasRecentlyCreated) {
+                                    $leaveCardService = app(LeaveCardService::class);
+                                    $leaveCardService->initializeYearlyBalances($employee, $year);
+                                } else {
+                                    if ($leaveTypeCode === 'VL') {
+                                        $leaveCard->vl_balance += $increment;
+                                    } elseif ($leaveTypeCode === 'SL') {
+                                        $leaveCard->sl_balance += $increment;
+                                    }
+                                    $leaveCard->last_updated = now();
+                                    $leaveCard->save();
                                 }
-                                $leaveCard->last_updated = now();
-                                $leaveCard->save();
                             }
 
                             LeaveAccrualLog::create([

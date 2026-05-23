@@ -64,7 +64,7 @@
                                             @if ($target->rating && $target->rating->self_rating)
                                                 {{ $target->rating->self_rating }}
                                             @else
-                                                @can('create', App\Models\PerformanceRating::class)
+                                                @can('rate', $target)
                                                 <form action="{{ route('performance-ratings.self-rate', $target) }}" method="POST">
                                                     @csrf
                                                     <div class="flex items-center">
@@ -81,7 +81,7 @@
                                             @if ($target->rating && $target->rating->supervisor_rating)
                                                 {{ $target->rating->supervisor_rating }}
                                             @else
-                                                 @can('evaluate', App\Models\PerformanceRating::class)
+                                                 @can('evaluate', $target)
                                                     @if($target->rating && $target->rating->self_rating)
                                                     <form action="{{ route('performance-ratings.supervisor-rate', $target) }}" method="POST">
                                                         @csrf

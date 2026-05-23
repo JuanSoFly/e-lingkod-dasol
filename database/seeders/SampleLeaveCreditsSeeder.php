@@ -25,26 +25,26 @@ class SampleLeaveCreditsSeeder extends Seeder
 
         // Create sample leave credits for each employee
         foreach ($employees as $employeeNumber => $employeeId) {
-            // Vacation Leave Credits - start at zero; monthly accrual will build balances
+            // Vacation Leave Credits - start at 15 for local testing
             DB::table('leave_credits')->insert([
                 'employee_id' => $employeeId,
                 'leave_type_id' => $leaveTypes['Vacation Leave'],
                 'year' => $currentYear,
-                'earned_credits' => 0.0,
+                'earned_credits' => 15.0,
                 'used_credits' => 0.0,
-                'remaining_credits' => 0.0,
+                'remaining_credits' => 15.0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
-            // Sick Leave Credits - start at zero
+            // Sick Leave Credits - start at 15 for local testing
             DB::table('leave_credits')->insert([
                 'employee_id' => $employeeId,
                 'leave_type_id' => $leaveTypes['Sick Leave'],
                 'year' => $currentYear,
-                'earned_credits' => 0.0,
+                'earned_credits' => 15.0,
                 'used_credits' => 0.0,
-                'remaining_credits' => 0.0,
+                'remaining_credits' => 15.0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

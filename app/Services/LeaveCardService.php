@@ -24,6 +24,12 @@ class LeaveCardService
         // Get or create leave card for the year
         $leaveCard = LeaveCard::getOrCreateCard($employee, $year);
 
+        // If the card was recently created, initialize its balances from LeaveCredit
+        if ($leaveCard->wasRecentlyCreated) {
+            $this->initializeYearlyBalances($employee, $year);
+            $leaveCard = $leaveCard->fresh();
+        }
+
         // Capture pre-update balances for logging
         $vlBefore = $leaveCard->vl_balance;
         $slBefore = $leaveCard->sl_balance;

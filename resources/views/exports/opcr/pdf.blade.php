@@ -139,8 +139,8 @@
                                 <tr>
                                     <td>{{ $index + 1 }}</td>
                                     <td>{{ $siData['si']['description'] ?? 'N/A' }}</td>
-                                    <td>{{ $siData['si']['target_quantity'] ?? 'N/A' }}</td>
-                                    <td>{{ $siData['si']['accomplished_quantity'] ?? 'N/A' }}</td>
+                                    <td>{{ $siData['si']['target_quality'] ?? 'N/A' }}</td>
+                                    <td>{{ $siData['si']['accomplished_quality'] ?? 'N/A' }}</td>
                                     <td>{{ $siData['si']['average_rating'] ?? 'N/A' }}</td>
                                     <td>{{ $siData['is_target_met'] ? 'Met' : 'Not Met' }}</td>
                                 </tr>

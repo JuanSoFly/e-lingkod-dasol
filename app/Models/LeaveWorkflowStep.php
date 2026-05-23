@@ -202,6 +202,7 @@ class LeaveWorkflowStep extends Model
                 ->current()
                 ->forOffice($officeId)
                 ->byRole(OfficeAssignment::ROLE_SUPERVISOR)
+                ->where('employee_id', '!=', $employee->id)
                 ->with('user')
                 ->first();
 
@@ -214,6 +215,7 @@ class LeaveWorkflowStep extends Model
         $departmentSupervisor = OfficeAssignment::query()
             ->current()
             ->byRole(OfficeAssignment::ROLE_SUPERVISOR)
+            ->where('employee_id', '!=', $employee->id)
             ->whereHas('employee', function ($query) use ($employee) {
                 $query->where('department', $employee->department);
             })

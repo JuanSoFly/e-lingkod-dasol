@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     /^\/leave-types\/?$/.test(path) || 
                                     /^\/leave-card-view\/?$/.test(path) || 
                                     /^\/benefits\/?$/.test(path) || 
+                                    /^\/performance-periods\/?$/.test(path) || 
                                     /^\/employee-portal\/leave-applications\/?$/.test(path);
 
                 if (isDashboard) {

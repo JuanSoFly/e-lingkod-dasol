@@ -28,6 +28,10 @@ class DatabaseSeeder extends Seeder
         // later can cascade-delete freshly seeded employees and users.
         $this->call(OfficeSeeder::class);
 
+        // Retrieve offices for employee association
+        $hrmoOffice = \App\Models\Office::where('code', 'HRMO')->first();
+        $mayorOffice = \App\Models\Office::where('code', 'MAYOR')->first();
+
         // Create a Super Admin who is not an employee
         $superAdminUser = User::firstOrCreate([
             'email' => 'admin@example.com',
@@ -53,6 +57,8 @@ class DatabaseSeeder extends Seeder
                 'email' => 'employee@example.com',
                 'department' => 'Human Resource Management Office',
                 'position' => 'HR Staff',
+                'office_id' => $hrmoOffice?->id,
+                'office_code' => $hrmoOffice?->code,
             ]);
 
         optional($employee->fresh()->user)->assignRole('Employee');
@@ -71,6 +77,8 @@ class DatabaseSeeder extends Seeder
                 'email' => 'hr@example.com',
                 'department' => 'Human Resource Management Office',
                 'position' => 'HR Manager',
+                'office_id' => $hrmoOffice?->id,
+                'office_code' => $hrmoOffice?->code,
             ]);
 
         optional($hrAdmin->fresh()->user)->assignRole('HR Admin');
@@ -89,6 +97,8 @@ class DatabaseSeeder extends Seeder
                 'email' => 'supervisor@example.com',
                 'department' => 'Human Resource Management Office',
                 'position' => 'HR Supervisor',
+                'office_id' => $hrmoOffice?->id,
+                'office_code' => $hrmoOffice?->code,
             ]);
 
         optional($supervisor->fresh()->user)->assignRole('Supervisor');
@@ -107,6 +117,8 @@ class DatabaseSeeder extends Seeder
                 'email' => 'mayor@dasol.gov.ph',
                 'department' => 'Office of the Municipal Mayor',
                 'position' => 'Municipal Mayor',
+                'office_id' => $mayorOffice?->id,
+                'office_code' => $mayorOffice?->code,
             ]);
 
         optional($mayor->fresh()->user)->assignRole('Final Approver');
@@ -145,6 +157,9 @@ class DatabaseSeeder extends Seeder
         // Seed office assignments for users
         $this->call(OfficeAssignmentSeeder::class);
 
+        // Seed sample leave applications and workflows
+        $this->call(SampleLeaveApplicationsSeeder::class);
+
         // Seed Major Final Outputs for OPCR
         $this->call(MajorFinalOutputSeeder::class);
 
@@ -156,5 +171,11 @@ class DatabaseSeeder extends Seeder
 
         // Seed sample IPCR data for testing the new module
         $this->call(SampleIPCRSeeder::class);
+
+        // Seed sample employee performance and IPCR data for ESS portal demonstration
+        $this->call(SampleEmployeePerformanceSeeder::class);
+
+        // Seed announcements for local development
+        $this->call(AnnouncementSeeder::class);
     }
 }
